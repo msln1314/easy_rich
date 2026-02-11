@@ -1,0 +1,57 @@
+import { D as e } from "./Descriptions-889cd6fb.js";
+import { s as a } from "./dict-4a6e55e6.js";
+import { u as s } from "./dict-2254259d.js";
+/* empty css              */ import {
+  e as t,
+  r as l,
+  L as i,
+  x as n,
+  a1 as p,
+  o as r,
+  l as d,
+  k as o,
+} from "./index-6b60d190.js";
+const c = t({
+  __name: "Detail",
+  props: { currentRow: { type: Object, default: () => null } },
+  setup(t) {
+    const c = l([]);
+    (async () => {
+      const e = s(),
+        a = await e.getDictObj(["vadmin_system_task_exec_strategy"]);
+      c.value = a.vadmin_system_task_exec_strategy;
+    })();
+    const m = i([
+      { field: "job_id", label: "任务编号", width: "240px", span: 24 },
+      { field: "name", label: "任务名称", span: 24 },
+      { field: "group", label: "任务分组", span: 24 },
+      { field: "job_class", label: "调用目标", span: 24 },
+      {
+        field: "exec_strategy",
+        label: "执行策略",
+        span: 24,
+        slots: {
+          default: (e) => {
+            const s = e.row;
+            return n(p, null, [n("div", null, [a(c.value, s.exec_strategy)])]);
+          },
+        },
+      },
+      { field: "expression", label: "表达式", span: 24 },
+      { field: "start_time", label: "开始执行时间", width: "200px", span: 24 },
+      { field: "end_time", label: "执行完成时间", width: "200px", span: 24 },
+      { field: "process_time", label: "耗时(秒)", width: "110px", span: 24 },
+      { field: "retval", label: "任务返回值", span: 24 },
+      { field: "exception", label: "异常信息", span: 24 },
+      { field: "traceback", label: "堆栈跟踪", width: "100px", span: 24 },
+    ]);
+    return (a, s) => (
+      r(),
+      d(o(e), { schema: m, data: t.currentRow || {} }, null, 8, [
+        "schema",
+        "data",
+      ])
+    );
+  },
+});
+export { c as _ };

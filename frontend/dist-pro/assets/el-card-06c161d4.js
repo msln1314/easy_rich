@@ -1,0 +1,67 @@
+import {
+  b as s,
+  d as e,
+  e as a,
+  u as t,
+  o as r,
+  j as d,
+  s as l,
+  k as o,
+  q as n,
+  M as y,
+  z as c,
+  F as p,
+  y as u,
+  n as h,
+  _ as i,
+  t as v
+} from './index-820a519e.js'
+const f = s({
+    header: { type: String, default: '' },
+    bodyStyle: { type: e([String, Object, Array]), default: '' },
+    shadow: { type: String, values: ['always', 'hover', 'never'], default: 'always' }
+  }),
+  m = a({ name: 'ElCard' })
+const b = v(
+  i(
+    a({
+      ...m,
+      props: f,
+      setup(s) {
+        const e = t('card')
+        return (s, a) => (
+          r(),
+          d(
+            'div',
+            { class: l([o(e).b(), o(e).is(`${s.shadow}-shadow`)]) },
+            [
+              s.$slots.header || s.header
+                ? (r(),
+                  d(
+                    'div',
+                    { key: 0, class: l(o(e).e('header')) },
+                    [n(s.$slots, 'header', {}, () => [y(c(s.header), 1)])],
+                    2
+                  ))
+                : p('v-if', !0),
+              u(
+                'div',
+                { class: l(o(e).e('body')), style: h(s.bodyStyle) },
+                [n(s.$slots, 'default')],
+                6
+              )
+            ],
+            2
+          )
+        )
+      }
+    }),
+    [
+      [
+        '__file',
+        '/home/runner/work/element-plus/element-plus/packages/components/card/src/card.vue'
+      ]
+    ]
+  )
+)
+export { b as E }

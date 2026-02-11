@@ -1,0 +1,16 @@
+.echarts[data-v-680e1a0c] {
+  width: 100%;
+  height: 100%;
+}
+.map-ball[data-v-680e1a0c] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 900px;
+  height: 900px;
+  transform: translate(-50%, -50%);
+}
+.map-ball img[data-v-680e1a0c] {
+  width: 500px;
+  height: 500px;
+}

@@ -1,0 +1,39 @@
+:export {
+  namespace: v;
+  elNamespace: el;
+}
+.system-settings-basic-image-uploader .logo-image {
+  display: block;
+  width: 178px;
+  height: 178px;
+}
+.system-settings-basic-image-uploader .ico-image {
+  display: block;
+  width: 100px;
+  height: 100px;
+}
+.system-settings-basic-image-uploader .el-upload {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 6px;
+  transition: var(--el-transition-duration-fast);
+}
+.system-settings-basic-image-uploader .el-upload:hover {
+  border-color: var(--el-color-primary);
+}
+.system-settings-basic-image-uploader .el-icon.logo-image-uploader-icon {
+  width: 178px;
+  height: 178px;
+  font-size: 28px;
+  color: #8c939d;
+  text-align: center;
+}
+.system-settings-basic-image-uploader .el-icon.ico-image-uploader-icon {
+  width: 100px;
+  height: 100px;
+  font-size: 28px;
+  color: #8c939d;
+  text-align: center;
+}

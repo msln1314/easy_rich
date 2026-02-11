@@ -1,0 +1,29 @@
+:export {
+  namespace: v;
+  elNamespace: el;
+}
+.resource-image-uploader .el-upload {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 6px;
+  transition: var(--el-transition-duration-fast);
+}
+.resource-image-uploader .el-upload .el-upload-dragger {
+  padding: 0;
+}
+.resource-image-uploader .el-upload .resource-image-uploader-icon {
+  display: flex;
+  width: 148px;
+  height: 148px;
+  font-size: 28px;
+  color: #8c939d;
+  text-align: center;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+}
+.resource-image-uploader .el-upload:hover {
+  border-color: var(--el-color-primary);
+}

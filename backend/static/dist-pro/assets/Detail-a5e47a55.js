@@ -1,0 +1,14 @@
+import { _ as t } from "./Detail.vue_vue_type_script_setup_true_lang-82dc6574.js";
+import "./Descriptions-889cd6fb.js";
+import "./index-6b60d190.js";
+import "./el-descriptions-item-68636e02.js";
+import "./vnode-34f6d346.js";
+import "./isNil-1f22f7b0.js";
+import "./el-tooltip-4ed993c7.js";
+import "./el-popper-09548d54.js";
+import "./focus-trap-275966d8.js";
+import "./index-55fef7b1.js";
+import "./dict-4a6e55e6.js";
+import "./dict-2254259d.js";
+import "./dict-593a5a5e.js";
+/* empty css              */ export { t as default };

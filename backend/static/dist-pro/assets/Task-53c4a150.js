@@ -1,0 +1,274 @@
+import { u as e, _ as t } from "./Table.vue_vue_type_script_lang-230d9abb.js";
+import {
+  e as s,
+  I as a,
+  A as l,
+  r as o,
+  L as i,
+  x as r,
+  a1 as p,
+  N as n,
+  M as m,
+  o as d,
+  j as u,
+  m as c,
+  k as _,
+  ai as j,
+  z as g,
+  l as v,
+  F as f,
+} from "./index-6b60d190.js";
+import { _ as b } from "./Search.vue_vue_type_script_setup_true_lang-9c85421f.js";
+import { _ as w } from "./ContentWrap.vue_vue_type_script_setup_true_lang-067de0d9.js";
+import { _ as h } from "./Detail.vue_vue_type_script_setup_true_lang-82dc6574.js";
+import { _ as x } from "./Dialog.vue_vue_type_style_index_0_lang-d732453c.js";
+import { s as y } from "./dict-4a6e55e6.js";
+import { u as k } from "./dict-2254259d.js";
+import { g as z } from "./task-5807e24e.js";
+import "./el-message-box-2d28828b.js";
+import "./el-input-38d674e5.js";
+import "./event-5568c9d8.js";
+import "./isNil-1f22f7b0.js";
+import "./el-overlay-2c5c0104.js";
+import "./scroll-6dba6951.js";
+import "./vnode-34f6d346.js";
+import "./useForm-b6ceb895.js";
+import "./el-form-item-ce18addb.js";
+import "./el-col-b8aa0d1a.js";
+import "./el-tooltip-4ed993c7.js";
+import "./el-popper-09548d54.js";
+import "./focus-trap-275966d8.js";
+/* empty css               */ import "./el-checkbox-4903f610.js";
+import "./isEqual-b8d86c27.js";
+/* empty css                          */ import "./el-date-picker-91f17f23.js";
+import "./debounce-5c500a3d.js";
+import "./index-fdfa028a.js";
+import "./el-radio-group-0c46635e.js";
+import "./el-select-8805ff65.js";
+import "./index-b7c1540b.js";
+import "./strings-00317668.js";
+import "./validator-f032316f.js";
+import "./el-switch-5507f2ea.js";
+import "./el-divider-2dd0a1ee.js";
+import "./el-tree-84af12f2.js";
+import "./index-55fef7b1.js";
+import "./el-progress-31e0b945.js";
+import "./style.css_vue_type_style_index_0_src_true_lang-d8fdefc2.js";
+import "./index-62254dd8.js";
+import "./el-table-column-0bcf5917.js";
+import "./el-pagination-491dd0e9.js";
+import "./dropdown-84a04b2c.js";
+import "./el-image-viewer-5060851c.js";
+import "./el-dropdown-item-943c2eb7.js";
+import "./refs-64421a9c.js";
+/* empty css                   */ import "./_Uint8Array-f98e6540.js";
+import "./useIcon-7641a992.js";
+import "./el-card-37d6f3c4.js";
+import "./Descriptions-889cd6fb.js";
+import "./el-descriptions-item-68636e02.js";
+/* empty css              */ import "./use-dialog-0e1ee265.js";
+import "./dict-593a5a5e.js";
+const R = s({
+  name: "SystemRecordTask",
+  __name: "Task",
+  setup(s) {
+    const { t: R } = a(),
+      { currentRoute: D } = l(),
+      S = D.value.query.job_id,
+      P = o([]);
+    (async () => {
+      const e = k(),
+        t = await e.getDictObj(["vadmin_system_task_exec_strategy"]);
+      P.value = t.vadmin_system_task_exec_strategy;
+    })();
+    const {
+        tableRegister: A,
+        tableState: I,
+        tableMethods: C,
+      } = e({
+        immediate: !1,
+        fetchDataApi: async () => {
+          const { pageSize: e, currentPage: t } = I,
+            s = await z({ page: _(t), limit: _(e), ..._(E) });
+          return { list: s.data || [], total: s.count || 0 };
+        },
+      }),
+      { dataList: L, loading: T, total: U, pageSize: q, currentPage: F } = I,
+      { getList: M } = C,
+      N = i([
+        {
+          field: "job_id",
+          label: "任务编号",
+          show: !0,
+          disabled: !0,
+          width: "240px",
+        },
+        { field: "name", label: "任务名称", show: !0, disabled: !0 },
+        { field: "group", label: "任务分组", show: !0, span: 2 },
+        { field: "job_class", label: "调用目标", show: !0 },
+        {
+          field: "exec_strategy",
+          label: "执行策略",
+          show: !0,
+          slots: {
+            default: (e) => {
+              const t = e.row;
+              return r(p, null, [
+                r("div", null, [y(P.value, t.exec_strategy)]),
+              ]);
+            },
+          },
+        },
+        { field: "expression", label: "表达式", show: !0, span: 24 },
+        {
+          field: "start_time",
+          label: "开始执行时间",
+          show: !1,
+          width: "200px",
+        },
+        { field: "end_time", label: "执行完成时间", width: "200px", show: !0 },
+        { field: "process_time", label: "耗时(秒)", width: "110px", show: !0 },
+        { field: "retval", label: "任务返回值", show: !0 },
+        { field: "exception", label: "异常信息", show: !1, span: 24 },
+        { field: "traceback", label: "堆栈跟踪", show: !1, width: "100px" },
+        {
+          field: "action",
+          width: "100px",
+          label: "操作",
+          show: !0,
+          disabled: !0,
+          slots: {
+            default: (e) => {
+              const t = e.row;
+              return r(p, null, [
+                r(
+                  n,
+                  {
+                    type: "primary",
+                    link: !0,
+                    size: "small",
+                    onClick: () => J(t),
+                  },
+                  { default: () => [m("详情")] },
+                ),
+              ]);
+            },
+          },
+        },
+      ]),
+      V = i([
+        {
+          field: "job_id",
+          label: "任务编号",
+          component: "Input",
+          componentProps: { clearable: !0, style: { width: "240px" } },
+          value: S,
+        },
+        {
+          field: "name",
+          label: "任务名称",
+          component: "Input",
+          componentProps: { clearable: !0 },
+        },
+      ]),
+      E = o({}),
+      O = (e) => {
+        ((F.value = 1), (E.value = e), M());
+      },
+      W = o(!1),
+      B = o(""),
+      G = o(),
+      H = o(""),
+      J = (e) => {
+        ((B.value = R("exampleDemo.detail")),
+          (H.value = "detail"),
+          (G.value = e),
+          (W.value = !0));
+      };
+    return (
+      S ? ((E.value = { job_id: S }), M()) : M(),
+      (e, s) => (
+        d(),
+        u(
+          p,
+          null,
+          [
+            r(_(w), null, {
+              default: c(() => [
+                r(_(b), { schema: V, onReset: O, onSearch: O }, null, 8, [
+                  "schema",
+                ]),
+                r(
+                  _(t),
+                  {
+                    "current-page": _(F),
+                    "onUpdate:currentPage":
+                      s[0] || (s[0] = (e) => (j(F) ? (F.value = e) : null)),
+                    "page-size": _(q),
+                    "onUpdate:pageSize":
+                      s[1] || (s[1] = (e) => (j(q) ? (q.value = e) : null)),
+                    showAction: "",
+                    columns: N,
+                    "node-key": "id",
+                    data: _(L),
+                    loading: _(T),
+                    pagination: { total: _(U) },
+                    onRegister: _(A),
+                    onRefresh: _(M),
+                  },
+                  null,
+                  8,
+                  [
+                    "current-page",
+                    "page-size",
+                    "columns",
+                    "data",
+                    "loading",
+                    "pagination",
+                    "onRegister",
+                    "onRefresh",
+                  ],
+                ),
+              ]),
+              _: 1,
+            }),
+            r(
+              _(x),
+              {
+                modelValue: W.value,
+                "onUpdate:modelValue": s[3] || (s[3] = (e) => (W.value = e)),
+                title: B.value,
+                width: "800px",
+              },
+              {
+                footer: c(() => [
+                  r(
+                    _(n),
+                    { onClick: s[2] || (s[2] = (e) => (W.value = !1)) },
+                    {
+                      default: c(() => [m(g(_(R)("dialogDemo.close")), 1)]),
+                      _: 1,
+                    },
+                  ),
+                ]),
+                default: c(() => [
+                  "detail" === H.value
+                    ? (d(),
+                      v(h, { key: 0, "current-row": G.value }, null, 8, [
+                        "current-row",
+                      ]))
+                    : f("", !0),
+                ]),
+                _: 1,
+              },
+              8,
+              ["modelValue", "title"],
+            ),
+          ],
+          64,
+        )
+      )
+    );
+  },
+});
+export { R as default };

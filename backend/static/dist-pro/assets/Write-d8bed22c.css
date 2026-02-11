@@ -1,0 +1,8 @@
+[data-v-c27261e7]:export {
+  namespace: v;
+  elnamespace: el;
+}
+.v-icon-picker[data-v-c27261e7] .el-input__wrapper {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}

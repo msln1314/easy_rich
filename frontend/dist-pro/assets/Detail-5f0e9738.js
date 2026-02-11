@@ -1,0 +1,11 @@
+import { _ as t } from './Detail.vue_vue_type_script_setup_true_lang-79bb103a.js'
+import './Descriptions-7c861960.js'
+import './index-820a519e.js'
+import './el-descriptions-item-6ddb822e.js'
+import './vnode-06a99f10.js'
+import './isNil-1f22f7b0.js'
+import './el-tooltip-4ed993c7.js'
+import './el-popper-797844d6.js'
+import './focus-trap-949626e0.js'
+import './index-55f4d4a6.js'
+export { t as default }

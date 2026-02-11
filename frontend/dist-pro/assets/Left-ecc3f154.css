@@ -1,0 +1,44 @@
+:export {
+  namespace: v;
+  elNamespace: el;
+}
+.left-view {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 10px 20px;
+  background-color: #061e5d80;
+  border-top: 2px solid rgba(1, 153, 209, 0.5);
+  box-shadow: 0 0 3px #00f;
+  flex-direction: column;
+}
+.left-view .main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+.left-view .main-content .dv-border-box-11 .border-box-content {
+  justify-content: center;
+  align-items: center;
+  display: flex;
+}
+.left-view .main-content .dv-border-box-11 .data-view {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+.left-view .main-content .dv-border-box-11 .data-view .data-title {
+  position: absolute;
+  top: 40%;
+  display: block;
+  font-size: 35px;
+}
+.left-view .main-content .dv-border-box-11 .data-view .data-desc {
+  position: absolute;
+  bottom: 10%;
+  display: block;
+  font-size: 14px;
+}

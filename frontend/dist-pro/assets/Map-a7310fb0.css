@@ -1,0 +1,68 @@
+[data-v-ee3e672a]:export {
+  namespace: v;
+  elnamespace: el;
+}
+#map-container[data-v-ee3e672a] {
+  width: 100%;
+  height: 800px;
+  padding: 0;
+  margin: 0;
+}
+#map-container[data-v-ee3e672a] .description {
+  display: flex;
+  height: 50px;
+  padding: 10px;
+  font-size: 14px;
+  background-color: #fff;
+  border: 2px solid #f05b72;
+  border-radius: 5px;
+  box-sizing: border-box;
+  justify-content: space-between;
+  align-items: center;
+}
+#map-container[data-v-ee3e672a] .point {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 2px;
+  margin-bottom: 1px;
+  background-color: #f05b72;
+  border-radius: 50%;
+}
+#map-container[data-v-ee3e672a] .name-box {
+  display: inline;
+  margin-right: 8px;
+}
+#map-container[data-v-ee3e672a] .alarmDevice {
+  width: 30px;
+  height: 30px;
+  margin: 0 auto;
+  text-align: center;
+  background-color: #f13737;
+  border-radius: 50%;
+  box-shadow: 0 0 15px #f61212;
+  animation-delay: 0s;
+  animation-duration: 1s;
+  animation-iteration-count: infinite;
+  animation-name: alarmDeviceBreath;
+  animation-timing-function: ease;
+  animation-direction: alternate;
+}
+@keyframes alarmDeviceBreath {
+  0% {
+    width: 30px;
+    height: 30px;
+    margin-top: 0;
+    margin-left: 0;
+    opacity: 1.2;
+    box-shadow: 0 0 15px #f61212;
+  }
+  to {
+    width: 20px;
+    height: 20px;
+    margin-top: 5px;
+    margin-left: 5px;
+    opacity: 0.6;
+    box-shadow: 0 0 10px #f61212;
+  }
+}
