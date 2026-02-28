@@ -65,11 +65,13 @@ PEP 484 语法（官方）：https://peps.python.org/pep-0484/
 
 ## 开发环境
 
-开发语言：Python 3.10
+开发语言：Python 3.11+
 
-开发框架：Fastapi 0.101.1
+开发框架：Fastapi 0.115+
 
 ORM 框架：SQLAlchemy 2.0.20
+
+依赖管理：UV 0.5+
 
 ## 开发工具
 
@@ -83,18 +85,74 @@ Pycharm 2022.3.2
 
 ## 使用
 
+本项目使用 **UV** 进行依赖管理。
+
+### 环境准备
+
+**安装 UV**（如果尚未安装）：
+
+```bash
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Linux / macOS / WSL
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 验证安装
+uv --version
 ```
-source /opt/env/kinit-pro/bin/activate
 
-# 安装依赖库
-pip3 install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+**配置 UV**（推荐）：
 
-# 第三方源：
+```bash
+# 设置使用阿里云镜像源
+uv pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
+```
+
+### 安装依赖
+
+```bash
+# 进入后端目录
+cd backend
+
+# 同步安装所有依赖
+uv sync
+
+# 仅安装生产依赖
+uv sync --no-dev
+```
+
+### UV 常用命令
+
+```bash
+# 添加新依赖
+uv add <package-name>
+
+# 添加开发依赖
+uv add --dev <package-name>
+
+# 移除依赖
+uv remove <package-name>
+
+# 更新依赖
+uv sync --upgrade
+
+# 查看已安装的包
+uv pip list
+
+# 导出 requirements.txt（如需兼容 pip）
+uv pip freeze > requirements.txt
+```
+
+### 第三方源
 
 1. 阿里源： https://mirrors.aliyun.com/pypi/simple/
 
-# 线上安装更新依赖库
-/opt/env/kinit-pro-310/bin/pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+如需使用国内镜像源，配置 UV：
+
+```bash
+# 配置使用阿里云镜像
+uv pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
 ```
 
 ### 数据初始化
@@ -110,17 +168,46 @@ pip3 install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 # 比如要初始化生产环境，那么env参数应该为 pro，并且 application/settings.DEBUG 应该 = False
 
 # 生产环境
-python main.py init
+poetry run python main.py init
 
 # 开发环境
-python main.py init --env dev
+poetry run python main.py init --env dev
 ```
 
 ### 运行启动
 
 ```shell
-# 直接运行main文件
+# 使用 Poetry 运行
+poetry run python main.py run
+
+# 或激活虚拟环境后运行
+poetry shell
 python main.py run
+
+# 退出虚拟环境
+exit
+```
+
+### 开发工具
+
+```bash
+# 代码格式化
+poetry run black .
+
+# 代码排序
+poetry run isort .
+
+# 代码检查
+poetry run flake8 .
+
+# 类型检查
+poetry run mypy .
+
+# 运行测试
+poetry run pytest
+
+# 运行测试并生成覆盖率报告
+poetry run pytest --cov=apps --cov-report=html
 ```
 
 ## 其他操作
@@ -150,17 +237,161 @@ git commit -m "clear cached"
 
 ```shell
 # 执行命令（生产环境）：
-python main.py migrate
+uv run python main.py migrate
 
 # 执行命令（开发环境）：
-python main.py migrate --env dev
+uv run python main.py migrate --env dev
 
 # 开发环境的原命令
-alembic --name dev revision --autogenerate -m 2.0
-alembic --name dev upgrade head
+uv run alembic --name dev revision --autogenerate -m 2.0
+uv run alembic --name dev upgrade head
 ```
 
 生成迁移文件后，会在alembic迁移目录中的version目录中多个迁移文件
+
+## 生产部署
+
+```bash
+# 进入后端目录
+cd backend
+
+# 安装 UV（如果尚未安装）
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# 同步安装依赖（不包含开发工具）
+uv sync --no-dev
+
+# 配置环境变量
+# 编辑 application/settings.py，设置 DEBUG = False
+
+# 初始化生产数据库
+uv run python main.py init
+
+# 启动服务
+uv run python main.py run --host 0.0.0.0 --port 9000
+```
+
+### 使用 Gunicorn + Uvicorn 部署
+
+```bash
+# 使用 Gunicorn 启动（推荐生产环境）
+uv run gunicorn main:create_app \
+    -w 4 \
+    -k uvicorn.workers.UvicornWorker \
+    -b 0.0.0.0:9000 \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info
+```
+
+### 使用 Supervisor 守护进程
+
+```bash
+# 安装 Supervisor
+sudo apt-get install supervisor
+
+# 创建配置文件 /etc/supervisor/conf.d/easy-rich.conf
+[program:easy-rich]
+command=/path/to/backend/.venv/bin/python main.py run --host 0.0.0.0 --port 9000
+directory=/path/to/backend
+user=www-data
+autostart=true
+autorestart=true
+redirect_stderr=true
+stdout_logfile=/var/log/easy-rich.log
+
+# 重启 Supervisor
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start easy-rich
+```
+
+### 使用 Nginx 反向代理
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:9000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /static {
+        alias /path/to/backend/static;
+        expires 30d;
+    }
+
+    location /media {
+        alias /path/to/backend/media;
+        expires 30d;
+    }
+}
+```
+
+## 故障排查
+
+### UV 相关问题
+
+**问题：uv 命令找不到**
+```bash
+# Windows 会自动添加到 PATH，重启终端即可
+# Linux/macOS 需要将 uv 添加到 PATH
+export PATH="$HOME/.cargo/bin:$PATH"
+```
+
+**问题：依赖安装失败**
+```bash
+# 清除缓存并重新安装
+uv cache clean
+uv sync
+```
+
+### 数据库连接问题
+
+**问题：数据库连接失败**
+```bash
+# 检查数据库服务状态
+# MySQL
+sudo systemctl status mysql
+
+# 检查配置文件
+cat application/settings.py | grep -A 10 DATABASE
+
+# 测试连接
+uv run python -c "from core.database import engine; print(engine.connect())"
+```
+
+### 依赖冲突问题
+
+**问题：包版本冲突**
+```bash
+# 查看已安装的包
+uv pip list
+
+# 更新冲突的包
+uv add --upgrade <package-name>
+```
+
+### 性能优化建议
+
+```bash
+# 使用 Gunicorn 多进程
+uv run gunicorn main:create_app -w 4 -k uvicorn.workers.UvicornWorker
+
+# 启用响应压缩（在 settings.py 中配置）
+# 添加 middleware
+from fastapi.middleware.gzip import GZipMiddleware
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# 数据库连接池优化（在 settings.py 中）
+# 调整 pool_size 和 max_overflow
+```
 
 ## 查询数据
 

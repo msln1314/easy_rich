@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 from typing import List, Dict
 from datetime import datetime, timedelta
-from transformers import AutoModelForCausalLM, AutoTokenizer
+# from transformers import AutoModelForCausalLM, AutoTokenizer  # Not used, using local model
 
 from .stock_service import StockService
 from apps.admin.stock.schemas  import (

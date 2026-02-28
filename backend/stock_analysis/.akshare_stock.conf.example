@@ -1,0 +1,26 @@
+# Akshare 股票分析配置示例文件
+# 路径建议：将本文件复制到用户主目录并重命名为：~/.akshare_stock.conf
+# 格式：key=value，每行一个键值，支持以 # 开头的注释行
+
+# 数据源优先级（从左到右依次尝试）
+# 已知较为稳定的数据源：
+# - tencent：历史数据相对稳定，适合快速模式与回测
+# - exchange：上/深交易所股票名单接口稳定，用于基础列表
+# - sina：实时数据作为备选，部分环境可用
+# - eastmoney：实时与历史在部分网络环境下可能不稳定（快模式会跳过）
+sources = tencent,exchange,sina,eastmoney
+
+# 启用缓存（parquet/csv）。开启后会在 data_cache/ 与输出目录缓存历史/实时结果，减少重复请求。
+use_ = true
+
+# 历史数据天数（仅在未指定 --start-date/--end-date 时生效；必须 >= 30）
+days = 180
+
+# 预检失败时是否强制运行（不建议在接口不稳定时开启）
+force = false
+
+# 说明：
+# - 命令行参数优先于配置文件（如 --source 会覆盖 sources，--cache 会覆盖 use_cache，-f/--force 会覆盖 force）
+# - 快速模式（--fast）会跳过 eastmoney 的实时与历史接口，优先使用 tencent 与缓存
+# - sources 可用取值：eastmoney, tencent, sina, exchange；大小写不敏感，逗号或分号分隔
+# - 本工具会保持数据源顺序并去重；请根据您的网络环境调整顺序以提高成功率

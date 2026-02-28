@@ -6,6 +6,8 @@ from .stock_basic_info import StockBasicInfo
 from .news import News
 from .stock_watchlist import StockWatchlist
 from .stock_monitor_condition import StockMonitorCondition
+from .stock_monitor_strategy import StockMonitorStrategy
+from .stock_monitor_log import StockMonitorLog
 from .stock_analysis import StockAnalysis
 from .stock_hot_rank_detail import StockHotRankDetail
 from .stock_hot_rank import StockHotRank

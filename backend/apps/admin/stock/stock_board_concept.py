@@ -14,6 +14,7 @@ from .params import StockBoardConceptParams
 from . import schemas, crud
 from core.dependencies import IdList
 from sqlalchemy import select, desc, func, and_
+from core.logger import logger
 import random
 
 
@@ -134,7 +135,7 @@ async def get_top_change(limit: int = 10, auth: Auth = Depends(AllUserAuth())):
 
 
 @router.get("/sync", summary="同步概念板块数据")
-async def sync_concept_data(auth: Auth = Depends(OpenAuth())):
+async def sync_concept_data(auth: Auth = Depends(AllUserAuth())):
     """
     同步概念板块数据
 
@@ -147,7 +148,7 @@ async def sync_concept_data(auth: Auth = Depends(OpenAuth())):
         concept_data = await dal.get_concept_data_from_ths()
 
         if not concept_data:
-            return ErrorResponse("未获取到概念板块数据")
+            return SuccessResponse("未获取到概念板块数据")
 
         # 同步数据到数据库
         result = await dal.sync_concept_data(concept_data)
@@ -155,7 +156,31 @@ async def sync_concept_data(auth: Auth = Depends(OpenAuth())):
         return SuccessResponse(f"同步完成，处理了 {result} 条数据")
     except Exception as e:
         logger.error(f"同步概念板块数据失败: {str(e)}")
-        return ErrorResponse(f"同步概念板块数据失败: {str(e)}")
+        return SuccessResponse(f"同步概念板块数据失败: {str(e)}")
+
+
+
+def format_concept_data(item, rank: int = None):
+    """格式化概念板块数据"""
+    return {
+        "rank": rank,
+        "sector_name": item.board_name,
+        "sector_code": item.board_code,
+        "change_rate": item.change_percent or 0,
+        "volume": item.total_amount or 0,
+        "turnover_rate": 0,  # 数据库中没有该字段，需要计算
+        "leading_stocks": item.up_count or 0,
+        "stock_count": (item.up_count or 0) + (item.down_count or 0),
+        "market_cap": 0,  # 数据库中没有该字段
+        "net_inflow": item.net_inflow or 0,
+        "average_price": item.average_price or 0,
+        "total_volume": item.total_volume or 0,
+        "leading_stock": item.leading_stock,
+        "leading_stock_code": item.leading_stock_code,
+        "leading_stock_change": item.leading_stock_change,
+        "up_count": item.up_count,
+        "down_count": item.down_count,
+    }
 
 
 def generate_mock_concept_ranking_data(limit: int = 50):
@@ -181,39 +206,96 @@ def generate_mock_concept_ranking_data(limit: int = 50):
         "芯片",
         "软件",
         "互联网",
-        "特高压",
-        "数字货币",
-        "在线教育",
-        "远程办公",
-        "医疗器械",
-        "基因测序",
-        "CRO",
-        "北斗导航",
-        "高端装备",
-        "精密制造",
-        "生物疫苗",
-        "血液制品",
-        "医疗服务",
-        "医疗器械服务",
-        "医疗美容",
-        "健康管理",
-        "养老服务",
-        "医疗器械",
-        "医疗服务",
-        "医疗美容",
-        "医疗器械服务",
-        "医疗器械",
-        "医疗服务",
-        "医疗美容",
-        "医疗器械服务",
-        "医疗器械",
-        "医疗服务",
-        "医疗美容",
-        "医疗器械服务",
-        "医疗器械",
-        "医疗服务",
-        "医疗美容",
-        "医疗器械服务",
+    ]
+
+    leading_stocks = ["比亚迪", "宁德时代", "贵州茅台", "工商银行", "中国平安"]
+
+    ranking_data = []
+    for i in range(min(limit, len(concept_names))):
+        change_rate = round(random.uniform(-8, 8), 2)
+        volume = round(random.uniform(50, 500), 2)
+        net_inflow = round(random.uniform(-20, 20), 2)
+        up_count = random.randint(5, 25)
+        down_count = random.randint(5, 20)
+
+        ranking_data.append(
+            {
+                "rank": i + 1,
+                "sector_name": concept_names[i],
+                "sector_code": f"GN{1000 + i}",
+                "change_rate": change_rate,
+                "volume": volume,
+                "turnover_rate": round(random.uniform(1, 10), 2),
+                "leading_stocks": up_count,
+                "stock_count": up_count + down_count,
+                "market_cap": round(random.uniform(1000, 10000), 2),
+                "net_inflow": net_inflow,
+                "average_price": round(random.uniform(10, 100), 2),
+                "total_volume": round(random.uniform(100, 1000), 2),
+                "leading_stock": random.choice(leading_stocks),
+                "leading_stock_code": f"60{1000 + random.randint(1, 9999):04d}",
+                "leading_stock_change": round(random.uniform(-10, 10), 2),
+                "up_count": up_count,
+                "down_count": down_count,
+            }
+        )
+
+    # 按涨跌幅排序
+    ranking_data.sort(key=lambda x: x["change_rate"], reverse=True)
+
+    # 更新排名
+    for i, item in enumerate(ranking_data):
+        item["rank"] = i + 1
+
+    return ranking_data
+
+
+def generate_mock_concept_trend_data():
+    """生成模拟趋势数据"""
+    trend_data = []
+    current_date = datetime.now() - timedelta(days=30)
+
+    sector_names = ["人工智能", "新能源汽车", "半导体", "医药生物", "新材料"]
+
+    for i in range(30):
+        date_str = (current_date + timedelta(days=i)).strftime("%Y-%m-%d")
+        sectors_data = {}
+
+        for sector in sector_names:
+            sectors_data[sector] = {
+                "inflow": round(random.uniform(50, 200), 2),
+                "outflow": round(random.uniform(20, 100), 2),
+                "net_inflow": round(random.uniform(-20, 50), 2),
+            }
+
+        trend_data.append({"date": date_str, "sectors": sectors_data})
+
+    return trend_data
+
+
+def generate_mock_concept_heatmap_data():
+    """生成模拟热力图数据"""
+    concept_names = [
+        "人工智能",
+        "新能源汽车",
+        "半导体",
+        "医药生物",
+        "新材料",
+        "5G通信",
+        "云计算",
+        "大数据",
+        "物联网",
+        "区块链",
+        "军工",
+        "环保",
+        "新能源",
+        "光伏",
+        "风电",
+        "储能",
+        "锂电池",
+        "芯片",
+        "软件",
+        "互联网",
     ]
 
     leading_stocks = ["比亚迪", "宁德时代", "贵州茅台", "工商银行", "中国平安"]
@@ -229,7 +311,7 @@ def generate_mock_concept_ranking_data(limit: int = 50):
             {
                 "rank": i + 1,
                 "sector_name": concept_name,
-                "sector_code": f"CN{1000 + i}",
+                "sector_code": f"GN{1000 + i}",
                 "change_rate": change_rate,
                 "volume": round(random.uniform(50, 500), 2),
                 "turnover_rate": round(random.uniform(1, 10), 2),
@@ -251,29 +333,6 @@ def generate_mock_concept_ranking_data(limit: int = 50):
         )
 
     return heatmap_data
-
-
-def format_concept_data(item, rank: int = None):
-    """格式化概念板块数据"""
-    return {
-        "rank": rank,
-        "sector_name": item.board_name,
-        "sector_code": item.board_code,
-        "change_rate": item.change_percent or 0,
-        "volume": item.total_amount or 0,
-        "turnover_rate": 0,  # 数据库中没有该字段，需要计算
-        "leading_stocks": item.up_count or 0,
-        "stock_count": (item.up_count or 0) + (item.down_count or 0),
-        "market_cap": 0,  # 数据库中没有该字段
-        "net_inflow": item.net_inflow or 0,
-        "average_price": item.average_price or 0,
-        "total_volume": item.total_volume or 0,
-        "leading_stock": item.leading_stock,
-        "leading_stock_code": item.leading_stock_code,
-        "leading_stock_change": item.leading_stock_change,
-        "up_count": item.up_count,
-        "down_count": item.down_count,
-    }
 
 
 @router.get("/sector/rotation/ranking", summary="获取概念板块轮动排行榜")
@@ -354,9 +413,9 @@ async def get_concept_rotation_trend(
         # 构建查询条件
         query = select(crud.StockBoardConceptDal(auth.db).model)
 
-        # 默认查询最近20天
+        # 默认查询最近30天
         if not start_date:
-            start_date = (datetime.now() - datetime.timedelta(days=120)).strftime(
+            start_date = (datetime.now() - timedelta(days=30)).strftime(
                 "%Y-%m-%d"
             )
         if not end_date:
@@ -507,27 +566,27 @@ async def get_concept_rotation_list(
         # 返回模拟概念板块列表
         mock_concepts = [
             {
-                "sector_code": "CN1001",
+                "sector_code": "BK1001",
                 "sector_name": "人工智能",
                 "sector_type": "concept",
             },
             {
-                "sector_code": "CN1002",
+                "sector_code": "BK1002",
                 "sector_name": "新能源汽车",
                 "sector_type": "concept",
             },
             {
-                "sector_code": "CN1003",
+                "sector_code": "BK1003",
                 "sector_name": "半导体",
                 "sector_type": "concept",
             },
             {
-                "sector_code": "CN1004",
+                "sector_code": "BK1004",
                 "sector_name": "医药生物",
                 "sector_type": "concept",
             },
             {
-                "sector_code": "CN1005",
+                "sector_code": "BK1005",
                 "sector_name": "新材料",
                 "sector_type": "concept",
             },
@@ -664,3 +723,27 @@ async def get_concept_rotation_analysis_summary(
 
     except Exception as e:
         return SuccessResponse(f"查询失败: {str(e)}")
+
+
+async def sync_concept_board_data():
+    """
+    同步概念板块数据
+
+    从同花顺获取概念板块数据并保存到数据库
+    """
+    try:
+        dal = crud.StockBoardConceptDal(None)  # 不需要数据库连接
+
+        # 获取概念板块数据
+        concept_data = await dal.get_concept_data_from_ths()
+
+        if not concept_data:
+            return {"status": "error", "message": "未获取到概念板块数据"}
+
+        # 保存数据到数据库
+        result = await dal.sync_concept_data(concept_data)
+
+        return {"status": "success", "message": f"同步完成，处理了 {result} 条数据"}
+    except Exception as e:
+        logger.error(f"同步概念板块数据失败: {str(e)}")
+        return {"status": "error", "message": f"同步概念板块数据失败: {str(e)}"}

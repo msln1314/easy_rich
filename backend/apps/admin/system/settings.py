@@ -35,7 +35,7 @@ router = APIRouter()
 ###########################################################
 @router.post("/tabs", summary="获取系统配置标签列表")
 async def get_settings_tabs(classifys: list[str] = Body(...), auth: Auth = Depends(FullAdminAuth())):
-    return SuccessResponse(await crud.SettingsTabDal(auth.db).get_datas(limit=0, classify=("in", classifys)))
+    return SuccessResponse(await crud.SettingsTabDal(auth.db).get_datas(limit=0,v_schema=schemas.SettingsTabSimpleOut, classify=("in", classifys)))
 
 
 @router.get("/tabs/values", summary="获取系统配置标签下的信息")

@@ -6,14 +6,16 @@
 # @IDE            : PyCharm
 # @desc           : 股票概念板块数据库 增删改查操作
 
-from typing import Any
+from typing import Any, List, Dict
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 from core.crud import DalBase
 from utils.excel.excel_manage import ExcelManage
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select, delete, update, or_, and_, func
+from datetime import datetime, date
 from apps.admin.stock import models, schemas, params
+from core.logger import logger
 
 
 class StockBoardConceptDal(DalBase):
@@ -308,15 +310,15 @@ class StockBoardConceptDal(DalBase):
             ids, v_soft, **kwargs
         )
 
-    async def get_by_concept_name(self, concept_name: str) -> Any:
+    async def get_by_board_name(self, board_name: str) -> Any:
         """
-        根据概念名称获取最新记录
-        :param concept_name: 概念名称
-        :return: 概念记录
+        根据板块名称获取最新记录
+        :param board_name: 板块名称
+        :return: 板块记录
         """
         sql = (
             select(self.model)
-            .where(self.model.concept_name == concept_name)
+            .where(self.model.board_name == board_name)
             .order_by(self.model.date_at.desc())
         )
         result = await self.db.execute(sql)
@@ -414,7 +416,7 @@ class StockBoardConceptDal(DalBase):
         )
 
         if concept_names:
-            sql = sql.where(self.model.concept_name.in_(concept_names))
+            sql = sql.where(self.model.board_name.in_(concept_names))
 
         sql = sql.order_by(self.model.date_at, self.model.change_percent.desc())
         result = await self.db.execute(sql)
@@ -454,12 +456,12 @@ class StockBoardConceptDal(DalBase):
         获取所有概念板块列表
         :return: 概念列表
         """
-        subquery = select(self.model.concept_name, self.model.concept_code).distinct()
+        subquery = select(self.model.board_name, self.model.board_code).distinct()
         result = await self.db.execute(subquery)
         items = result.all()
 
         return [
-            {"concept_name": item.concept_name, "concept_code": item.concept_code}
+            {"concept_name": item.board_name, "concept_code": item.board_code}
             for item in items
         ]
 

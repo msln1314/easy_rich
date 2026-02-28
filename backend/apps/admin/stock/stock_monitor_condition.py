@@ -34,10 +34,18 @@ async def create_monitor_condition(data: schemas.StockMonitorConditionCreate, au
 async def get_monitor_condition_list(params: StockMonitorConditionParams = Depends(), auth: Auth = Depends(AllUserAuth())):
     """
     获取股票监控配置列表
+    普通用户只能看到自己的数据，管理员可以看到所有数据
     """
     condition_dict = params.dict()
+    
+    # 如果不是管理员（is_staff），只能看到自己的数据
+    if not auth.user.is_staff and condition_dict.get('user_id') is None:
+        condition_dict['user_id'] = auth.user.id
+    
+    schema = schemas.StockMonitorConditionOut
     datas, count = await crud.StockMonitorConditionDal(auth.db).get_datas(
         **condition_dict,
+        v_schema=schema,
         v_return_count=True
     )
     return SuccessResponse(datas, count=count)
@@ -52,68 +60,78 @@ async def export_query_list(
     """
     导出股票监控配置为excel
     """
-    params.limit = 1000000
-    condition_dict = params.dict()
-    datas = await crud.StockMonitorConditionDal(auth.db).get_datas(
-        **condition_dict,
-        v_return_count=False
-    )
-    return SuccessResponse(await crud.StockMonitorConditionDal(auth.db).export_xlsx(header, datas))
+    return SuccessResponse(await crud.StockMonitorConditionDal(auth.db).export_query_list(header, params))
 
 
 @router.delete("", summary="批量删除股票监控配置", description="硬删除")
 async def delete_monitor_condition(ids: IdList = Depends(), auth: Auth = Depends(AllUserAuth())):
     """
     批量删除股票监控配置
+    普通用户只能删除自己的数据
     """
+    # 如果不是管理员，检查是否只删除自己的数据
+    if not auth.user.is_staff:
+        for data_id in ids.ids:
+            data = await crud.StockMonitorConditionDal(auth.db).get_data(data_id)
+            if data.user_id != auth.user.id:
+                return SuccessResponse("无权限删除其他用户的数据")
+
     await crud.StockMonitorConditionDal(auth.db).delete_datas(ids.ids, v_soft=False)
     return SuccessResponse("删除成功")
 
 
-@router.put("/{data_id}", summary="更新股票监控配置")
-async def put_monitor_condition(data_id: int, data: schemas.StockMonitorConditionUpdate, auth: Auth = Depends(AllUserAuth())):
+@router.get("/options", summary="获取启用的监控条件列表")
+async def get_active_conditions(user_id: int | None = None, auth: Auth = Depends(AllUserAuth())):
     """
-    更新股票监控配置
+    获取启用的监控条件列表
+    普通用户只能看到自己的数据，管理员可以看到所有数据
+    :param user_id: 用户ID，可选，不传则根据用户权限决定
     """
-    condition = await crud.StockMonitorConditionDal(auth.db).put_data(data_id, data)
-    return SuccessResponse(condition)
+    # 如果不是管理员（is_staff），只能看到自己的数据
+    if not auth.user.is_staff:
+        user_id = auth.user.id
+    datas = await crud.StockMonitorConditionDal(auth.db).get_active_conditions(user_id)
+    return SuccessResponse(datas)
 
 
 @router.get("/{data_id}", summary="获取股票监控配置详情")
 async def get_monitor_condition_detail(data_id: int, auth: Auth = Depends(AllUserAuth())):
     """
     获取股票监控配置详情
+    普通用户只能查看自己的数据
     """
     data = await crud.StockMonitorConditionDal(auth.db).get_data(data_id)
+    # 如果不是管理员，检查是否是自己的数据
+    if not auth.user.is_staff and data.user_id != auth.user.id:
+        return SuccessResponse(None)
     return SuccessResponse(data)
 
 
-@router.get("/active", summary="获取启用的监控条件")
-async def get_active_conditions(user_id: int | None = None, auth: Auth = Depends(AllUserAuth())):
+@router.put("/{data_id}", summary="更新股票监控配置")
+async def put_monitor_condition(data_id: int, data: schemas.StockMonitorConditionUpdate, auth: Auth = Depends(AllUserAuth())):
     """
-    获取启用的监控条件
-    :param user_id: 用户ID，可选，不传则获取所有用户的
+    更新股票监控配置
+    普通用户只能更新自己的数据
     """
-    datas = await crud.StockMonitorConditionDal(auth.db).get_active_conditions(user_id)
-    return SuccessResponse(datas)
+    # 检查权限
+    existing_data = await crud.StockMonitorConditionDal(auth.db).get_data(data_id)
+    if not auth.user.is_staff and existing_data.user_id != auth.user.id:
+        return SuccessResponse(None)
+    condition = await crud.StockMonitorConditionDal(auth.db).put_data(data_id, data)
+    return SuccessResponse(condition)
 
 
-@router.put("/{condition_id}/active", summary="更新监控条件的启用状态")
-async def update_active_status(condition_id: int, is_active: int = Body(..., embed=True), auth: Auth = Depends(AllUserAuth())):
+@router.put("/{data_id}/active", summary="更新监控条件的启用状态")
+async def update_active_status(data_id: int, is_active: int = Body(..., embed=True), auth: Auth = Depends(AllUserAuth())):
     """
     更新监控条件的启用状态
-    :param condition_id: 条件ID
+    普通用户只能更新自己的数据
+    :param data_id: 条件ID
     :param is_active: 是否启用：1启用 0禁用
     """
-    await crud.StockMonitorConditionDal(auth.db).update_active_status(condition_id, is_active)
+    # 检查权限
+    existing_data = await crud.StockMonitorConditionDal(auth.db).get_data(data_id)
+    if not auth.user.is_staff and existing_data.user_id != auth.user.id:
+        return SuccessResponse("无权限操作")
+    await crud.StockMonitorConditionDal(auth.db).update_active_status(data_id, is_active)
     return SuccessResponse("更新成功")
-
-
-@router.get("/user/{user_id}", summary="根据用户ID获取监控条件列表")
-async def get_conditions_by_user(user_id: int, auth: Auth = Depends(AllUserAuth())):
-    """
-    根据用户ID获取监控条件列表
-    :param user_id: 用户ID
-    """
-    datas = await crud.StockMonitorConditionDal(auth.db).get_by_user_id(user_id)
-    return SuccessResponse(datas)
