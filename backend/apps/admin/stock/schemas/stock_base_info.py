@@ -15,7 +15,7 @@ class StockBaseInfoCreate(BaseModel):
     """创建股票基本信息"""
     full_code: str = Field(..., description="TS 股票代码")
     stock_code: str | None = Field(None, description="股票代码")
-    name: str | None = Field(None, description="股票名称")
+    stock_name: str | None = Field(None, description="股票名称")
     area: str | None = Field(None, description="地域")
     industry: str | None = Field(None, description="所属行业")
     cnspell: str | None = Field(None, description="拼音缩写")
@@ -32,7 +32,7 @@ class StockBaseInfoUpdate(BaseModel):
     """更新股票基本信息"""
     full_code: str | None = Field(None, description="TS 股票代码")
     stock_code: str | None = Field(None, description="股票代码")
-    name: str | None = Field(None, description="股票名称")
+    stock_name: str | None = Field(None, description="股票名称")
     area: str | None = Field(None, description="地域")
     industry: str | None = Field(None, description="所属行业")
     cnspell: str | None = Field(None, description="拼音缩写")
@@ -57,7 +57,7 @@ class StockBaseInfoOut(BaseModel):
     id: int
     full_code: str
     stock_code: str | None = None
-    name: str | None = None
+    stock_name: str | None = None
     area: str | None = None
     industry: str | None = None
     cnspell: str | None = None

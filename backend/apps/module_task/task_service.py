@@ -1,5 +1,6 @@
 import akshare as ak
 import pandas as pd
+import traceback
 from datetime import datetime, date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -9,98 +10,82 @@ from apps.admin.stock.models import (
     StockBoardIndustry,
     StockBoardConcept,
 )
+from apps.module_task.stock_service_client import StockServiceClient
+from utils.stock import StockUtils
 
 
-async def sync_from_akshare(db: AsyncSession) -> dict:
+async def sync_stock_base_info(db: AsyncSession) -> dict:
     """
-    从akshare同步股票基础信息
+    从 Stock Service 同步股票基础信息
     获取A股所有股票的基础信息并更新到数据库
     :return: 操作结果
     """
     try:
-        print("开始同步股票基础信息...")
+        print("开始从 Stock Service 同步股票基础信息...")
 
-        # 获取A股股票基础信息
-        stock_info_df = ak.stock_zh_a_spot_em()
+        # 调用 stock_service_client 获取股票基础信息
+        async with StockServiceClient() as client:
+            stock_list = await client.get_all_stock_list()
 
-        if stock_info_df.empty:
+        if not stock_list:
             return {"is_success": False, "message": "未获取到股票基础信息"}
 
-        # 字段映射
-        column_mapping = {
-            "代码": "stock_code",
-            "名称": "stock_name",
-            "最新价": "current_price",
-            "涨跌幅": "change_percent",
-            "涨跌额": "change_amount",
-            "成交量": "volume",
-            "成交额": "amount",
-            "振幅": "amplitude",
-            "最高": "high_price",
-            "最低": "low_price",
-            "今开": "open_price",
-            "昨收": "previous_close",
-            "量比": "volume_ratio",
-            "换手率": "turnover_rate",
-            "市盈率-动态": "pe_ratio",
-            "市净率": "pb_ratio",
-            "总市值": "total_market_cap",
-            "流通市值": "circulating_market_cap",
-        }
-
-        # 重命名列
-        stock_info_df = stock_info_df.rename(columns=column_mapping)
+        # 获取数据库中已有的 full_code 列表
+        sql = select(StockBasicInfo.full_code)
+        result = await db.execute(sql)
+        existing_full_codes = set(result.scalars().all())
+        print(f"数据库中已有的 full_code 数量: {len(existing_full_codes)}")
+        if existing_full_codes:
+            print(f"示例 full_code: {list(existing_full_codes)[:5]}")
 
         # 处理数据
         updated_count = 0
         added_count = 0
+        processed_codes = set()  # 用于检查本次同步中的重复
 
-        for _, row in stock_info_df.iterrows():
+        for stock in stock_list:
             try:
-                stock_code = str(row["stock_code"])
-                stock_name = row["stock_name"] if pd.notna(row["stock_name"]) else ""
+                stock_code = stock.get("code", "")
 
-                if not stock_code or not stock_name:
+                if not stock_code:
                     continue
 
-                # 处理6位股票代码，添加后缀
-                if len(stock_code) == 6:
-                    if stock_code.startswith("6"):
-                        full_code = f"{stock_code}.SH"
-                    else:
-                        full_code = f"{stock_code}.SZ"
-                else:
-                    full_code = stock_code
+                # 使用 StockUtils 计算完整股票代码
+                full_code = StockUtils.get_full_code(stock_code)
 
-                # 检查是否存在
-                sql = select(StockBasicInfo).where(StockBasicInfo.full_code == full_code)
-                result = await db.execute(sql)
-                existing_stock = result.scalar_one_or_none()
+                # 检查本次同步中是否已处理过该股票
+                if full_code in processed_codes:
+                    print(f"跳过重复股票: {full_code}")
+                    continue
+                processed_codes.add(full_code)
+
+                if not full_code:
+                    continue
 
                 # 构建数据
                 stock_data = {
                     "full_code": full_code,
                     "stock_code": stock_code,
-                    "stock_name": stock_name,
-                    "current_price": float(row["current_price"]) if pd.notna(row["current_price"]) else None,
-                    "change_percent": float(row["change_percent"]) if pd.notna(row["change_percent"]) else None,
-                    "change_amount": float(row["change_amount"]) if pd.notna(row["change_amount"]) else None,
-                    "open_price": float(row["open_price"]) if pd.notna(row["open_price"]) else None,
-                    "high_price": float(row["high_price"]) if pd.notna(row["high_price"]) else None,
-                    "low_price": float(row["low_price"]) if pd.notna(row["low_price"]) else None,
-                    "previous_close": float(row["previous_close"]) if pd.notna(row["previous_close"]) else None,
-                    "volume": float(row["volume"]) if pd.notna(row["volume"]) else None,
-                    "amount": float(row["amount"]) if pd.notna(row["amount"]) else None,
-                    "turnover_rate": float(row["turnover_rate"]) if pd.notna(row["turnover_rate"]) else None,
-                    "volume_ratio": float(row["volume_ratio"]) if pd.notna(row["volume_ratio"]) else None,
-                    "amplitude": float(row["amplitude"]) if pd.notna(row["amplitude"]) else None,
-                    "total_market_cap": float(row["total_market_cap"]) if pd.notna(row["total_market_cap"]) else None,
-                    "circulating_market_cap": float(row["circulating_market_cap"]) if pd.notna(row["circulating_market_cap"]) else None,
-                    "pe_ratio": float(row["pe_ratio"]) if pd.notna(row["pe_ratio"]) else None,
-                    "pb_ratio": float(row["pb_ratio"]) if pd.notna(row["pb_ratio"]) else None,
+                    "stock_name": stock.get("name", ""),
+                    "current_price": stock.get("price"),
+                    "change_percent": stock.get("change_percent"),
+                    "change_amount": stock.get("change_amount"),
+                    "open_price": stock.get("open"),
+                    "high_price": stock.get("high"),
+                    "low_price": stock.get("low"),
+                    "close_price": stock.get("price") - stock.get("change_amount") if stock.get("price") and stock.get("change_amount") else None,
+                    "volume": stock.get("volume"),
+                    "amount": stock.get("amount"),
+                    "turnover_rate": stock.get("turnover_rate"),
+                    "volume_ratio": stock.get("volume_ratio"),
+                    "amplitude": stock.get("amplitude"),
+                    "pe_ratio": stock.get("pe_ratio"),
+                    "pb_ratio": stock.get("pb_ratio"),
+                    "total_market_cap": stock.get("market_cap"),
+                    "circulating_market_cap": stock.get("circulating_market_cap"),
                 }
 
-                if existing_stock:
+                if full_code in existing_full_codes:
                     # 更新现有记录
                     update_stmt = (
                         update(StockBasicInfo)
@@ -117,6 +102,7 @@ async def sync_from_akshare(db: AsyncSession) -> dict:
 
             except Exception as e:
                 print(f"处理股票 {stock_code} 失败: {str(e)}")
+                traceback.print_exc()
                 continue
 
         await db.commit()
@@ -127,6 +113,7 @@ async def sync_from_akshare(db: AsyncSession) -> dict:
     except Exception as e:
         await db.rollback()
         print(f"同步股票基础信息失败: {str(e)}")
+        traceback.print_exc()
         raise e
 
 
@@ -247,6 +234,7 @@ async def sync_realtime_data(db: AsyncSession) -> dict:
 
             except Exception as e:
                 print(f"处理股票 {stock_code} 实时数据失败: {str(e)}")
+                traceback.print_exc()
                 continue
 
         await db.commit()
@@ -257,6 +245,7 @@ async def sync_realtime_data(db: AsyncSession) -> dict:
     except Exception as e:
         await db.rollback()
         print(f"同步实时行情数据失败: {str(e)}")
+        traceback.print_exc()
         raise e
 
 
@@ -377,6 +366,7 @@ async def sync_board_industry_from_akshare(db: AsyncSession) -> dict:
     except Exception as e:
         await db.rollback()
         print(f"同步行业板块数据失败: {str(e)}")
+        traceback.print_exc()
         raise e
 
 
@@ -526,6 +516,8 @@ async def sync_board_concept_from_akshare(db: AsyncSession) -> dict:
 
     except Exception as e:
         await db.rollback()
+        print(f"同步概念板块数据失败: {str(e)}")
+        traceback.print_exc()
         raise e
 
 
@@ -540,6 +532,8 @@ async def batch_board_concept_add(
         await db.commit()
     except Exception as e:
         await db.rollback()
+        print(f"批量更新概念板块数据失败: {str(e)}")
+        traceback.print_exc()
         raise e
 
 
@@ -566,4 +560,100 @@ async def batch_board_concept_update(
         await db.commit()
     except Exception as e:
         await db.rollback()
+        raise e
+
+
+async def sync_realtime_from_stock_service(db: AsyncSession) -> dict:
+    """
+    从 Stock Service 同步实时行情数据
+    :return: 操作结果
+    """
+    try:
+        print("开始从 Stock Service 同步实时行情数据...")
+
+        async with StockServiceClient() as client:
+            stock_list = await client.get_all_stock_list()
+
+        if not stock_list:
+            return {"is_success": False, "message": "未获取到实时行情数据"}
+
+        # 获取当前日期和时间
+        current_date = datetime.now().date()
+        current_time = datetime.now()
+
+        # 获取数据库中当天已有的实时数据
+        sql = select(StockRealtime).where(StockRealtime.trade_date == current_date)
+        result = await db.execute(sql)
+        existing_realtime_list = await result.scalars()
+        existing_codes = {item.stock_code: item for item in existing_realtime_list}
+
+        # 处理数据
+        added_count = 0
+        updated_count = 0
+
+        for stock in stock_list:
+            try:
+                stock_code = stock.get("code", "")
+
+                if not stock_code:
+                    continue
+
+                # 构建实时数据
+                realtime_data = {
+                    "full_code": stock.get("full_code"),
+                    "stock_code": stock_code,
+                    "stock_name": stock.get("name"),
+                    "trade_date": current_date,
+                    "trade_time": current_time,
+                    "current_price": stock.get("price") or 0.0,
+                    "open_price": stock.get("open") or 0.0,
+                    "high_price": stock.get("high") or 0.0,
+                    "low_price": stock.get("low") or 0.0,
+                    "previous_close": stock.get("price") - stock.get("change_amount") if stock.get("price") and stock.get("change_amount") else 0.0,
+                    "change_amount": stock.get("change_amount") or 0.0,
+                    "change_percent": stock.get("change_percent") or 0.0,
+                    "volume": stock.get("volume") or 0.0,
+                    "amount": stock.get("amount") or 0.0,
+                    "turnover_rate": stock.get("turnover_rate"),
+                    "volume_ratio": stock.get("volume_ratio"),
+                    "amplitude": stock.get("amplitude"),
+                    "total_market_cap": stock.get("market_cap"),
+                    "circulating_market_cap": stock.get("circulating_market_cap"),
+                    "pe_ratio": stock.get("pe_ratio"),
+                    "pb_ratio": stock.get("pb_ratio"),
+                    "is_trading": 1,
+                    "trading_status": "normal",
+                    "data_source": "stock_service",
+                }
+
+                if stock_code in existing_codes:
+                    # 更新现有记录
+                    existing = existing_codes[stock_code]
+                    update_stmt = (
+                        update(StockRealtime)
+                        .where(StockRealtime.id == existing.id)
+                        .values(**realtime_data)
+                    )
+                    await db.execute(update_stmt)
+                    updated_count += 1
+                else:
+                    # 新增记录
+                    new_realtime = StockRealtime(**realtime_data)
+                    db.add(new_realtime)
+                    added_count += 1
+
+            except Exception as e:
+                print(f"处理股票 {stock_code} 实时数据失败: {str(e)}")
+                traceback.print_exc()
+                continue
+
+        await db.commit()
+        message = f"成功同步：新增 {added_count} 条，更新 {updated_count} 条实时行情数据"
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步实时行情数据失败: {str(e)}")
+        traceback.print_exc()
         raise e

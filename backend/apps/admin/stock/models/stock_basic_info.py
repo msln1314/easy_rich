@@ -21,7 +21,7 @@ class StockBasicInfo(BaseModel):
 
     full_code: Mapped[str] = mapped_column(String(20), nullable=False, comment="TS 股票代码")
     stock_code: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="股票代码")
-    name: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="股票名称")
+    stock_name: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="股票名称")
     full_name: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="公司名称")
     area: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="地域")
     industry: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="所属行业")
