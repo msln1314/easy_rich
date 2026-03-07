@@ -17,7 +17,11 @@ const strategyTypeOptions = [
   { label: '开板监听', value: 'open_board' },
   { label: '换手监听', value: 'turnover' },
   { label: '突破监听', value: 'breakout' },
-  { label: '反弹监听', value: 'rebound' }
+  { label: '反弹监听', value: 'rebound' },
+  { label: '涨停破板', value: 'limit_up_break' },
+  { label: '涨幅监听', value: 'price_rise' },
+  { label: '跌至价位', value: 'price_fall' },
+  { label: '形态监控', value: 'pattern' }
 ]
 
 const priorityOptions = [

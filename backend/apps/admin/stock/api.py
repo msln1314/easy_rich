@@ -11,6 +11,7 @@ from apps.admin.stock import (
     my_stock,
     stock_board_industry,
     stock_board_concept,
+    stock_ranking,
 )
 
 
@@ -35,6 +36,7 @@ router.include_router(
 router.include_router(
     stock_board_concept.router, prefix="/board_concept", tags=["concept"]
 )
+router.include_router(stock_ranking.router, tags=["ranking"])
 
 # router.include_router(notice.router, prefix="/system/notice", tags=["system"])
 # router.include_router(alarm.router, prefix="/system/alarm", tags=["system"])

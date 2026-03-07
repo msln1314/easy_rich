@@ -117,6 +117,92 @@ async def sync_stock_base_info(db: AsyncSession) -> dict:
         raise e
 
 
+async def sync_stock_realtime_to_basic(db: AsyncSession) -> dict:
+    """
+    从 Stock Service 同步实时行情数据并更新到 stock_basic_info 表（用于排行功能）
+    :return: 操作结果
+    """
+    try:
+        print("开始从 Stock Service 同步实时行情数据到 stock_basic_info 表...")
+
+        # 调用 stock_service_client 获取股票实时行情
+        async with StockServiceClient() as client:
+            stock_list = await client.get_all_stock_list()
+
+        if not stock_list:
+            return {"is_success": False, "message": "未获取到实时行情数据"}
+
+        # 获取数据库中已有的 full_code 列表
+        sql = select(StockBasicInfo.full_code)
+        result = await db.execute(sql)
+        existing_full_codes = set(result.scalars().all())
+
+        # 处理数据
+        updated_count = 0
+
+        for stock in stock_list:
+            try:
+                stock_code = stock.get("code", "")
+
+                if not stock_code:
+                    continue
+
+                # 使用 StockUtils 计算完整股票代码
+                full_code = StockUtils.get_full_code(stock_code)
+
+                if not full_code or full_code not in existing_full_codes:
+                    continue  # 只更新已存在的股票
+
+                # 构建更新数据
+                stock_data = {
+                    "current_price": stock.get("price"),
+                    "change_percent": stock.get("change_percent"),
+                    "change_amount": stock.get("change_amount"),
+                    "open_price": stock.get("open"),
+                    "high_price": stock.get("high"),
+                    "low_price": stock.get("low"),
+                    "volume": stock.get("volume"),
+                    "amount": stock.get("amount"),
+                    "turnover_rate": stock.get("turnover_rate"),
+                    "volume_ratio": stock.get("volume_ratio"),
+                    "amplitude": stock.get("amplitude"),
+                    "pe_ratio": stock.get("pe_ratio"),
+                    "pb_ratio": stock.get("pb_ratio"),
+                    "total_market_cap": stock.get("market_cap"),
+                    "circulating_market_cap": stock.get("circulating_market_cap"),
+                    "change_speed": stock.get("change_speed"),
+                    "change_5min": stock.get("change_5min"),
+                    "change_60day": stock.get("change_60day"),
+                    "change_ytd": stock.get("change_ytd"),
+                    "updated_at": datetime.now(),
+                }
+
+                # 更新现有记录
+                update_stmt = (
+                    update(StockBasicInfo)
+                    .where(StockBasicInfo.full_code == full_code)
+                    .values(**stock_data)
+                )
+                await db.execute(update_stmt)
+                updated_count += 1
+
+            except Exception as e:
+                print(f"更新股票 {stock_code} 实时数据失败: {str(e)}")
+                traceback.print_exc()
+                continue
+
+        await db.commit()
+        message = f"成功更新 {updated_count} 条股票实时数据到 stock_basic_info 表"
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步实时行情数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
 async def sync_realtime_data(db: AsyncSession) -> dict:
     """
     同步实时行情数据

@@ -33,7 +33,11 @@ const strategyTypeMap: Record<string, string> = {
   open_board: '开板监听',
   turnover: '换手监听',
   breakout: '突破监听',
-  rebound: '反弹监听'
+  rebound: '反弹监听',
+  limit_up_break: '涨停破板',
+  price_rise: '涨幅监听',
+  price_fall: '跌至价位',
+  pattern: '形态监控'
 }
 
 // 推送方式映射

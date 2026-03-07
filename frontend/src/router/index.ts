@@ -124,6 +124,15 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           title: '板块轮动',
           noCache: true
         }
+      },
+      {
+        path: 'base-info',
+        component: () => import('@/views/Vadmin/Stock/BaseInfo/BaseInfo.vue'),
+        name: 'StockBaseInfo',
+        meta: {
+          title: '股票基础信息',
+          noCache: true
+        }
       }
     ]
   }

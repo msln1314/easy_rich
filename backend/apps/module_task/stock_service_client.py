@@ -176,6 +176,34 @@ class StockServiceClient:
             logger.error(f"获取股票 {stock_code} 历史行情异常: {str(e)}")
             raise
 
+    async def sync_stock_realtime(self) -> Dict[str, Any]:
+        """
+        同步实时行情数据（用于排行功能）
+
+        Returns:
+            Dict[str, Any]: 同步结果
+        """
+        url = f"{self.base_url}/stock/sync/realtime"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.post(url) as response:
+                if response.status != 200:
+                    logger.warning(f"同步实时行情失败，状态码: {response.status}")
+                    return {"is_success": False, "message": "同步失败"}
+
+                data = await response.json()
+                return data
+
+        except aiohttp.ClientError as e:
+            logger.error(f"同步实时行情失败: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"同步实时行情异常: {str(e)}")
+            raise
+
 
 async def fetch_stock_list() -> List[Dict[str, Any]]:
     """
@@ -186,3 +214,28 @@ async def fetch_stock_list() -> List[Dict[str, Any]]:
     """
     async with StockServiceClient() as client:
         return await client.get_all_stock_list()
+
+
+class StockTaskClient:
+    """股票任务客户端，提供同步任务接口"""
+
+    def __init__(self):
+        """初始化客户端"""
+        pass
+
+    async def sync_stock_realtime(self) -> Dict[str, Any]:
+        """
+        同步实时行情数据到 stock_basic_info 表（用于排行）
+
+        Returns:
+            Dict[str, Any]: 同步结果
+        """
+        from apps.module_task.task_service import sync_stock_realtime_to_basic
+        from db.database import get_async_db
+
+        async for db in get_async_db():
+            return await sync_stock_realtime_to_basic(db)
+
+
+# 全局实例
+stock_task_client = StockTaskClient()
