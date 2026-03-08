@@ -34,8 +34,7 @@ class FactorResult(BaseModel):
 
 @router.get("/factor/calculate", summary="计算单只股票因子")
 async def calculate_factor(
-    stock: str = Query(..., description="股票代码"),
-    auth: Auth = Depends(AllUserAuth())
+    stock: str = Query(..., description="股票代码"), auth: Auth = Depends(AllUserAuth())
 ):
     """计算单只股票的多因子得分"""
     try:
@@ -49,8 +48,7 @@ async def calculate_factor(
 
 @router.post("/factor/batch", summary="批量计算股票因子")
 async def batch_calculate_factors(
-    stocks: List[str],
-    auth: Auth = Depends(AllUserAuth())
+    stocks: List[str], auth: Auth = Depends(AllUserAuth())
 ):
     """批量计算多只股票的多因子得分"""
     try:
@@ -65,23 +63,21 @@ async def batch_calculate_factors(
 @router.get("/factor/ranking", summary="多因子选股排行")
 async def factor_ranking(
     stocks: str = Query(..., description="股票代码列表,逗号分隔"),
-    auth: Auth = Auth = Depends(AllUserAuth())
+    auth: Auth = Depends(AllUserAuth()),
 ):
     """根据多因子得分对股票进行排行"""
     try:
         stock_list = [s.strip() for s in stocks.split(",")]
         engine = get_factor_engine()
         results = await engine.batch_calculate(stock_list)
-        
+
         sorted_results = sorted(
-            results, 
-            key=lambda x: x.get("composite_score", 0), 
-            reverse=True
+            results, key=lambda x: x.get("composite_score", 0), reverse=True
         )
-        
+
         for i, item in enumerate(sorted_results):
             item["rank"] = i + 1
-            
+
         return SuccessResponse(sorted_results)
     except Exception as e:
         logger.error(f"多因子排行失败: {e}")
