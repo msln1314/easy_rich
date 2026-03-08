@@ -5,6 +5,7 @@ from apps.admin.stock import (
     news,
     stock_watchlist,
     stock_monitor_condition,
+    stock_monitor_strategy,
     stock_analysis,
     stock_prediction,
     stock_group_api,
@@ -23,6 +24,12 @@ router.include_router(news.router, prefix="/news", tags=["stock"])
 router.include_router(stock_watchlist.router, prefix="/stock_watchlist", tags=["stock"])
 router.include_router(
     stock_monitor_condition.router, prefix="/stock_monitor_condition", tags=["stock"]
+)
+router.include_router(
+    stock_monitor_strategy.router, prefix="/stock_monitor_strategy", tags=["stock"]
+)
+router.include_router(
+    stock_monitor_log.router, prefix="/stock_monitor_log", tags=["stock"]
 )
 router.include_router(stock_analysis.router, prefix="/stock_analysis", tags=["stock"])
 router.include_router(

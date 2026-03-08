@@ -2,6 +2,8 @@ from .stock_base_info import StockBaseInfoDal
 from .stock_watchlist import StockWatchlistDal
 from .news import NewsDal
 from .stock_monitor_condition import StockMonitorConditionDal
+from .stock_monitor_strategy import StockMonitorStrategyDal
+from .stock_monitor_log import StockMonitorLogDal
 from .stock_analysis import StockAnalysisDal
 from .stock_board_industry import StockBoardIndustryDal
 from .stock_group import StockGroupDal
