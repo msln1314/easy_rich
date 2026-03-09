@@ -86,7 +86,9 @@ class StockServiceClient:
 
             async with self.session.get(url) as response:
                 if response.status != 200:
-                    logger.warning(f"获取股票 {stock_code} 信息失败，状态码: {response.status}")
+                    logger.warning(
+                        f"获取股票 {stock_code} 信息失败，状态码: {response.status}"
+                    )
                     return {}
 
                 data = await response.json()
@@ -117,7 +119,9 @@ class StockServiceClient:
 
             async with self.session.get(url) as response:
                 if response.status != 200:
-                    logger.warning(f"获取股票 {stock_code} 行情失败，状态码: {response.status}")
+                    logger.warning(
+                        f"获取股票 {stock_code} 行情失败，状态码: {response.status}"
+                    )
                     return {}
 
                 data = await response.json()
@@ -135,7 +139,7 @@ class StockServiceClient:
         stock_code: str,
         period: str = "daily",
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         获取个股历史行情
@@ -163,7 +167,9 @@ class StockServiceClient:
 
             async with self.session.get(url, params=params) as response:
                 if response.status != 200:
-                    logger.warning(f"获取股票 {stock_code} 历史行情失败，状态码: {response.status}")
+                    logger.warning(
+                        f"获取股票 {stock_code} 历史行情失败，状态码: {response.status}"
+                    )
                     return []
 
                 data = await response.json()
@@ -231,10 +237,10 @@ class StockTaskClient:
             Dict[str, Any]: 同步结果
         """
         from apps.module_task.task_service import sync_stock_realtime_to_basic
-        from db.database import get_async_db
+        from core.database import session_factory
 
-        async for db in get_async_db():
-            return await sync_stock_realtime_to_basic(db)
+        async with session_factory() as session:
+            return await sync_stock_realtime_to_basic(session)
 
 
 # 全局实例

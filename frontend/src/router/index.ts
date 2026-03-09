@@ -126,6 +126,15 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         }
       },
       {
+        path: 'daily-ranking',
+        component: () => import('@/views/Vadmin/Stock/DailyRanking/DailyRanking.vue'),
+        name: 'DailyRanking',
+        meta: {
+          title: '每日排行',
+          noCache: true
+        }
+      },
+      {
         path: 'base-info',
         component: () => import('@/views/Vadmin/Stock/BaseInfo/BaseInfo.vue'),
         name: 'StockBaseInfo',

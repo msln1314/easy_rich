@@ -8,3 +8,6 @@ from .stock_analysis import StockAnalysisDal
 from .stock_board_industry import StockBoardIndustryDal
 from .stock_group import StockGroupDal
 from .sys_user_stock_group import SysUserStockGroupDal
+from .stock_daily_ranking import StockDailyRankingDal
+from .stock_hot_rank import StockHotRankDal
+from .stock_hot_rank_detail import StockHotRankDetailDal
