@@ -65,9 +65,7 @@ class RankingTrendParams(BaseModel):
         DailyRankingType.TURNOVER, description="排行类型"
     )
     start_date: Optional[date] = Field(None, description="开始日期")
-    end_date: Optional[date] = Field(
-        None, description="结束日期", default_factory=date.today
-    )
+    end_date: date = Field(default_factory=date.today, description="结束日期")
 
 
 class HotRankingParams(QueryParams):

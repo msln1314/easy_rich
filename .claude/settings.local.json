@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(python -c \"from apps.admin.stock import stock_index; print\\(''Import success''\\)\")",
+      "Bash(python -c \"from apps.admin.stock import stock_daily_ranking; print\\(''Import success''\\)\")",
+      "Bash(python -c \"from apps.admin.stock import crud; print\\(''crud ok''\\)\")",
+      "Bash(python -c \"from apps.admin.stock.crud import StockIndexDal, StockIndexHistoryDal\")",
+      "Bash(python -c \":*)",
+      "Bash(python main.py)",
+      "Bash(python main.py --help)",
+      "Bash(python -m py_compile apps/admin/stock/stock_index.py)",
+      "Bash(python -m py_compile apps/admin/stock/stock_ranking.py)",
+      "Bash(python -m py_compile apps/admin/stock/models/stock_index.py)",
+      "Bash(python -m py_compile apps/admin/stock/crud/stock_index.py)",
+      "Bash(python -m py_compile apps/admin/stock/schemas/stock_index.py)",
+      "Bash(curl -s http://localhost:8008/docs -o /dev/null -w \"%{http_code}\")"
+    ]
+  }
+}

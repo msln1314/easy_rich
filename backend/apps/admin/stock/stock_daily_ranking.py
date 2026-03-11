@@ -40,7 +40,7 @@ router = APIRouter(prefix="/stock/daily-ranking", tags=["每日排行"])
 @router.get("", summary="获取每日排行列表")
 async def get_daily_ranking(
     params: StockDailyRankingParams = Depends(), auth: Auth = Depends(OpenAuth())
-) -> SuccessResponse | ErrorResponse:
+):
     """
     获取每日排行列表
 
@@ -95,7 +95,7 @@ async def get_realtime_ranking(
     market: Optional[str] = Query(None, title="市场类型"),
     limit: int = Query(100, ge=1, le=500, title="返回数量"),
     auth: Auth = Depends(OpenAuth()),
-) -> SuccessResponse | ErrorResponse:
+):
     """
     获取实时排行列表（从 StockBasicInfo 实时查询）
     """
@@ -158,7 +158,7 @@ async def get_realtime_ranking(
 @router.get("/hot", summary="获取热度排行")
 async def get_hot_ranking(
     params: HotRankingParams = Depends(), auth: Auth = Depends(OpenAuth())
-) -> SuccessResponse | ErrorResponse:
+):
     """
     获取东方财富个股人气榜热度排行
     """
@@ -209,7 +209,7 @@ async def get_hot_ranking(
 @router.get("/trend", summary="获取排行趋势")
 async def get_ranking_trend(
     params: RankingTrendParams = Depends(), auth: Auth = Depends(OpenAuth())
-) -> SuccessResponse | ErrorResponse:
+):
     """
     获取指定股票的排行趋势（历史走势）
     """
@@ -252,7 +252,7 @@ async def get_ranking_trend(
 @router.get("/summary", summary="获取排行榜单汇总")
 async def get_ranking_summary(
     params: RankingSummaryParams = Depends(), auth: Auth = Depends(OpenAuth())
-) -> SuccessResponse | ErrorResponse:
+):
     """
     获取排行榜单汇总信息（当日TOP10）
     """
@@ -296,7 +296,7 @@ async def get_ranking_summary(
 @router.post("/sync", summary="同步每日排行数据")
 async def sync_daily_ranking(
     params: SyncRankingParams = Depends(), auth: Auth = Depends(OpenAuth())
-) -> SuccessResponse | ErrorResponse:
+):
     """
     手动触发排行数据同步（每日收盘后执行）
     """
@@ -324,7 +324,7 @@ async def sync_daily_ranking(
 async def get_industries(
     ranking_type: DailyRankingType = Query(..., title="排行类型"),
     auth: Auth = Depends(OpenAuth()),
-) -> SuccessResponse | ErrorResponse:
+):
     """
     获取指定排行类型关联的行业列表
     """
@@ -345,7 +345,7 @@ async def get_hot_detail(
     stock_code: str,
     days: int = Query(7, ge=1, le=30, title="查询天数"),
     auth: Auth = Depends(OpenAuth()),
-) -> SuccessResponse | ErrorResponse:
+):
     """
     获取指定股票的历史热度数据
     """

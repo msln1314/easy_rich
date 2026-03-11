@@ -7,25 +7,23 @@
 # @desc           : 个股排行 API
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc
+from sqlalchemy import desc, asc, select, func
 from typing import Optional
 
-from db.database import get_db
+from apps.admin.stock import crud
 from apps.admin.stock.models.stock_basic_info import StockBasicInfo
 from apps.admin.stock.params.stock_ranking import StockRankingParams
 from apps.admin.stock.schemas.stock_ranking import StockRankingOut, StockRankingListOut
 from utils.response import SuccessResponse, ErrorResponse
-from apps.admin.auth.utils.current import OpenAuth
+from apps.admin.auth.utils.current import OpenAuth, Auth
 
 router = APIRouter(prefix="/stock/ranking", tags=["个股排行"])
 
 
 @router.get("", summary="获取个股排行列表")
 async def get_stock_ranking(
-    db: Session = Depends(get_db),
     params: StockRankingParams = Depends(),
-    auth: OpenAuth = Depends()
+    auth: Auth = Depends(OpenAuth())
 ):
     """
     获取个股排行列表
@@ -38,12 +36,12 @@ async def get_stock_ranking(
     - **stock_name**: 股票名称（支持模糊搜索）
     """
     try:
-        # 构建基础查询
-        query = db.query(
-            StockBasicInfo
-        ).filter(
-            StockBasicInfo.status == "L",  # 只查询上市的股票
-            StockBasicInfo.trade_status == "交易中"  # 只查询交易中的股票
+        dal = crud.StockBaseInfoDal(auth.db)
+
+        # 构建查询
+        query = select(StockBasicInfo).filter(
+            StockBasicInfo.status == "L",
+            StockBasicInfo.trade_status == "交易中"
         )
 
         # 应用筛选条件
@@ -64,25 +62,24 @@ async def get_stock_ranking(
         sort_field = params.get_sort_field()
 
         if sort_field:
-            # 根据排序方向和字段排序
             if params.order.value == "desc":
-                # NULL 值排最后
                 query = query.order_by(sort_field.is_(None), desc(sort_field))
             else:
                 query = query.order_by(sort_field.is_(None), asc(sort_field))
 
         # 获取总数
-        total = query.count()
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await dal.execute_query(count_query)
+        total = total_result.scalar()
 
         # 分页查询
         query = query.offset(params.offset).limit(params.limit)
-        results = query.all()
+        results = await dal.get_datas(query=query)
 
         # 计算排名
         start_rank = params.offset + 1
         items = []
         for idx, stock in enumerate(results):
-            # 将 SQLAlchemy 对象转换为字典
             stock_dict = {
                 'id': stock.id,
                 'stock_code': stock.stock_code,
@@ -133,37 +130,47 @@ async def get_stock_ranking(
 
 
 @router.get("/industries", summary="获取行业列表")
-async def get_industries(db: Session = Depends(get_db), auth: OpenAuth = Depends()):
+async def get_industries(auth: Auth = Depends(OpenAuth())):
     """获取所有行业列表，用于筛选"""
     try:
-        industries = db.query(StockBasicInfo.industry).filter(
+        dal = crud.StockBaseInfoDal(auth.db)
+
+        query = select(StockBasicInfo.industry).filter(
             StockBasicInfo.industry.isnot(None),
             StockBasicInfo.status == "L"
-        ).distinct().all()
+        ).distinct()
 
-        industry_list = sorted([ind[0] for ind in industries if ind[0]])
+        result = await dal.execute_query(query)
+        industries = result.scalars().all()
+        industry_list = sorted([ind for ind in industries if ind])
+
         return SuccessResponse(industry_list)
     except Exception as e:
         return ErrorResponse(f"获取行业列表失败: {str(e)}")
 
 
 @router.get("/markets", summary="获取市场类型列表")
-async def get_markets(db: Session = Depends(get_db), auth: OpenAuth = Depends()):
+async def get_markets(auth: Auth = Depends(OpenAuth())):
     """获取所有市场类型列表，用于筛选"""
     try:
-        markets = db.query(StockBasicInfo.market).filter(
+        dal = crud.StockBaseInfoDal(auth.db)
+
+        query = select(StockBasicInfo.market).filter(
             StockBasicInfo.market.isnot(None),
             StockBasicInfo.status == "L"
-        ).distinct().all()
+        ).distinct()
 
-        market_list = [mkt[0] for mkt in markets if mkt[0]]
+        result = await dal.execute_query(query)
+        markets = result.scalars().all()
+        market_list = [mkt for mkt in markets if mkt]
+
         return SuccessResponse(market_list)
     except Exception as e:
         return ErrorResponse(f"获取市场类型列表失败: {str(e)}")
 
 
 @router.post("/sync", summary="同步实时行情数据")
-async def sync_realtime_data(auth: OpenAuth = Depends()):
+async def sync_realtime_data(auth: Auth = Depends(OpenAuth())):
     """
     同步实时行情数据
 
@@ -171,12 +178,8 @@ async def sync_realtime_data(auth: OpenAuth = Depends()):
     """
     try:
         from apps.module_task.task_service import sync_stock_realtime_to_basic
-        from db.database import get_async_db
-        from sqlalchemy.ext.asyncio import AsyncSession
 
-        # 获取异步数据库会话
-        async for async_db in get_async_db():
-            result = await sync_stock_realtime_to_basic(async_db)
-            return SuccessResponse(result)
+        result = await sync_stock_realtime_to_basic(auth.db)
+        return SuccessResponse(result)
     except Exception as e:
         return ErrorResponse(f"同步失败: {str(e)}")

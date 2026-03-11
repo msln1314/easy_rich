@@ -126,6 +126,15 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         }
       },
       {
+        path: 'market-dashboard',
+        component: () => import('@/views/Vadmin/Stock/MarketDashboard/MarketDashboard.vue'),
+        name: 'MarketDashboard',
+        meta: {
+          title: '大盘座舱',
+          noCache: true
+        }
+      },
+      {
         path: 'daily-ranking',
         component: () => import('@/views/Vadmin/Stock/DailyRanking/DailyRanking.vue'),
         name: 'DailyRanking',

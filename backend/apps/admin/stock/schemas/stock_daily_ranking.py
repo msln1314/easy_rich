@@ -109,6 +109,6 @@ class HotRankingOut(BaseModel):
     comment_count: int | None = Field(None, description="评论数")
 
     data_date: date
-    data_time: datetime | None = Field(None, description="数据时间")
+    data_time: DatetimeStr | None = Field(None, description="数据时间")
 
     created_at: DatetimeStr

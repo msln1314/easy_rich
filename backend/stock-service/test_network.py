@@ -3,10 +3,9 @@
 """
 直接测试 akshare 接口（不使用补丁）
 """
-# python 文件顶部添加2行代码
-import akshare_proxy_patch
-
-akshare_proxy_patch.install_patch("101.201.173.125", "", 30)
+# python 文件顶部添加2行代码 (已禁用)
+# import akshare_proxy_patch
+# akshare_proxy_patch.install_patch("101.201.173.125", "", 30)
 import akshare as ak
 import pandas as pd
 from datetime import datetime

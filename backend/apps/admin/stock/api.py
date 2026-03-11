@@ -6,6 +6,7 @@ from apps.admin.stock import (
     stock_watchlist,
     stock_monitor_condition,
     stock_monitor_strategy,
+    stock_monitor_log,
     stock_analysis,
     stock_prediction,
     stock_group_api,
@@ -13,6 +14,8 @@ from apps.admin.stock import (
     stock_board_industry,
     stock_board_concept,
     stock_ranking,
+    stock_index,
+    stock_daily_ranking,
 )
 
 
@@ -44,6 +47,8 @@ router.include_router(
     stock_board_concept.router, prefix="/board_concept", tags=["concept"]
 )
 router.include_router(stock_ranking.router, tags=["ranking"])
+router.include_router(stock_index.router, tags=["大盘指数"])
+router.include_router(stock_daily_ranking.router, tags=["每日排行"])
 
 # router.include_router(notice.router, prefix="/system/notice", tags=["system"])
 # router.include_router(alarm.router, prefix="/system/alarm", tags=["system"])

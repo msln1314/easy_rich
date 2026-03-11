@@ -7,7 +7,7 @@
 # @desc           : 个股排行 Pydantic 模型
 
 from pydantic import BaseModel, ConfigDict, Field
-from core.data_types import DatetimeStr, FloatStr
+from core.data_types import DatetimeStr
 
 
 class StockRankingOut(BaseModel):

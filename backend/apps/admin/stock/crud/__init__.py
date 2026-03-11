@@ -11,3 +11,4 @@ from .sys_user_stock_group import SysUserStockGroupDal
 from .stock_daily_ranking import StockDailyRankingDal
 from .stock_hot_rank import StockHotRankDal
 from .stock_hot_rank_detail import StockHotRankDetailDal
+from .stock_index import StockIndexDal

@@ -230,6 +230,15 @@ class DalBase:
         queryset = await self.db.execute(sql)
         return queryset.one()[0]
 
+    async def execute_query(self, sql: SelectType):
+        """
+        执行原始 SQL 查询
+
+        :param sql: SQL 查询对象
+        :return: 查询结果
+        """
+        return await self.db.execute(sql)
+
     async def create_data(
             self,
             data,

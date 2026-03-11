@@ -11,3 +11,4 @@ from .stock_group import StockGroupParams
 from .sys_user_stock_group import SysUserStockGroupParams
 from .stock_board_concept import StockBoardConceptParams
 from .stock_monitor_strategy import StockMonitorStrategyParams
+from .stock_monitor_log import StockMonitorLogParams

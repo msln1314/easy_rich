@@ -1,10 +1,10 @@
-# 导入本地版本的 akshare 代理补丁
-try:
-    from app.utils.akshare_proxy_patch import install_patch
-    install_patch("127.0.0.1", "", 60)  # auth_token 为空时不使用代理
-except ImportError as e:
-    print(f"警告：无法导入 akshare 代理补丁: {e}")
-    pass
+# 导入本地版本的 akshare 代理补丁 (已禁用)
+# try:
+#     from app.utils.akshare_proxy_patch import install_patch
+#     install_patch("127.0.0.1", "", 60)  # auth_token 为空时不使用代理
+# except ImportError as e:
+#     print(f"警告：无法导入 akshare 代理补丁: {e}")
+#     pass
 
 import akshare as ak
 import pandas as pd  # 添加pandas导入
