@@ -4,7 +4,11 @@ from datetime import datetime, timedelta
 import inspect
 import time
 import threading
+import asyncio
 from typing import Dict, List, Optional
+
+# Stock Service Client for stock data
+from apps.module_task.stock_service_client import StockServiceClient
 
 
 _A_STOCK_SPOT_CACHE_LOCK = threading.Lock()
@@ -61,28 +65,44 @@ def get_stock_history(code: str, days: int = 100) -> List[Dict]:
     """
     try:
         code = _normalize_a_stock_code(code)
-        end_date = datetime.now()
-        # Estimate start date (trading days != calendar days, so multiply by 1.5 buffer)
-        start_date = end_date - timedelta(days=int(days * 1.6)) 
-        
-        start_str = start_date.strftime("%Y%m%d")
-        end_str = end_date.strftime("%Y%m%d")
-        
-        df = ak.stock_zh_a_hist(symbol=code, period="daily", start_date=start_str, end_date=end_str, adjust="qfq")
-        
-        if df is None or df.empty:
+        if not code:
             return []
-            
-        # df columns: 日期, 开盘, 收盘, 最高, 最低, 成交量, 成交额, ...
-        # Standardize to: date, value (close)
+
+        # 使用 StockServiceClient 获取数据
+        async def _fetch_history():
+            async with StockServiceClient() as client:
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=int(days * 1.6))
+                start_str = start_date.strftime("%Y%m%d")
+                end_str = end_date.strftime("%Y%m%d")
+                return await client.get_stock_history(code, period="daily", start_date=start_str, end_date=end_str)
+
+        # 运行异步函数
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # 如果在异步环境中，创建新的线程运行
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, _fetch_history())
+                    history_data = future.result(timeout=30)
+            else:
+                history_data = loop.run_until_complete(_fetch_history())
+        except RuntimeError:
+            history_data = asyncio.run(_fetch_history())
+
+        if not history_data:
+            return []
+
+        # 标准化返回格式
         result = []
-        for _, row in df.iterrows():
+        for item in history_data:
             result.append({
-                "date": str(row['日期']),
-                "value": float(row['收盘']),
-                "volume": float(row['成交量'])
+                "date": str(item.get('date', '')),
+                "value": float(item.get('close', 0)),
+                "volume": float(item.get('volume', 0))
             })
-            
+
         return result
     except Exception as e:
         print(f"Error fetching history for {code}: {e}")

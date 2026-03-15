@@ -6,6 +6,7 @@
 # @desc           : 股票关注列表接口文件
 
 from fastapi import APIRouter, Depends, Body
+from sqlalchemy import func
 from utils.response import SuccessResponse
 from apps.admin.auth.utils.current import AllUserAuth, FullAdminAuth, Auth
 from .params import StockWatchlistParams
@@ -36,12 +37,24 @@ async def get_watchlist_list(params: StockWatchlistParams = Depends(), auth: Aut
     获取股票关注列表
     """
     watchlist_dict = params.dict()
-    print(watchlist_dict,"watchlistlll")
     schema = schemas.StockWatchlistOut
-    datas, count = await crud.StockWatchlistDal(auth.db).get_datas(
+
+    # 处理日期范围过滤
+    v_where = []
+    start_date = watchlist_dict.pop('start_date', None)
+    end_date = watchlist_dict.pop('end_date', None)
+
+    dal = crud.StockWatchlistDal(auth.db)
+    if start_date:
+        v_where.append(func.date(dal.model.date_at) >= start_date)
+    if end_date:
+        v_where.append(func.date(dal.model.date_at) <= end_date)
+
+    datas, count = await dal.get_datas(
         **watchlist_dict,
-          v_schema=schema,
-        v_return_count=True
+        v_schema=schema,
+        v_return_count=True,
+        v_where=v_where if v_where else None
     )
     return SuccessResponse(datas, count=count)
 
@@ -137,3 +150,12 @@ async def get_active_watchlist(user_id: int, auth: Auth = Depends(AllUserAuth())
     """
     datas = await crud.StockWatchlistDal(auth.db).get_active_watchlist_by_user(user_id)
     return SuccessResponse(datas)
+
+
+@router.get("/tags/list", summary="获取所有标签列表")
+async def get_tags_list(auth: Auth = Depends(AllUserAuth())):
+    """
+    获取所有标签列表
+    """
+    tags = await crud.StockWatchlistDal(auth.db).get_all_tags()
+    return SuccessResponse(tags)

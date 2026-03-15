@@ -33,7 +33,14 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''jin10: {d[data][status]}''''\\)\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2, ensure_ascii=False\\)[:500]\\)\")",
       "Bash(curl -s \"http://localhost:8008/api/v1/hot-news/douyin\")",
-      "Bash(curl -s \"http://localhost:8008/api/v1/hot-news/sspai\")"
+      "Bash(curl -s \"http://localhost:8008/api/v1/hot-news/sspai\")",
+      "Bash(curl -s http://localhost:8008/api/v1/index/quote)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2, ensure_ascii=False\\)\\)\")",
+      "Bash(curl -s \"http://localhost:8008/api/v1/index/quotes\")",
+      "Bash(python -c \"import akshare as ak; print\\([f for f in dir\\(ak\\) if ''north'' in f.lower\\(\\) or ''hsgt'' in f.lower\\(\\)]\\)\")",
+      "Bash(curl -s \"http://localhost:8008/api/v1/fund-flow/north-money/realtime\")",
+      "Bash(curl -s \"http://127.0.0.1:8008/api/v1/fund-flow/north-money/realtime\")",
+      "Bash(curl -s http://127.0.0.1:8008/api/v1/openapi.json)"
     ]
   }
 }

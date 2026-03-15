@@ -3,7 +3,7 @@
 # @Create Time    : 2026/3/10
 # @File           : index_service.py
 # @IDE            : PyCharm
-# @desc           : 指数行情服务 - 支持 AKShare、新浪、掘金量化多数据源
+# @desc           : 指数行情服务 - 支持 AKShare、新浪、掘金量化、pytdx 多数据源
 
 import akshare as ak
 import pandas as pd
@@ -13,6 +13,7 @@ from typing import List, Optional
 from app.models.index_models import IndexQuote
 from app.core.logging import get_logger
 from app.utils.cache import cache_result
+from app.services.pytdx_source import pytdx_source
 
 logger = get_logger(__name__)
 
@@ -74,6 +75,12 @@ class IndexService:
         result, source = await self._try_gm()
         if result:
             logger.info(f"当前数据源: 掘金量化")
+            return result, source
+
+        # 4. 尝试 pytdx
+        result, source = await self._try_pytdx()
+        if result:
+            logger.info(f"当前数据源: pytdx")
             return result, source
 
         logger.warning("所有数据源均无法获取指数行情")
@@ -258,6 +265,41 @@ class IndexService:
 
         except Exception as e:
             logger.warning(f"GM 接口失败: {e}")
+            return None, ""
+
+    async def _try_pytdx(self) -> tuple[Optional[List[IndexQuote]], str]:
+        """尝试使用 pytdx 接口获取指数行情"""
+        try:
+            pytdx_quotes = await pytdx_source.get_index_quotes()
+            if not pytdx_quotes:
+                return None, ""
+
+            result = []
+            for q in pytdx_quotes:
+                code = q.get('code', '')
+                # 转换代码格式
+                if code.startswith('6'):
+                    std_code = f"{code}.SH"
+                else:
+                    std_code = f"{code}.SZ"
+
+                index_quote = IndexQuote(
+                    code=std_code,
+                    name=q.get('name', ''),
+                    price=q.get('price'),
+                    change=q.get('change'),
+                    change_percent=q.get('change_percent'),
+                    volume=q.get('volume'),
+                    amount=q.get('amount'),
+                    update_time=datetime.now()
+                )
+                result.append(index_quote)
+
+            logger.info(f"pytdx 接口获取到 {len(result)} 条指数数据")
+            return result, "pytdx"
+
+        except Exception as e:
+            logger.warning(f"pytdx 接口失败: {e}")
             return None, ""
 
     def _gm_to_std_code(self, gm_code: str) -> Optional[str]:

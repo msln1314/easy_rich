@@ -210,6 +210,90 @@ class StockServiceClient:
             logger.error(f"同步实时行情异常: {str(e)}")
             raise
 
+    async def get_concept_boards(self) -> List[Dict[str, Any]]:
+        """
+        获取概念板块列表及实时行情
+
+        Returns:
+            List[Dict[str, Any]]: 概念板块列表
+        """
+        url = f"{self.base_url}/sector/concept"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"获取概念板块失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data if isinstance(data, list) else []
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取概念板块失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取概念板块异常: {str(e)}")
+            return []
+
+    async def get_industry_boards(self) -> List[Dict[str, Any]]:
+        """
+        获取行业板块列表及实时行情
+
+        Returns:
+            List[Dict[str, Any]]: 行业板块列表
+        """
+        url = f"{self.base_url}/sector/industry"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"获取行业板块失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data if isinstance(data, list) else []
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取行业板块失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取行业板块异常: {str(e)}")
+            return []
+
+    async def get_market_summary(self) -> Dict[str, Any]:
+        """
+        获取市场汇总数据
+
+        Returns:
+            Dict[str, Any]: 市场汇总数据
+        """
+        url = f"{self.base_url}/market/summary"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"获取市场汇总失败，状态码: {response.status}")
+                    return {}
+
+                data = await response.json()
+                return data.get("data", {})
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取市场汇总失败: {str(e)}")
+            return {}
+        except Exception as e:
+            logger.error(f"获取市场汇总异常: {str(e)}")
+            return {}
+
 
 async def fetch_stock_list() -> List[Dict[str, Any]]:
     """

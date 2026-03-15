@@ -45,6 +45,18 @@ except ImportError:
     print("警告: 无法导入 hot_news_routes 模块")
     hot_news_routes = None
 
+try:
+    from app.api.endpoints import fund_flow_routes
+except ImportError:
+    print("警告: 无法导入 fund_flow_routes 模块")
+    fund_flow_routes = None
+
+try:
+    from app.api.endpoints import market_routes
+except ImportError:
+    print("警告: 无法导入 market_routes 模块")
+    market_routes = None
+
 api_router = APIRouter()
 
 # 根据模块是否成功导入来添加路由
@@ -62,3 +74,7 @@ if news_routes:
     api_router.include_router(news_routes.router, prefix="/news", tags=["news"])
 if hot_news_routes:
     api_router.include_router(hot_news_routes.router, prefix="/hot-news", tags=["hot-news"])
+if fund_flow_routes:
+    api_router.include_router(fund_flow_routes.router, prefix="/fund-flow", tags=["fund-flow"])
+if market_routes:
+    api_router.include_router(market_routes.router, prefix="/market", tags=["market"])

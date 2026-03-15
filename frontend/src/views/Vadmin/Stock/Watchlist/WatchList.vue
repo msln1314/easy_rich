@@ -1,6 +1,11 @@
 <script setup lang="tsx">
-import { reactive, ref, unref } from 'vue'
-import { getWatchListApi, delWatchListApi, postExportWatchListApi } from '@/api/stock/watch_list'
+import { reactive, ref, unref, onMounted, computed } from 'vue'
+import {
+  getWatchListApi,
+  delWatchListApi,
+  postExportWatchListApi,
+  getTagsListApi
+} from '@/api/stock/watch_list'
 import { createStockAnalysisApi } from '@/api/stock/analysis'
 import { useTable } from '@/hooks/web/useTable'
 import { Table, TableColumn } from '@/components/Table'
@@ -24,6 +29,28 @@ const analysisWriteRef = ref()
 const currentAnalyzeRow = ref<any>(null)
 
 const sortInfo = ref<any>({})
+
+// 标签列表
+const tagsOptions = ref<{ label: string; value: string }[]>([])
+
+// 获取标签列表
+const fetchTagsList = async () => {
+  try {
+    const res = await getTagsListApi()
+    if (res.data) {
+      tagsOptions.value = res.data.map((tag: string) => ({
+        label: tag,
+        value: tag
+      }))
+    }
+  } catch (error) {
+    console.error('获取标签列表失败:', error)
+  }
+}
+
+onMounted(() => {
+  fetchTagsList()
+})
 
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
@@ -370,7 +397,7 @@ const tableColumns = reactive<TableColumn[]>([
   }
 ])
 
-const searchSchema = reactive<FormSchema[]>([
+const searchSchema = computed<FormSchema[]>(() => [
   {
     field: 'stock_code',
     label: '股票代码',
@@ -402,6 +429,19 @@ const searchSchema = reactive<FormSchema[]>([
       style: {
         width: '214px'
       }
+    }
+  },
+  {
+    field: 'tags',
+    label: '标签',
+    component: 'Select',
+    componentProps: {
+      clearable: true,
+      filterable: true,
+      style: {
+        width: '214px'
+      },
+      options: tagsOptions.value
     }
   },
   {
@@ -447,13 +487,39 @@ const searchSchema = reactive<FormSchema[]>([
         }
       ]
     }
+  },
+  {
+    field: 'dateRange',
+    label: '关注时间',
+    component: 'DatePicker',
+    value: [],
+    componentProps: {
+      type: 'daterange',
+      clearable: true,
+      rangeSeparator: '至',
+      startPlaceholder: '开始日期',
+      endPlaceholder: '结束日期',
+      valueFormat: 'YYYY-MM-DD',
+      style: {
+        width: '280px'
+      }
+    }
   }
 ])
 
 const searchParams = ref({})
 const setSearchParams = (data: any) => {
   currentPage.value = 1
-  searchParams.value = data
+  // 处理日期范围
+  const params = { ...data }
+  if (params.dateRange && params.dateRange.length === 2) {
+    params.start_date = params.dateRange[0]
+    params.end_date = params.dateRange[1]
+    delete params.dateRange
+  } else {
+    delete params.dateRange
+  }
+  searchParams.value = params
   getList()
 }
 

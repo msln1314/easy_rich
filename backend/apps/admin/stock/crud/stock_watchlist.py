@@ -198,3 +198,31 @@ class StockWatchlistDal(DalBase):
         file_url = em.save_excel()
         em.close()
         return {"url": file_url, "filename": "股票关注列表.xlsx"}
+
+    async def get_all_tags(self, user_id: int = None) -> list[str]:
+        """
+        获取所有标签列表
+        :param user_id: 用户ID，可选，用于筛选特定用户的标签
+        :return: 标签列表
+        """
+        # 查询所有非空的标签
+        sql = select(self.model.tags).where(
+            self.model.tags.isnot(None),
+            self.model.tags != ''
+        )
+        if user_id:
+            sql = sql.where(self.model.user_id == user_id)
+
+        result = await self.db.execute(sql)
+        tags_list = result.scalars().all()
+
+        # 解析标签（多个标签用逗号分隔）
+        all_tags = set()
+        for tags in tags_list:
+            if tags:
+                for tag in tags.split(','):
+                    tag = tag.strip()
+                    if tag:
+                        all_tags.add(tag)
+
+        return sorted(list(all_tags))

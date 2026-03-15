@@ -23,3 +23,7 @@ export const getProductOptionsApi = (): Promise<IResponse> => {
 export const postExportWatchListApi = (params: any, data: any): Promise<IResponse> => {
   return request.post({ url: '/stock/stock_watchlist/export/excel', params, data })
 }
+
+export const getTagsListApi = (): Promise<IResponse> => {
+  return request.get({ url: '/stock/stock_watchlist/tags/list' })
+}

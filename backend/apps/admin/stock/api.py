@@ -18,6 +18,7 @@ from apps.admin.stock import (
     stock_daily_ranking,
     stock_quote,
     hot_news,
+    fund_flow,
 )
 
 
@@ -53,6 +54,7 @@ router.include_router(stock_index.router, tags=["大盘指数"])
 router.include_router(stock_daily_ranking.router, tags=["每日排行"])
 router.include_router(stock_quote.router, tags=["股票行情"])
 router.include_router(hot_news.router, tags=["热门头条"])
+router.include_router(fund_flow.router, tags=["资金流向"])
 
 # router.include_router(notice.router, prefix="/system/notice", tags=["system"])
 # router.include_router(alarm.router, prefix="/system/alarm", tags=["system"])

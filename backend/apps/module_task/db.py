@@ -1,5 +1,3 @@
-import akshare as ak
-import pandas as pd
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, update

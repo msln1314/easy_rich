@@ -1,5 +1,3 @@
-import akshare as ak
-import pandas as pd
 import traceback
 from datetime import datetime, date
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -206,54 +204,35 @@ async def sync_stock_realtime_to_basic(db: AsyncSession) -> dict:
 async def sync_realtime_data(db: AsyncSession) -> dict:
     """
     同步实时行情数据
-    从akshare获取股票实时行情，更新股票实时数据表
+    从 Stock Service 获取股票实时行情，更新股票实时数据表
     :return: 操作结果
     """
     try:
-        print("开始同步实时行情数据...")
+        print("开始从 Stock Service 同步实时行情数据...")
 
-        # 获取A股实时行情
-        realtime_df = ak.stock_zh_a_spot_em()
+        # 从 Stock Service 获取股票列表（包含实时行情）
+        async with StockServiceClient() as client:
+            stock_list = await client.get_all_stock_list()
 
-        if realtime_df.empty:
+        if not stock_list:
             return {"is_success": False, "message": "未获取到实时行情数据"}
-
-        # 字段映射
-        column_mapping = {
-            "代码": "stock_code",
-            "名称": "stock_name",
-            "最新价": "current_price",
-            "涨跌幅": "change_percent",
-            "涨跌额": "change_amount",
-            "成交量": "volume",
-            "成交额": "amount",
-            "振幅": "amplitude",
-            "最高": "high_price",
-            "最低": "low_price",
-            "今开": "open_price",
-            "昨收": "previous_close",
-            "量比": "volume_ratio",
-            "换手率": "turnover_rate",
-            "市盈率-动态": "pe_ratio",
-            "市净率": "pb_ratio",
-            "总市值": "total_market_cap",
-            "流通市值": "circulating_market_cap",
-        }
-
-        # 重命名列
-        realtime_df = realtime_df.rename(columns=column_mapping)
 
         # 获取当前日期和时间
         current_date = datetime.now().date()
         current_time = datetime.now()
 
+        # 获取数据库中当天已有的实时数据
+        sql = select(StockRealtime.stock_code).where(StockRealtime.trade_date == current_date)
+        result = await db.execute(sql)
+        existing_codes = set(result.scalars().all())
+
         # 处理数据
         added_count = 0
         updated_count = 0
 
-        for _, row in realtime_df.iterrows():
+        for stock in stock_list:
             try:
-                stock_code = str(row["stock_code"])
+                stock_code = str(stock.get("code", ""))
 
                 if not stock_code:
                     continue
@@ -267,47 +246,42 @@ async def sync_realtime_data(db: AsyncSession) -> dict:
                 else:
                     full_code = stock_code
 
-                # 检查今日是否已存在该股票的实时数据
-                sql = select(StockRealtime).where(
-                    StockRealtime.stock_code == stock_code,
-                    StockRealtime.trade_date == current_date
-                )
-                result = await db.execute(sql)
-                existing_realtime = result.scalar_one_or_none()
-
                 # 构建实时数据
                 realtime_data = {
                     "full_code": full_code,
                     "stock_code": stock_code,
-                    "stock_name": row["stock_name"] if pd.notna(row["stock_name"]) else None,
+                    "stock_name": stock.get("name"),
                     "trade_date": current_date,
                     "trade_time": current_time,
-                    "current_price": float(row["current_price"]) if pd.notna(row["current_price"]) else 0.0,
-                    "open_price": float(row["open_price"]) if pd.notna(row["open_price"]) else 0.0,
-                    "high_price": float(row["high_price"]) if pd.notna(row["high_price"]) else 0.0,
-                    "low_price": float(row["low_price"]) if pd.notna(row["low_price"]) else 0.0,
-                    "previous_close": float(row["previous_close"]) if pd.notna(row["previous_close"]) else 0.0,
-                    "change_amount": float(row["change_amount"]) if pd.notna(row["change_amount"]) else 0.0,
-                    "change_percent": float(row["change_percent"]) if pd.notna(row["change_percent"]) else 0.0,
-                    "volume": float(row["volume"]) if pd.notna(row["volume"]) else 0.0,
-                    "amount": float(row["amount"]) if pd.notna(row["amount"]) else 0.0,
-                    "turnover_rate": float(row["turnover_rate"]) if pd.notna(row["turnover_rate"]) else None,
-                    "volume_ratio": float(row["volume_ratio"]) if pd.notna(row["volume_ratio"]) else None,
-                    "amplitude": float(row["amplitude"]) if pd.notna(row["amplitude"]) else None,
-                    "total_market_cap": float(row["total_market_cap"]) if pd.notna(row["total_market_cap"]) else None,
-                    "circulating_market_cap": float(row["circulating_market_cap"]) if pd.notna(row["circulating_market_cap"]) else None,
-                    "pe_ratio": float(row["pe_ratio"]) if pd.notna(row["pe_ratio"]) else None,
-                    "pb_ratio": float(row["pb_ratio"]) if pd.notna(row["pb_ratio"]) else None,
+                    "current_price": float(stock.get("price", 0) or 0),
+                    "open_price": float(stock.get("open", 0) or 0),
+                    "high_price": float(stock.get("high", 0) or 0),
+                    "low_price": float(stock.get("low", 0) or 0),
+                    "previous_close": float(stock.get("pre_close", 0) or 0),
+                    "change_amount": float(stock.get("change_amount", 0) or 0),
+                    "change_percent": float(stock.get("change_percent", 0) or 0),
+                    "volume": float(stock.get("volume", 0) or 0),
+                    "amount": float(stock.get("amount", 0) or 0),
+                    "turnover_rate": stock.get("turnover_rate"),
+                    "volume_ratio": stock.get("volume_ratio"),
+                    "amplitude": stock.get("amplitude"),
+                    "total_market_cap": stock.get("market_cap"),
+                    "circulating_market_cap": stock.get("circulating_market_cap"),
+                    "pe_ratio": stock.get("pe_ratio"),
+                    "pb_ratio": stock.get("pb_ratio"),
                     "is_trading": 1,
                     "trading_status": "normal",
-                    "data_source": "akshare",
+                    "data_source": "stock_service",
                 }
 
-                if existing_realtime:
+                if stock_code in existing_codes:
                     # 更新现有记录
+                    del realtime_data["stock_code"]
+                    del realtime_data["trade_date"]
                     update_stmt = (
                         update(StockRealtime)
-                        .where(StockRealtime.id == existing_realtime.id)
+                        .where(StockRealtime.stock_code == stock_code)
+                        .where(StockRealtime.trade_date == current_date)
                         .values(**realtime_data)
                     )
                     await db.execute(update_stmt)
@@ -337,39 +311,19 @@ async def sync_realtime_data(db: AsyncSession) -> dict:
 
 async def sync_board_industry_from_akshare(db: AsyncSession) -> dict:
     """
-    从akshare同步行业板块数据
+    从 Stock Service 同步行业板块数据
     先获取当天所有的行业板块信息，判断是更新还是插入
     :return: 操作结果
     """
     try:
-        print("开始获取行业板块数据...")
+        print("开始从 Stock Service 获取行业板块数据...")
 
-        # 获取行业板块数据
-        board_industry_df = ak.stock_board_industry_name_ths()
+        # 从 Stock Service 获取行业板块数据
+        async with StockServiceClient() as client:
+            industry_boards = await client.get_industry_boards()
 
-        # 如果获取的是板块列表，需要获取详细信息
-        if "板块名称" in board_industry_df.columns or "板块代码" in board_industry_df.columns:
-            # 获取行业板块详细数据
-            board_industry_df = ak.stock_board_industry_ths()
-
-        # 字段映射
-        column_mapping = {
-            "序号": "sequence",
-            "板块": "board_name",
-            "涨跌幅": "change_percent",
-            "总成交量": "total_volume",
-            "总成交额": "total_amount",
-            "净流入": "net_inflow",
-            "上涨家数": "up_count",
-            "下跌家数": "down_count",
-            "均价": "average_price",
-            "领涨股": "leading_stock",
-            "领涨股-最新价": "leading_stock_price",
-            "领涨股-涨跌幅": "leading_stock_change",
-        }
-
-        # 重命名列
-        board_industry_df = board_industry_df.rename(columns=column_mapping)
+        if not industry_boards:
+            return {"is_success": False, "message": "未获取到行业板块数据"}
 
         # 获取当前日期
         current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -382,31 +336,31 @@ async def sync_board_industry_from_akshare(db: AsyncSession) -> dict:
         boards_to_add = []
         boards_to_update = []
 
-        for _, row in board_industry_df.iterrows():
+        for board in industry_boards:
             try:
-                board_name = row["board_name"] if pd.notna(row["board_name"]) else ""
+                board_name = board.get("name", "")
                 if not board_name:
                     continue
 
                 # 构建数据
                 board_data = {
                     "board_name": board_name,
-                    "board_code": None,  # 同花顺接口不提供板块代码
-                    "sequence": int(row["sequence"]) if pd.notna(row["sequence"]) else None,
-                    "change_percent": float(row["change_percent"]) if pd.notna(row["change_percent"]) else None,
-                    "average_price": float(row["average_price"]) if pd.notna(row["average_price"]) else None,
-                    "total_volume": float(row["total_volume"]) if pd.notna(row["total_volume"]) else None,
-                    "total_amount": float(row["total_amount"]) if pd.notna(row["total_amount"]) else None,
-                    "net_inflow": float(row["net_inflow"]) if pd.notna(row["net_inflow"]) else None,
-                    "up_count": int(row["up_count"]) if pd.notna(row["up_count"]) else None,
-                    "down_count": int(row["down_count"]) if pd.notna(row["down_count"]) else None,
-                    "leading_stock": row["leading_stock"] if pd.notna(row["leading_stock"]) else None,
-                    "leading_stock_price": float(row["leading_stock_price"]) if pd.notna(row["leading_stock_price"]) else None,
-                    "leading_stock_change": float(row["leading_stock_change"]) if pd.notna(row["leading_stock_change"]) else None,
-                    "leading_stock_code": None,  # 同花顺接口不提供领涨股代码
+                    "board_code": board.get("code"),
+                    "sequence": board.get("sequence"),
+                    "change_percent": board.get("change_percent"),
+                    "average_price": None,
+                    "total_volume": board.get("volume"),
+                    "total_amount": board.get("amount"),
+                    "net_inflow": board.get("net_inflow"),
+                    "up_count": board.get("up_count"),
+                    "down_count": board.get("down_count"),
+                    "leading_stock": board.get("leading_stock"),
+                    "leading_stock_price": board.get("leading_stock_price"),
+                    "leading_stock_change": board.get("leading_stock_change"),
+                    "leading_stock_code": board.get("leading_stock_code"),
                     "date_at": current_date,
                     "data_time": datetime.now(),
-                    "data_from": "akshare_ths",
+                    "data_from": "stock_service",
                 }
 
                 # 判断是新增还是更新
@@ -484,34 +438,19 @@ async def get_board_industry_by_date(
 
 async def sync_board_concept_from_akshare(db: AsyncSession) -> dict:
     """
-    从akshare同步概念板块数据
+    从 Stock Service 同步概念板块数据
     先获取当天所有的概念板块信息，判断是更新还是插入
     :return: 操作结果
     """
     try:
-        print("开始获取概念板块数据...")
+        print("开始从 Stock Service 获取概念板块数据...")
 
-        # 获取概念板块数据
-        board_concept_df = ak.stock_board_concept_ths()
+        # 从 Stock Service 获取概念板块数据
+        async with StockServiceClient() as client:
+            concept_boards = await client.get_concept_boards()
 
-        # 字段映射
-        column_mapping = {
-            "序号": "sequence",
-            "板块": "board_name",
-            "涨跌幅": "change_percent",
-            "总成交量": "total_volume",
-            "总成交额": "total_amount",
-            "净流入": "net_inflow",
-            "上涨家数": "up_count",
-            "下跌家数": "down_count",
-            "均价": "average_price",
-            "领涨股": "leading_stock",
-            "领涨股-最新价": "leading_stock_price",
-            "领涨股-涨跌幅": "leading_stock_change",
-        }
-
-        # 重命名列
-        board_concept_df = board_concept_df.rename(columns=column_mapping)
+        if not concept_boards:
+            return {"is_success": False, "message": "未获取到概念板块数据"}
 
         # 获取当前日期
         current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -524,53 +463,31 @@ async def sync_board_concept_from_akshare(db: AsyncSession) -> dict:
         boards_to_add = []
         boards_to_update = []
 
-        for _, row in board_concept_df.iterrows():
+        for board in concept_boards:
             try:
-                board_name = row["board_name"] if pd.notna(row["board_name"]) else ""
+                board_name = board.get("name", "")
                 if not board_name:
                     continue
 
                 # 构建数据
                 board_data = {
                     "board_name": board_name,
-                    "board_code": None,  # 同花顺接口不提供板块代码
-                    "sequence": int(row["sequence"])
-                    if pd.notna(row["sequence"])
-                    else None,
-                    "change_percent": float(row["change_percent"])
-                    if pd.notna(row["change_percent"])
-                    else None,
-                    "average_price": float(row["average_price"])
-                    if pd.notna(row["average_price"])
-                    else None,
-                    "total_volume": float(row["total_volume"])
-                    if pd.notna(row["total_volume"])
-                    else None,
-                    "total_amount": float(row["total_amount"])
-                    if pd.notna(row["total_amount"])
-                    else None,
-                    "net_inflow": float(row["net_inflow"])
-                    if pd.notna(row["net_inflow"])
-                    else None,
-                    "up_count": int(row["up_count"])
-                    if pd.notna(row["up_count"])
-                    else None,
-                    "down_count": int(row["down_count"])
-                    if pd.notna(row["down_count"])
-                    else None,
-                    "leading_stock": row["leading_stock"]
-                    if pd.notna(row["leading_stock"])
-                    else None,
-                    "leading_stock_price": float(row["leading_stock_price"])
-                    if pd.notna(row["leading_stock_price"])
-                    else None,
-                    "leading_stock_change": float(row["leading_stock_change"])
-                    if pd.notna(row["leading_stock_change"])
-                    else None,
-                    "leading_stock_code": None,  # 同花顺接口不提供领涨股代码
+                    "board_code": board.get("code"),
+                    "sequence": board.get("sequence"),
+                    "change_percent": board.get("change_percent"),
+                    "average_price": None,
+                    "total_volume": board.get("volume"),
+                    "total_amount": board.get("amount"),
+                    "net_inflow": board.get("net_inflow"),
+                    "up_count": board.get("up_count"),
+                    "down_count": board.get("down_count"),
+                    "leading_stock": board.get("leading_stock"),
+                    "leading_stock_price": board.get("leading_stock_price"),
+                    "leading_stock_change": board.get("leading_stock_change"),
+                    "leading_stock_code": board.get("leading_stock_code"),
                     "date_at": current_date,
                     "data_time": datetime.now(),
-                    "data_from": "akshare_ths",
+                    "data_from": "stock_service",
                 }
 
                 # 判断是新增还是更新

@@ -6,6 +6,7 @@
 # @IDE            : PyCharm
 # @desc           : 股票关注列表查询参数-类依赖项
 
+from datetime import date
 from fastapi import Depends, Query
 from core.dependencies import Paging, QueryParams
 
@@ -25,6 +26,8 @@ class StockWatchlistParams(QueryParams):
             is_active: int | None = Query(None, title="是否关注：1关注中 0已取消"),
             priority: int | None = Query(None, title="关注优先级"),
             is_analyze: int | None = Query(None, title="是否已分析"),
+            start_date: date | None = Query(None, title="开始日期"),
+            end_date: date | None = Query(None, title="结束日期"),
             params: Paging = Depends()
     ):
         super().__init__(params)
@@ -36,3 +39,5 @@ class StockWatchlistParams(QueryParams):
         self.is_active = is_active
         self.priority = priority
         self.is_analyze = is_analyze
+        self.start_date = start_date
+        self.end_date = end_date

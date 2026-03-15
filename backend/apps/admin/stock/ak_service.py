@@ -4,7 +4,7 @@
 # @Create Time    : 2026/2/11
 # @File           : ak_service.py
 # @IDE            : PyCharm
-# @desc           : 股票数据采集服务
+# @desc           : 股票数据采集服务 - 通过 Stock Service 获取数据
 
 import asyncio
 import json
@@ -25,10 +25,13 @@ from core.logger import logger
 from core.dependencies import IdList
 from core.exception import CustomException
 from utils.helpers import date_range
-from utils.akshare_service import AkShareService
-import akshare as ak
-import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
+from apps.module_task.task_service import (
+    sync_stock_base_info,
+    sync_realtime_data,
+    sync_board_industry_from_akshare,
+    sync_board_concept_from_akshare,
+)
 
 router = APIRouter()
 
@@ -39,13 +42,12 @@ router = APIRouter()
 
 
 @router.get("/sync/basic", summary="同步股票基础信息")
-async def sync_stock_basic_info(auth: Auth = Depends(OpenAuth())):
+async def sync_stock_basic_info_api(auth: Auth = Depends(OpenAuth())):
     """
-    同步股票基础信息
+    同步股票基础信息（从 Stock Service 获取）
     """
     try:
-        dal = StockBaseInfoDal(auth.db)
-        result = await dal.sync_from_akshare()
+        result = await sync_stock_base_info(auth.db)
         return SuccessResponse(result)
     except Exception as e:
         logger.error(f"同步股票基础信息失败: {str(e)}")
@@ -58,13 +60,12 @@ async def sync_stock_basic_info(auth: Auth = Depends(OpenAuth())):
 
 
 @router.get("/sync/realtime", summary="同步实时行情数据")
-async def sync_stock_realtime(auth: Auth = Depends(OpenAuth())):
+async def sync_stock_realtime_api(auth: Auth = Depends(OpenAuth())):
     """
-    同步实时行情数据
+    同步实时行情数据（从 Stock Service 获取）
     """
     try:
-        dal = StockRealtimeDal(auth.db)
-        result = await dal.sync_realtime_data()
+        result = await sync_realtime_data(auth.db)
         return SuccessResponse(result)
     except Exception as e:
         logger.error(f"同步实时行情数据失败: {str(e)}")
@@ -77,14 +78,12 @@ async def sync_stock_realtime(auth: Auth = Depends(OpenAuth())):
 
 
 @router.get("/sync/industry", summary="同步行业板块数据")
-async def sync_stock_industry(auth: Auth = Depends(OpenAuth())):
+async def sync_stock_industry_api(auth: Auth = Depends(OpenAuth())):
     """
-    同步行业板块数据
+    同步行业板块数据（从 Stock Service 获取）
     """
     try:
-        from .stock_board_industry import sync_industry_board_data
-
-        result = await sync_industry_board_data()
+        result = await sync_board_industry_from_akshare(auth.db)
         return SuccessResponse(result)
     except Exception as e:
         logger.error(f"同步行业板块数据失败: {str(e)}")
@@ -97,14 +96,12 @@ async def sync_stock_industry(auth: Auth = Depends(OpenAuth())):
 
 
 @router.get("/sync/concept", summary="同步概念板块数据")
-async def sync_stock_concept(auth: Auth = Depends(OpenAuth())):
+async def sync_stock_concept_api(auth: Auth = Depends(OpenAuth())):
     """
-    同步概念板块数据
+    同步概念板块数据（从 Stock Service 获取）
     """
     try:
-        from .stock_board_concept import sync_concept_board_data
-
-        result = await sync_concept_board_data()
+        result = await sync_board_concept_from_akshare(auth.db)
         return SuccessResponse(result)
     except Exception as e:
         logger.error(f"同步概念板块数据失败: {str(e)}")
@@ -119,26 +116,20 @@ async def sync_stock_concept(auth: Auth = Depends(OpenAuth())):
 @router.get("/sync/all", summary="批量同步所有股票数据")
 async def sync_all_stock_data(auth: Auth = Depends(OpenAuth())):
     """
-    批量同步所有股票数据
+    批量同步所有股票数据（从 Stock Service 获取）
     """
     try:
         # 1. 同步基础信息
-        basic_dal = StockBaseInfoDal(auth.db)
-        basic_result = await basic_dal.sync_from_akshare()
+        basic_result = await sync_stock_base_info(auth.db)
 
         # 2. 同步实时行情
-        realtime_dal = StockRealtimeDal(auth.db)
-        realtime_result = await realtime_dal.sync_realtime_data()
+        realtime_result = await sync_realtime_data(auth.db)
 
         # 3. 同步行业板块
-        from .stock_board_industry import sync_industry_board_data
-
-        industry_result = await sync_industry_board_data()
+        industry_result = await sync_board_industry_from_akshare(auth.db)
 
         # 4. 同步概念板块
-        from .stock_board_concept import sync_concept_board_data
-
-        concept_result = await sync_concept_board_data()
+        concept_result = await sync_board_concept_from_akshare(auth.db)
 
         return SuccessResponse(
             {
@@ -161,22 +152,17 @@ async def sync_all_stock_data(auth: Auth = Depends(OpenAuth())):
 @router.get("/schedule/sync", summary="定时任务同步")
 async def schedule_sync(auth: Auth = Depends(OpenAuth())):
     """
-    定时任务同步（每日执行）
+    定时任务同步（每日执行，从 Stock Service 获取）
     """
     try:
         # 1. 同步实时行情（每日更新）
-        realtime_dal = StockRealtimeDal(auth.db)
-        realtime_result = await realtime_dal.sync_realtime_data()
+        realtime_result = await sync_realtime_data(auth.db)
 
         # 2. 同步行业板块（每日更新）
-        from .stock_board_industry import sync_industry_board_data
-
-        industry_result = await sync_industry_board_data()
+        industry_result = await sync_board_industry_from_akshare(auth.db)
 
         # 3. 同步概念板块（每日更新）
-        from .stock_board_concept import sync_concept_board_data
-
-        concept_result = await sync_concept_board_data()
+        concept_result = await sync_board_concept_from_akshare(auth.db)
 
         return SuccessResponse(
             {
@@ -210,61 +196,3 @@ async def cleanup_data(auth: Auth = Depends(FullAdminAuth())):
     except Exception as e:
         logger.error(f"清理数据失败: {str(e)}")
         return ErrorResponse(f"清理数据失败: {str(e)}")
-
-
-###########################################################
-#    辅助函数
-###########################################################
-
-
-async def get_board_concept_by_date(
-    db: AsyncSession, current_date: datetime
-) -> List[str]:
-    """
-    获取指定日期的概念板块名称列表
-    """
-    sql = select(StockBoardConcept.board_name).where(
-        StockBoardConcept.date_at == current_date
-    )
-    queryset = await db.scalars(sql)
-    return [i for i in queryset.all() if i]
-
-
-async def batch_board_concept_add(
-    db: AsyncSession, board_models: List[StockBoardConcept]
-) -> None:
-    """
-    批量添加概念板块数据
-    """
-    try:
-        db.add_all(board_models)
-        await db.commit()
-    except Exception as e:
-        await db.rollback()
-        raise e
-
-
-async def batch_board_concept_update(
-    db: AsyncSession, board_data: List[Dict[str, Any]]
-) -> None:
-    """
-    批量更新概念板块数据
-    """
-    try:
-        for data in board_data:
-            board_name = data["board_name"]
-            del data["board_name"]
-
-            # 更新操作
-            update_stmt = (
-                update(StockBoardConcept)
-                .where(StockBoardConcept.board_name == board_name)
-                .where(StockBoardConcept.date_at == data["date_at"])
-                .values(**data)
-            )
-            await db.execute(update_stmt)
-
-        await db.commit()
-    except Exception as e:
-        await db.rollback()
-        raise e
