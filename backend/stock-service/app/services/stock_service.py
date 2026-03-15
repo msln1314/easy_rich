@@ -83,6 +83,7 @@ class StockService:
             # 使用 GM 的 get_instruments 方法获取标的列表
             # 注意：GM 需要使用完整的 symbol 格式，如 SHSE.600000
             gm_symbol = self._convert_to_gm_symbol(stock_code)
+            logger.info(f"GM 代码转换: {stock_code} -> {gm_symbol}")
 
             instruments = gm_service.gm.get_instruments(symbols=[gm_symbol])
 
@@ -168,6 +169,7 @@ class StockService:
             # 使用 GM 的 current 方法获取当前行情快照
             # 注意：GM 需要使用完整的 symbol 格式，如 SHSE.600000
             gm_symbol = self._convert_to_gm_symbol(stock_code)
+            logger.info(f"GM 代码转换: {stock_code} -> {gm_symbol}")
 
             quotes = gm_service.gm.current(symbols=[gm_symbol])
 

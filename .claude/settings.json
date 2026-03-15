@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"http://localhost:8008/api/v1/hot-news/juejin\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''稀土掘金状态:'''', d[''''data''''][''''status'''']\\); print\\(''''条数:'''', len\\(d[''''data''''].get\\(''''items'''', []\\)\\)\\); print\\(''''前3条:''''\\); [print\\(f\"\"  {i+1}. {item[''''title''''][:40]}\"\"\\) for i, item in enumerate\\(d[''''data''''].get\\(''''items'''', []\\)[:3]\\)]\")",
+      "Bash(curl -s \"https://www.toutiao.com/hot-event/hot-board/\" -H \"User-Agent: Mozilla/5.0\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''data: {len\\(d.get\\(data, []\\)\\)} items''''\\)\")",
+      "Bash(curl -s \"https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc\" -H \"User-Agent: Mozilla/5.0\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''data: {len\\(d.get\\(data, []\\)\\)} items''''\\); print\\(f''''first: {d.get\\(data, [{}]\\)[0] if d.get\\(data\\) else none}''''\\)\")",
+      "Bash(curl -s \"https://www.v2ex.com/feed/share.json\" -H \"User-Agent: Mozilla/5.0\")",
+      "Bash(curl -s \"https://www.v2ex.com/api/topics/hot.json\" -H \"User-Agent: Mozilla/5.0\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''data: {len\\(d\\)} items''''\\)\")",
+      "Bash(python -c \"import sys,json; print\\(''''Service running''''\\)\")"
+    ]
+  }
+}

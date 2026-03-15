@@ -26,12 +26,22 @@
           </el-select>
         </el-form-item>
         <el-form-item label="行业">
-          <el-select v-model="filterForm.industry" clearable placeholder="全部行业" @change="handleSearch">
+          <el-select
+            v-model="filterForm.industry"
+            clearable
+            placeholder="全部行业"
+            @change="handleSearch"
+          >
             <el-option v-for="ind in industries" :key="ind" :label="ind" :value="ind" />
           </el-select>
         </el-form-item>
         <el-form-item label="市场">
-          <el-select v-model="filterForm.market" clearable placeholder="全部市场" @change="handleSearch">
+          <el-select
+            v-model="filterForm.market"
+            clearable
+            placeholder="全部市场"
+            @change="handleSearch"
+          >
             <el-option label="上海" value="SH" />
             <el-option label="深圳" value="SZ" />
           </el-select>
@@ -128,16 +138,20 @@
           </template>
         </el-table-column>
         <el-table-column prop="turnover_rate" label="换手率" width="90" align="right">
-          <template #default="{ row }">
-            {{ row.turnover_rate?.toFixed(2) || '-' }}%
-          </template>
+          <template #default="{ row }"> {{ row.turnover_rate?.toFixed(2) || '-' }}% </template>
         </el-table-column>
         <el-table-column label="操作" width="120" align="center" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click.stop="handleViewTrend(row)">
               趋势
             </el-button>
-            <el-button v-if="filterForm.rankingType === 'hot'" type="info" link size="small" @click.stop="handleViewHotDetail(row)">
+            <el-button
+              v-if="filterForm.rankingType === 'hot'"
+              type="info"
+              link
+              size="small"
+              @click.stop="handleViewHotDetail(row)"
+            >
               详情
             </el-button>
           </template>
@@ -164,12 +178,12 @@
       width="900px"
     >
       <div class="trend-content">
-        <el-radio-group v-model="trendType" @change="handleTrendTypeChange" style="margin-bottom: 16px;">
-          <el-radio-button
-            v-for="type in trendTypeOptions"
-            :key="type.value"
-            :label="type.value"
-          >
+        <el-radio-group
+          v-model="trendType"
+          @change="handleTrendTypeChange"
+          style="margin-bottom: 16px"
+        >
+          <el-radio-button v-for="type in trendTypeOptions" :key="type.value" :label="type.value">
             {{ type.label }}
           </el-radio-button>
         </el-radio-group>
@@ -199,7 +213,12 @@ import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart, BarChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, DataZoomComponent, LegendComponent } from 'echarts/components'
+import {
+  GridComponent,
+  TooltipComponent,
+  DataZoomComponent,
+  LegendComponent
+} from 'echarts/components'
 import {
   getDailyRanking,
   getRealtimeRanking,
@@ -207,10 +226,18 @@ import {
   getRankingTrend,
   syncDailyRanking,
   getIndustries,
-  getHotDetail,
+  getHotDetail
 } from '/@/api/stock/dailyRanking'
 
-use([CanvasRenderer, LineChart, BarChart, GridComponent, TooltipComponent, DataZoomComponent, LegendComponent])
+use([
+  CanvasRenderer,
+  LineChart,
+  BarChart,
+  GridComponent,
+  TooltipComponent,
+  DataZoomComponent,
+  LegendComponent
+])
 
 const router = useRouter()
 
@@ -221,7 +248,7 @@ const rankingTypeOptions = computed(() => {
       { label: '换手率', value: 'turnover' },
       { label: '成交量', value: 'volume' },
       { label: '成交额', value: 'amount' },
-      { label: '涨跌幅', value: 'change_percent' },
+      { label: '涨跌幅', value: 'change_percent' }
     ]
   }
   return [
@@ -229,7 +256,7 @@ const rankingTypeOptions = computed(() => {
     { label: '成交量', value: 'volume' },
     { label: '成交额', value: 'amount' },
     { label: '涨跌幅', value: 'change_percent' },
-    { label: '热度', value: 'hot' },
+    { label: '热度', value: 'hot' }
   ]
 })
 
@@ -238,7 +265,7 @@ const trendTypeOptions = [
   { label: '换手率', value: 'turnover' },
   { label: '成交量', value: 'volume' },
   { label: '成交额', value: 'amount' },
-  { label: '热度', value: 'hot' },
+  { label: '热度', value: 'hot' }
 ]
 
 // 筛选表单
@@ -247,7 +274,7 @@ const filterForm = reactive({
   order: 'desc',
   industry: '',
   market: '',
-  dataDate: '',
+  dataDate: ''
 })
 
 // 数据源
@@ -262,7 +289,7 @@ const industries = ref<string[]>([])
 const pagination = reactive({
   page: 1,
   pageSize: 50,
-  total: 0,
+  total: 0
 })
 
 // 趋势弹窗
@@ -282,7 +309,7 @@ const pageTitle = computed(() => {
     volume: '成交量',
     amount: '成交额',
     change_percent: '涨跌幅',
-    hot: '热度',
+    hot: '热度'
   }
   return `${map[filterForm.value.rankingType]}排行`
 })
@@ -294,7 +321,7 @@ const rankingValueLabel = computed(() => {
     volume: '成交量(手)',
     amount: '成交额(元)',
     change_percent: '涨跌幅(%)',
-    hot: '热度值',
+    hot: '热度值'
   }
   return map[filterForm.value.rankingType] || '排行值'
 })
@@ -306,30 +333,30 @@ const trendChartOption = computed(() => ({
     formatter: (params: any) => {
       const p = params[0]
       return `${p.name}<br/>排名: ${p.data[1]}`
-    },
+    }
   },
   grid: {
     left: '10%',
     right: '10%',
-    bottom: '15%',
+    bottom: '15%'
   },
   xAxis: {
     type: 'category',
-    data: trendData.value.map((item) => item.date),
+    data: trendData.value.map((item) => item.date)
   },
   yAxis: {
     type: 'value',
     inverse: true,
     name: '排名',
     min: 1,
-    max: (val: any) => Math.max(val.max, 100),
+    max: (val: any) => Math.max(val.max, 100)
   },
   dataZoom: [
     {
       type: 'slider',
       start: 0,
-      end: 100,
-    },
+      end: 100
+    }
   ],
   series: [
     {
@@ -337,13 +364,13 @@ const trendChartOption = computed(() => ({
       type: 'line',
       smooth: true,
       lineStyle: {
-        width: 2,
+        width: 2
       },
       areaStyle: {
-        opacity: 0.1,
-      },
-    },
-  ],
+        opacity: 0.1
+      }
+    }
+  ]
 }))
 
 // 热度详情图表配置
@@ -352,33 +379,33 @@ const hotChartOption = computed(() => {
   const trendData = hotDetailData.value.trend_data
   return {
     tooltip: {
-      trigger: 'axis',
+      trigger: 'axis'
     },
     legend: {
       data: ['排名', '热度值', '浏览量'],
-      bottom: 0,
+      bottom: 0
     },
     grid: {
       left: '10%',
       right: '10%',
-      bottom: '15%',
+      bottom: '15%'
     },
     xAxis: {
       type: 'category',
-      data: trendData.map((item: any) => item.data_date),
+      data: trendData.map((item: any) => item.data_date)
     },
     yAxis: [
       {
         type: 'value',
         inverse: true,
         name: '排名',
-        position: 'left',
+        position: 'left'
       },
       {
         type: 'value',
         name: '数值',
-        position: 'right',
-      },
+        position: 'right'
+      }
     ],
     series: [
       {
@@ -386,15 +413,15 @@ const hotChartOption = computed(() => {
         type: 'line',
         data: trendData.map((item: any) => item.rank),
         yAxisIndex: 0,
-        smooth: true,
+        smooth: true
       },
       {
         name: '热度值',
         type: 'bar',
         data: trendData.map((item: any) => item.hot_value || 0),
-        yAxisIndex: 1,
-      },
-    ],
+        yAxisIndex: 1
+      }
+    ]
   }
 })
 
@@ -473,7 +500,7 @@ async function fetchData() {
       market: filterForm.market || undefined,
       dataDate: filterForm.dataDate || undefined,
       page: pagination.page,
-      pageSize: pagination.pageSize,
+      pageSize: pagination.pageSize
     }
 
     let res: any
@@ -544,10 +571,10 @@ async function handleSync() {
     await ElMessageBox.confirm('确认同步今日排行数据？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning',
+      type: 'warning'
     })
     const res = await syncDailyRanking({
-      dataDate: filterForm.value.dataDate || undefined,
+      dataDate: filterForm.value.dataDate || undefined
     })
     if (res.code === 200) {
       ElMessage.success('同步成功')
@@ -571,7 +598,7 @@ function handleRowClick(row: any) {
 function handleViewStock(row: any) {
   router.push({
     path: '/stock/analysis',
-    query: { code: row.stock_code },
+    query: { code: row.stock_code }
   })
 }
 
@@ -588,13 +615,13 @@ async function fetchTrendData(stockCode: string) {
   try {
     const res = await getRankingTrend({
       stockCode,
-      rankingType: trendType.value as any,
+      rankingType: trendType.value as any
     })
     if (res.data?.trendData) {
       trendData.value = res.data.trendData.map((item: any) => ({
         date: item.data_date,
         rank: item.rank,
-        value: item.ranking_value || 0,
+        value: item.ranking_value || 0
       }))
     }
   } catch (error) {

@@ -63,21 +63,30 @@ export const getMonitorStrategyDetailApi = (id: number): Promise<IResponse> => {
   return request.get({ url: `/stock/stock_monitor_strategy/${id}` })
 }
 
-export const updateMonitorStrategyActiveApi = (id: number, is_active: number): Promise<IResponse> => {
+export const updateMonitorStrategyActiveApi = (
+  id: number,
+  is_active: number
+): Promise<IResponse> => {
   return request.put({
     url: `/stock/stock_monitor_strategy/${id}/active`,
     data: { is_active }
   })
 }
 
-export const updateMonitorStrategyPriorityApi = (id: number, priority: number): Promise<IResponse> => {
+export const updateMonitorStrategyPriorityApi = (
+  id: number,
+  priority: number
+): Promise<IResponse> => {
   return request.put({
     url: `/stock/stock_monitor_strategy/${id}/priority`,
     data: { priority }
   })
 }
 
-export const postExportMonitorStrategyApi = (params: MonitorStrategyParams, header: any[]): Promise<IResponse> => {
+export const postExportMonitorStrategyApi = (
+  params: MonitorStrategyParams,
+  header: any[]
+): Promise<IResponse> => {
   return request.post({ url: '/stock/stock_monitor_strategy/export/excel', params, data: header })
 }
 

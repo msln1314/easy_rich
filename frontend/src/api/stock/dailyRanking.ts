@@ -9,7 +9,7 @@ enum Api {
   RANKING_SUMMARY = '/stock/daily-ranking/summary',
   SYNC_RANKING = '/stock/daily-ranking/sync',
   INDUSTRIES = '/stock/daily-ranking/industries',
-  HOT_DETAIL = '/stock/daily-ranking/hot-detail',
+  HOT_DETAIL = '/stock/daily-ranking/hot-detail'
 }
 
 export interface RankingItem {
@@ -89,7 +89,7 @@ export interface RankingSummary {
 export function getDailyRanking(params: DailyRankingParams) {
   return defHttp.get({
     url: Api.DAILY_RANKING,
-    params,
+    params
   })
 }
 
@@ -101,7 +101,7 @@ export function getRealtimeRanking(params: {
 }) {
   return defHttp.get({
     url: Api.REALTIME_RANKING,
-    params,
+    params
   })
 }
 
@@ -114,7 +114,7 @@ export function getHotRanking(params: {
 }) {
   return defHttp.get({
     url: Api.HOT_RANKING,
-    params,
+    params
   })
 }
 
@@ -126,7 +126,7 @@ export function getRankingTrend(params: {
 }) {
   return defHttp.get({
     url: Api.RANKING_TREND,
-    params,
+    params
   })
 }
 
@@ -137,30 +137,27 @@ export function getRankingSummary(params: {
 }) {
   return defHttp.get({
     url: Api.RANKING_SUMMARY,
-    params,
+    params
   })
 }
 
-export function syncDailyRanking(params: {
-  rankingTypes?: string[]
-  dataDate?: string
-}) {
+export function syncDailyRanking(params: { rankingTypes?: string[]; dataDate?: string }) {
   return defHttp.post({
     url: Api.SYNC_RANKING,
-    params,
+    params
   })
 }
 
 export function getIndustries(rankingType: string) {
   return defHttp.get({
     url: Api.INDUSTRIES,
-    params: { rankingType },
+    params: { rankingType }
   })
 }
 
 export function getHotDetail(stockCode: string, days: number = 7) {
   return defHttp.get({
     url: `${Api.HOT_DETAIL}/${stockCode}`,
-    params: { days },
+    params: { days }
   })
 }

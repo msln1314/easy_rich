@@ -163,13 +163,13 @@
               </template>
             </el-table-column>
             <el-table-column prop="turnoverRate" label="换手率" width="90" align="right">
-              <template #default="{ row }">
-                {{ row.turnoverRate?.toFixed(2) || '-' }}%
-              </template>
+              <template #default="{ row }"> {{ row.turnoverRate?.toFixed(2) || '-' }}% </template>
             </el-table-column>
             <el-table-column prop="changePercent" label="涨跌幅" align="right">
               <template #default="{ row }">
-                <span :class="getChangeClass(row.changePercent)">{{ formatChangePercent(row.changePercent) }}</span>
+                <span :class="getChangeClass(row.changePercent)">{{
+                  formatChangePercent(row.changePercent)
+                }}</span>
               </template>
             </el-table-column>
           </el-table>
@@ -205,7 +205,9 @@
             </el-table-column>
             <el-table-column prop="changePercent" label="涨跌幅" align="right">
               <template #default="{ row }">
-                <span :class="getChangeClass(row.changePercent)">{{ formatChangePercent(row.changePercent) }}</span>
+                <span :class="getChangeClass(row.changePercent)">{{
+                  formatChangePercent(row.changePercent)
+                }}</span>
               </template>
             </el-table-column>
           </el-table>
@@ -234,7 +236,7 @@ import {
   getRealtimeRankings,
   type IndexQuoteItem,
   type MarketSummary,
-  type StockRankingItem,
+  type StockRankingItem
 } from '/@/api/stock/stockIndex'
 
 // 数据
@@ -305,7 +307,7 @@ function formatTime(time: string | undefined): string {
     return date.toLocaleString('zh-CN', {
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
+      second: '2-digit'
     })
   } catch {
     return '-'
@@ -332,7 +334,7 @@ async function fetchData() {
     const [quoteRes, summaryRes, rankingsRes] = await Promise.all([
       getIndexQuote(),
       getMarketSummary(),
-      getRealtimeRankings(10),
+      getRealtimeRankings(10)
     ])
 
     // 处理指数数据
@@ -352,10 +354,13 @@ async function fetchData() {
       changeRanking.value = rankings.changePercentRanking?.slice(0, 10) || []
       // 跌幅榜取后10并反转（因为后端返回的是涨幅排序）
       const allChange = rankings.changePercentRanking || []
-      downRanking.value = allChange.slice(-10).reverse().map((item, idx) => ({
-        ...item,
-        rank: idx + 1,
-      }))
+      downRanking.value = allChange
+        .slice(-10)
+        .reverse()
+        .map((item, idx) => ({
+          ...item,
+          rank: idx + 1
+        }))
       // 换手率排行
       turnoverRanking.value = rankings.turnoverRanking?.slice(0, 10) || []
       // 成交额排行

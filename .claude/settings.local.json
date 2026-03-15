@@ -14,7 +14,26 @@
       "Bash(python -m py_compile apps/admin/stock/models/stock_index.py)",
       "Bash(python -m py_compile apps/admin/stock/crud/stock_index.py)",
       "Bash(python -m py_compile apps/admin/stock/schemas/stock_index.py)",
-      "Bash(curl -s http://localhost:8008/docs -o /dev/null -w \"%{http_code}\")"
+      "Bash(curl -s http://localhost:8008/docs -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s \"http://localhost:8008/api/v1/hot-news/fastbull-express\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''fastbull-express: {d[data][status]} - {len\\(d[data][items]\\)} items''''\\)\")",
+      "Bash(curl -s \"http://localhost:8008/api/v1/hot-news/mktnews-flash\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''mktnews-flash: {d[data][status]} - {len\\(d[data][items]\\)} items''''\\)\")",
+      "Bash(curl -s \"https://www.fastbull.com/cn/express-news\")",
+      "Bash(curl -sL \"https://www.fastbull.com/cn/express-news\" -H \"User-Agent: Mozilla/5.0\")",
+      "Bash(curl -s \"https://api.mktnews.net/api/flash?type=0&limit=10\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''status: {d.get\\(\"\"status\"\"\\)}''''\\); print\\(f''''data len: {len\\(d.get\\(\"\"data\"\", []\\)\\)}''''\\); print\\(f''''first item: {d.get\\(\"\"data\"\", [{}]\\)[0] if d.get\\(\"\"data\"\"\\) else \"\"none\"\"}''''\\)\")",
+      "Bash(curl -sL \"https://www.fastbull.com/cn/express-news\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\")",
+      "Bash(curl -sL https://www.fastbull.com/cn/express-news -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" -H 'Accept: text/html')",
+      "Bash(curl -s \"https://api.mktnews.net/api/flash?type=0&limit=10\" -H 'User-Agent: Mozilla/5.0')",
+      "Bash(curl -s http://localhost:8008/api/v1/hot-news/jin10)",
+      "Bash(curl -s \"http://localhost:8008/api/v1/hot-news/toutiao\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''toutiao: {d[\"\"data\"\"][\"\"status\"\"]} - {len\\(d[\"\"data\"\"][\"\"items\"\"]\\)} items''''\\)\")",
+      "Bash(python -c \"import app.services.hot_news_service\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''jin10: {d[data][status]}''''\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2, ensure_ascii=False\\)[:500]\\)\")",
+      "Bash(curl -s \"http://localhost:8008/api/v1/hot-news/douyin\")",
+      "Bash(curl -s \"http://localhost:8008/api/v1/hot-news/sspai\")"
     ]
   }
 }

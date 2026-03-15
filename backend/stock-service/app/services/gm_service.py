@@ -43,6 +43,15 @@ class GMService:
         try:
             from gm import api as gm_api
             self.gm = gm_api
+
+            # 使用 token 进行认证
+            if self.token:
+                try:
+                    self.gm.set_token(self.token)
+                    logger.info(f"GM Token 已设置: {self.token[:10]}...")
+                except Exception as token_error:
+                    logger.warning(f"GM Token 设置失败: {token_error}")
+
             self.enabled = True
             logger.info("掘金量化 SDK 初始化成功")
         except ImportError:
@@ -51,7 +60,7 @@ class GMService:
         except Exception as e:
             logger.error(f"掘金量化 SDK 初始化失败: {str(e)}")
             self.enabled = False
-        print(self.enabled,"gm 服务是否启用")
+        print(self.enabled, "gm 服务是否启用")
 
     def is_available(self) -> bool:
         """检查 GM 服务是否可用"""

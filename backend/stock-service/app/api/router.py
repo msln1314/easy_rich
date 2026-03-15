@@ -39,6 +39,12 @@ except ImportError:
     print("警告: 无法导入 news_routes 模块")
     news_routes = None
 
+try:
+    from app.api.endpoints import hot_news_routes
+except ImportError:
+    print("警告: 无法导入 hot_news_routes 模块")
+    hot_news_routes = None
+
 api_router = APIRouter()
 
 # 根据模块是否成功导入来添加路由
@@ -54,3 +60,5 @@ if technical_routes:
     api_router.include_router(technical_routes.router, prefix="/technical", tags=["technical"])
 if news_routes:
     api_router.include_router(news_routes.router, prefix="/news", tags=["news"])
+if hot_news_routes:
+    api_router.include_router(hot_news_routes.router, prefix="/hot-news", tags=["hot-news"])

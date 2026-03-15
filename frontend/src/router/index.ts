@@ -151,6 +151,15 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           title: '股票基础信息',
           noCache: true
         }
+      },
+      {
+        path: 'hot-news',
+        component: () => import('@/views/Vadmin/Stock/HotNews/HotNews.vue'),
+        name: 'HotNews',
+        meta: {
+          title: '热门头条',
+          noCache: true
+        }
       }
     ]
   }

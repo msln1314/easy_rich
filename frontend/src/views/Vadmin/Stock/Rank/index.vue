@@ -3,7 +3,12 @@
     <t-card title="个股排行" :bordered="false">
       <!-- 排行类型 Tab -->
       <t-tabs v-model="rankingType" @change="handleRankingTypeChange">
-        <t-tab-panel v-for="type in rankingTypes" :key="type.value" :value="type.value" :label="type.label" />
+        <t-tab-panel
+          v-for="type in rankingTypes"
+          :key="type.value"
+          :value="type.value"
+          :label="type.label"
+        />
       </t-tabs>
 
       <!-- 筛选和搜索 -->
@@ -89,7 +94,9 @@
           >
             🥉 {{ row.rank }}
           </t-tag>
-          <span v-else style="width: 60px; text-align: center; display: inline-block">{{ row.rank }}</span>
+          <span v-else style="width: 60px; text-align: center; display: inline-block">{{
+            row.rank
+          }}</span>
         </template>
 
         <template #stockName="{ row }">
