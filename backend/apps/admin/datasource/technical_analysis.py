@@ -4,7 +4,7 @@ Basic Technical Analysis Module
 """
 
 from typing import Dict, List, Optional
-from src.data_sources.akshare_api import get_stock_history
+from apps.admin.datasource.akshare_api import get_stock_history
 
 
 class BasicTechnicalAnalysis:

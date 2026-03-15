@@ -76,15 +76,19 @@ class FundFlowService:
                 result = []
                 for _, row in df.iterrows():
                     try:
-                        sh_flow = float(row.get('沪港通', 0) or 0)
-                        sz_flow = float(row.get('深港通', 0) or 0)
-                        total_flow = float(row.get('北向资金', 0) or 0)
+                        # 使用 iloc 按位置访问，避免编码问题
+                        # 列顺序: 日期, 时间, 沪港通, 深港通, 北向资金
+                        date_val = row.iloc[0] if len(row) > 0 else ''
+                        time_val = row.iloc[1] if len(row) > 1 else ''
+                        sh_flow = float(row.iloc[2]) if len(row) > 2 and pd.notna(row.iloc[2]) else 0.0
+                        sz_flow = float(row.iloc[3]) if len(row) > 3 and pd.notna(row.iloc[3]) else 0.0
+                        total_flow = float(row.iloc[4]) if len(row) > 4 and pd.notna(row.iloc[4]) else 0.0
 
                         # 只有当有实际数据时才添加
                         if sh_flow != 0 or sz_flow != 0 or total_flow != 0:
                             result.append({
-                                'date': str(row.get('日期', '')),
-                                'time': str(row.get('时间', '')),
+                                'date': str(date_val),
+                                'time': str(time_val),
                                 'sh_hk_flow': sh_flow,
                                 'sz_hk_flow': sz_flow,
                                 'total_flow': total_flow
@@ -232,19 +236,22 @@ class FundFlowService:
 
             for _, row in df.iterrows():
                 try:
+                    # 列顺序: 日期, 市场, 通道, 资金方向, 交易状态, 成交买入量, 买入金额, 净买入金额, 上涨家数, 涨平家数, 下跌家数, 相关指数, 指数涨跌幅
                     item = {
                         'date': str(row.iloc[0]),  # 日期
                         'market': str(row.iloc[1]),  # 市场
                         'channel': str(row.iloc[2]),  # 通道
-                        'status': str(row.iloc[3]),  # 交易状态
-                        'buy_count': int(row.iloc[4]) if pd.notna(row.iloc[4]) else 0,  # 买入数量
-                        'buy_amount': float(row.iloc[5]) if pd.notna(row.iloc[5]) else 0,  # 买入金额(亿)
-                        'sell_amount': float(row.iloc[6]) if pd.notna(row.iloc[6]) else 0,  # 卖出金额(亿)
+                        'direction': str(row.iloc[3]),  # 资金方向
+                        'status': int(row.iloc[4]) if pd.notna(row.iloc[4]) else 0,  # 交易状态
+                        'buy_count': float(row.iloc[5]) if pd.notna(row.iloc[5]) else 0,  # 成交买入量
+                        'buy_amount': float(row.iloc[6]) if pd.notna(row.iloc[6]) else 0,  # 买入金额(亿)
+                        'sell_amount': float(row.iloc[7]) if pd.notna(row.iloc[7]) else 0,  # 净买入金额(亿)
                         'net_buy_amount': float(row.iloc[7]) if pd.notna(row.iloc[7]) else 0,  # 净买入金额(亿)
                         'up_count': int(row.iloc[8]) if pd.notna(row.iloc[8]) else 0,  # 上涨家数
-                        'down_count': int(row.iloc[9]) if pd.notna(row.iloc[9]) else 0,  # 下跌家数
-                        'index_name': str(row.iloc[10]) if pd.notna(row.iloc[10]) else '',  # 指数名称
-                        'index_change': float(row.iloc[11]) if pd.notna(row.iloc[11]) else 0,  # 指数涨跌幅
+                        'flat_count': int(row.iloc[9]) if pd.notna(row.iloc[9]) else 0,  # 涨平家数
+                        'down_count': int(row.iloc[10]) if pd.notna(row.iloc[10]) else 0,  # 下跌家数
+                        'index_name': str(row.iloc[11]) if pd.notna(row.iloc[11]) else '',  # 相关指数
+                        'index_change': float(row.iloc[12]) if pd.notna(row.iloc[12]) else 0,  # 指数涨跌幅
                     }
                     result['items'].append(item)
                 except Exception as e:
@@ -278,12 +285,18 @@ class FundFlowService:
             if summary and summary.get('items'):
                 for item in summary['items']:
                     channel = item.get('channel', '')
+                    market = item.get('market', '')
                     net_buy = item.get('net_buy_amount', 0)
 
-                    # 根据通道判断
-                    if '沪股通' in channel or '港股通(沪)' in channel:
+                    # 根据通道或市场判断 (处理编码问题)
+                    # 沪股通/港股通(沪) -> sh_flow
+                    # 深股通/港股通(深) -> sz_flow
+                    is_sh = '沪' in channel or '沪' in market or '沪股通' in channel
+                    is_sz = '深' in channel or '深' in market or '深股通' in channel
+
+                    if is_sh:
                         sh_flow += net_buy
-                    elif '深股通' in channel or '港股通(深)' in channel:
+                    elif is_sz:
                         sz_flow += net_buy
 
             total_flow = sh_flow + sz_flow

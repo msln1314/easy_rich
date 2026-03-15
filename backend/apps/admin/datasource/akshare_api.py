@@ -29,7 +29,7 @@ def _normalize_a_stock_code(stock_code: str) -> str:
 
 
 def get_all_stock_spot_map(cache_ttl_seconds: int = 30, force_refresh: bool = False) -> Optional[Dict[str, Dict]]:
-    """Return a cached mapping {code -> row_dict} built from ak.stock_zh_a_spot_em()."""
+    """Return a cached mapping {code -> row_dict} built from Stock Service."""
     global _A_STOCK_SPOT_CACHE_FETCHED_AT, _A_STOCK_SPOT_CACHE_BY_CODE
 
     now = time.time()
@@ -42,15 +42,46 @@ def get_all_stock_spot_map(cache_ttl_seconds: int = 30, force_refresh: bool = Fa
             return _A_STOCK_SPOT_CACHE_BY_CODE
 
         try:
-            df = ak.stock_zh_a_spot_em()
-            if df is None or df.empty or '代码' not in df.columns:
-                # Keep old cache if fetch fails? Or clear? Let's clear to be safe or maybe keep old is better?
-                # If fetch fails, returning None lets caller handle it.
+            # 使用 StockServiceClient 获取数据
+            async def _fetch_stock_list():
+                async with StockServiceClient() as client:
+                    return await client.get_all_stock_list()
+
+            # 运行异步函数
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, _fetch_stock_list())
+                    stock_list = future.result(timeout=30)
+                else:
+                    stock_list = loop.run_until_complete(_fetch_stock_list())
+            except RuntimeError:
+                stock_list = asyncio.run(_fetch_stock_list())
+
+            if not stock_list:
                 return _A_STOCK_SPOT_CACHE_BY_CODE
-            
+
             # Build once for O(1) lookups during holdings loops
-            # Columns usually: 代码, 名称, 最新价, 涨跌幅, ...
-            by_code = df.set_index('代码').to_dict('index')
+            by_code = {}
+            for stock in stock_list:
+                code = stock.get('code', '')
+                if code:
+                    by_code[code] = {
+                        '代码': code,
+                        '名称': stock.get('name', ''),
+                        '最新价': stock.get('price'),
+                        '涨跌幅': stock.get('change_percent'),
+                        '涨跌额': stock.get('change'),
+                        '成交量': stock.get('volume'),
+                        '成交额': stock.get('amount'),
+                        '最高': stock.get('high'),
+                        '最低': stock.get('low'),
+                        '今开': stock.get('open'),
+                        '昨收': stock.get('pre_close'),
+                    }
+
             _A_STOCK_SPOT_CACHE_BY_CODE = by_code
             _A_STOCK_SPOT_CACHE_FETCHED_AT = time.time()
             return by_code
@@ -235,80 +266,103 @@ def get_global_macro_summary() -> Dict:
 def get_northbound_flow() -> Dict:
     """
     获取北向资金（沪股通+深股通）净流入数据
-    使用 stock_hsgt_fund_flow_summary_em 获取实时汇总数据
+    从 Stock Service 获取数据
     """
     result = {}
     try:
-        # 方案1：使用实时汇总数据（最可靠）
-        df = ak.stock_hsgt_fund_flow_summary_em()
-        if not df.empty:
-            # 筛选北向资金（沪股通+深股通）
-            north = df[df['资金方向'] == '北向']
-            if not north.empty:
-                total_net = 0
-                for _, row in north.iterrows():
-                    board = row.get('板块', '')
-                    net_buy = row.get('成交净买额', 0)
-                    try:
-                        net_buy = float(net_buy) if net_buy else 0
-                    except:
-                        net_buy = 0
-                    total_net += net_buy
-                    result[board] = {
+        # 使用 StockServiceClient 获取数据
+        async def _fetch_north_money():
+            async with StockServiceClient() as client:
+                # 获取实时北向资金
+                realtime = await client.get_realtime_north_money()
+                # 获取北向资金汇总
+                summary = await client.get_north_money_summary()
+                return realtime, summary
+
+        # 运行异步函数
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, _fetch_north_money())
+                    realtime, summary = future.result(timeout=10)
+            else:
+                realtime, summary = loop.run_until_complete(_fetch_north_money())
+        except RuntimeError:
+            realtime, summary = asyncio.run(_fetch_north_money())
+
+        # 处理实时数据
+        if realtime:
+            sh_flow = realtime.get('sh_hk_flow', 0)
+            sz_flow = realtime.get('sz_hk_flow', 0)
+            total_flow = realtime.get('total_flow', 0)
+
+            result['沪股通'] = {
+                '成交净买额': f"{sh_flow:.2f}亿",
+            }
+            result['深股通'] = {
+                '成交净买额': f"{sz_flow:.2f}亿",
+            }
+            result['最新净流入'] = f"{total_flow:.2f}亿"
+            result['数据日期'] = realtime.get('date', 'N/A')
+            result['更新时间'] = realtime.get('time', 'N/A')
+
+        # 处理汇总数据
+        if summary and summary.get('items'):
+            for item in summary['items']:
+                channel = item.get('channel', '')
+                net_buy = item.get('net_buy_amount', 0)
+                if '沪股通' in channel or '港股通(沪)' in channel:
+                    result['沪股通'] = {
                         '成交净买额': f"{net_buy:.2f}亿",
-                        '交易状态': '交易中' if row.get('交易状态') == 1 else '休市',
-                        '相关指数': row.get('相关指数', 'N/A'),
-                        '指数涨跌幅': f"{row.get('指数涨跌幅', 0)}%"
+                        '交易状态': '交易中' if item.get('status') else '休市',
                     }
-                result['最新净流入'] = f"{total_net:.2f}亿"
-                # 确保日期是字符串格式
-                trade_date = df.iloc[0].get('交易日', 'N/A')
-                if hasattr(trade_date, 'strftime'):
-                    trade_date = trade_date.strftime('%Y-%m-%d')
-                result['数据日期'] = str(trade_date)
-        
-        # 方案2：获取历史数据计算5日累计（如果方案1成功后补充）
-        if result:
-            try:
-                hist_df = ak.stock_hsgt_hist_em(symbol="北向资金")
-                if hist_df is not None and not hist_df.empty:
-                    # 获取最近有数据的5日
-                    # 检查哪个列有净流入数据
-                    flow_col = None
-                    for col in ['当日成交净买额', '当日资金流入', '资金流入']:
-                        if col in hist_df.columns:
-                            # 过滤掉NaN值
-                            valid = hist_df[hist_df[col].notna()]
-                            if not valid.empty:
-                                flow_col = col
-                                recent = valid.tail(5)
-                                try:
-                                    total_5d = recent[col].astype(float).sum()
-                                    result['5日累计净流入'] = f"{total_5d:.2f}亿"
-                                except:
-                                    pass
-                                break
-            except Exception as e:
-                print(f"Historical northbound data failed: {e}")
-                
+                elif '深股通' in channel or '港股通(深)' in channel:
+                    result['深股通'] = {
+                        '成交净买额': f"{net_buy:.2f}亿",
+                        '交易状态': '交易中' if item.get('status') else '休市',
+                    }
+
     except Exception as e:
         print(f"Error fetching northbound flow: {e}")
-    
+
     return result if result else {"说明": "北向资金数据暂时无法获取"}
 
 def get_industry_capital_flow(industry: str = None) -> Dict:
     """
     获取行业资金流向
+    从 Stock Service 获取数据
     """
     try:
-        df = ak.stock_sector_fund_flow_rank()
-        if not df.empty:
-            if industry:
-                filtered = df[df['名称'].str.contains(industry, na=False, regex=False)]
-                if not filtered.empty:
-                    return filtered.iloc[0].to_dict()
-            # 返回前10行业
-            return {"行业资金流向Top10": df.head(10).to_dict('records')}
+        # 使用 StockServiceClient 获取数据
+        async def _fetch_flow():
+            async with StockServiceClient() as client:
+                return await client.get_market_fund_flow(days=1)
+
+        # 运行异步函数
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, _fetch_flow())
+                    flow_data = future.result(timeout=10)
+            else:
+                flow_data = loop.run_until_complete(_fetch_flow())
+        except RuntimeError:
+            flow_data = asyncio.run(_fetch_flow())
+
+        if not flow_data:
+            return {}
+
+        # 返回今日资金流向数据
+        today = flow_data[-1] if flow_data else {}
+        if industry:
+            # 暂不支持行业筛选，返回今日数据
+            return today
+
+        return {"今日资金流向": today}
     except Exception as e:
         print(f"Error fetching industry capital flow: {e}")
     return {}
@@ -345,74 +399,50 @@ def get_stock_realtime_quote(
 ) -> Dict:
     """
     获取个股实时/最新行情
-    Prioritizes cache, then fast single-stock fetch (bid_ask_em), then full market spot.
+    从 Stock Service 获取数据
     """
     try:
         code = _normalize_a_stock_code(stock_code)
         if not code:
             return {}
 
-        # 1. Try Cache
-        if use_cache:
-            # Check global cache variable directly to avoid triggering a full fetch if empty
-            # We only use get_all_stock_spot_map if we WANT to ensure cache is populated, 
-            # but here we want to avoid slow fetch for single stock.
-            # So we check the variable directly (thread-safe lock needed if reading? Reading dict ref is atomic in Py)
-            # But let's use the getter if it doesn't force refresh.
-            # actually get_all_stock_spot_map will fetch if empty.
-            # So check the global variable _A_STOCK_SPOT_CACHE_BY_CODE directly.
-            
-            with _A_STOCK_SPOT_CACHE_LOCK:
-                if _A_STOCK_SPOT_CACHE_BY_CODE is not None:
-                     row = _A_STOCK_SPOT_CACHE_BY_CODE.get(code)
-                     if row: return row
+        # 使用 StockServiceClient 获取数据
+        async def _fetch_quote():
+            async with StockServiceClient() as client:
+                return await client.get_stock_quote(code)
 
-        # 2. Fast Fetch (Single Stock)
+        # 运行异步函数
         try:
-            df = ak.stock_bid_ask_em(symbol=code)
-            if not df.empty:
-                # df columns: item, value. 
-                # Keys: 最新, 涨幅, 总手, 金额, 最高, 最低, 今开, 昨收, 涨跌
-                info = dict(zip(df['item'], df['value']))
-                
-                # Map to standard keys (compatible with stock_zh_a_spot_em)
-                return {
-                    '代码': code,
-                    '名称': '', # Name not available in bid_ask
-                    '最新价': info.get('最新'),
-                    '涨跌幅': info.get('涨幅'),
-                    '涨跌额': info.get('涨跌'),
-                    '成交量': float(info.get('总手', 0)) * 100 if info.get('总手') else None,
-                    '成交额': info.get('金额'),
-                    '最高': info.get('最高'),
-                    '最低': info.get('最低'),
-                    '今开': info.get('今开'),
-                    '昨收': info.get('昨收'),
-                    # Extra fields useful for debug
-                    '均价': info.get('均价'),
-                    '量比': info.get('量比'),
-                    '换手': info.get('换手'),
-                    '涨停': info.get('涨停'),
-                    '跌停': info.get('跌停'),
-                    '外盘': info.get('外盘'),
-                    '内盘': info.get('内盘'),
-                }
-        except Exception as e:
-            # print(f"Bid/Ask fetch failed for {code}: {e}") # Debug only
-            pass
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, _fetch_quote())
+                    quote_data = future.result(timeout=10)
+            else:
+                quote_data = loop.run_until_complete(_fetch_quote())
+        except RuntimeError:
+            quote_data = asyncio.run(_fetch_quote())
 
-        # 3. Fallback: Full Market Fetch (if bid_ask failed, which is rare, or code not found)
-        # Only do this if we really really want data and bid_ask failed.
-        # But for a single stock, fetching 5000 is overkill. 
-        # Better to return empty or try spot_em(single) if it existed (it doesn't).
-        # Let's try get_all_stock_spot_map as last resort if cache was empty and we are desperate.
-        
-        # Actually, if bid_ask failed, maybe code is wrong or market closed?
-        # get_all_stock_spot_map might have it.
-        if force_refresh: # Only if forced, otherwise avoid heavy load
-            by_code = get_all_stock_spot_map(force_refresh=True)
-            if by_code:
-                return by_code.get(code, {})
+        if not quote_data:
+            return {}
+
+        # 标准化返回格式
+        return {
+            '代码': code,
+            '名称': quote_data.get('name', ''),
+            '最新价': quote_data.get('price'),
+            '涨跌幅': quote_data.get('change_percent'),
+            '涨跌额': quote_data.get('change'),
+            '成交量': quote_data.get('volume'),
+            '成交额': quote_data.get('amount'),
+            '最高': quote_data.get('high'),
+            '最低': quote_data.get('low'),
+            '今开': quote_data.get('open'),
+            '昨收': quote_data.get('pre_close'),
+            '量比': quote_data.get('volume_ratio'),
+            '换手率': quote_data.get('turnover_rate'),
+        }
 
     except Exception as e:
         print(f"Error fetching realtime quote for {stock_code}: {e}")
@@ -437,15 +467,39 @@ def get_stock_news_sentiment(stock_name: str) -> List[Dict]:
 def get_sector_performance(sector_name: str = None) -> Dict:
     """
     获取板块行情表现
+    从 Stock Service 获取数据
     """
     try:
-        df = ak.stock_board_industry_name_em()
-        if not df.empty:
-            if sector_name:
-                filtered = df[df['板块名称'].str.contains(sector_name, na=False, regex=False)]
-                if not filtered.empty:
-                    return filtered.iloc[0].to_dict()
-            return {"板块涨幅榜": df.head(10).to_dict('records')}
+        # 使用 StockServiceClient 获取数据
+        async def _fetch_boards():
+            async with StockServiceClient() as client:
+                return await client.get_industry_boards()
+
+        # 运行异步函数
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, _fetch_boards())
+                    boards = future.result(timeout=10)
+            else:
+                boards = loop.run_until_complete(_fetch_boards())
+        except RuntimeError:
+            boards = asyncio.run(_fetch_boards())
+
+        if not boards:
+            return {}
+
+        if sector_name:
+            # 模糊匹配
+            filtered = [b for b in boards if sector_name in b.get('name', '')]
+            if filtered:
+                return filtered[0]
+            return {}
+
+        # 返回前10行业
+        return {"板块涨幅榜": boards[:10]}
     except Exception as e:
         print(f"Error fetching sector performance: {e}")
     return {}
@@ -512,15 +566,39 @@ def get_sector_performance_ths(sector_name: str) -> Dict:
 def get_concept_board_performance(concept: str = None) -> Dict:
     """
     获取概念板块表现（如：AI、新能源等）
+    从 Stock Service 获取数据
     """
     try:
-        df = ak.stock_board_concept_name_em()
-        if not df.empty:
-            if concept:
-                filtered = df[df['板块名称'].str.contains(concept, na=False, regex=False)]
-                if not filtered.empty:
-                    return filtered.to_dict('records')
-            return {"概念板块Top10": df.head(10).to_dict('records')}
+        # 使用 StockServiceClient 获取数据
+        async def _fetch_boards():
+            async with StockServiceClient() as client:
+                return await client.get_concept_boards()
+
+        # 运行异步函数
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, _fetch_boards())
+                    boards = future.result(timeout=10)
+            else:
+                boards = loop.run_until_complete(_fetch_boards())
+        except RuntimeError:
+            boards = asyncio.run(_fetch_boards())
+
+        if not boards:
+            return {}
+
+        if concept:
+            # 模糊匹配
+            filtered = [b for b in boards if concept in b.get('name', '')]
+            if filtered:
+                return filtered
+            return {}
+
+        # 返回前10概念板块
+        return {"概念板块Top10": boards[:10]}
     except Exception as e:
         print(f"Error fetching concept board: {e}")
     return {}
@@ -616,41 +694,60 @@ def get_fund_holdings(fund_code: str, year: str = None):
 
 def get_market_indices():
     """
-    Fetch key market indices for context (A50, Shanghai Composite, etc.)
-    Note: Real-time data might require different APIs. 
-    Here we fetch daily historical data to get yesterday's close.
+    获取关键市场指数数据
+    从 Stock Service 获取数据
     """
-    indices = {
-        "sh000001": "上证指数",
-        "sz399006": "创业板指数",
-    }
-    
     market_data: Dict[str, Dict] = {}
+
     try:
-        for symbol, name in indices.items():
-            # stock_zh_index_daily_em returns historical data
-            df = ak.stock_zh_index_daily_em(symbol=symbol)
-            if not df.empty:
-                # Get the last row (most recent trading day)
-                latest_row = df.iloc[-1]
-                close = latest_row.get('close', None)
-                trade_date = latest_row.get('date', None)
+        # 使用 StockServiceClient 获取数据
+        async def _fetch_indices():
+            async with StockServiceClient() as client:
+                return await client.get_index_quotes()
 
-                pct_change = None
-                if len(df) >= 2:
-                    prev_close = df.iloc[-2].get('close', None)
-                    try:
-                        if prev_close not in (None, 0) and close is not None:
-                            pct_change = (float(close) / float(prev_close) - 1.0) * 100.0
-                    except Exception:
-                        pct_change = None
+        # 运行异步函数
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, _fetch_indices())
+                    indices = future.result(timeout=10)
+            else:
+                indices = loop.run_until_complete(_fetch_indices())
+        except RuntimeError:
+            indices = asyncio.run(_fetch_indices())
 
-                # Normalize fields to what the analyst code expects
-                market_data[name] = {
-                    '日期': trade_date,
-                    '收盘': close,
-                    '涨跌幅': (round(pct_change, 2) if pct_change is not None else 'N/A'),
+        if not indices:
+            return {}
+
+        for idx in indices:
+            name = idx.get('name', '')
+            if '上证' in name or '沪指' in name:
+                market_data['上证指数'] = {
+                    '日期': idx.get('update_time', ''),
+                    '收盘': idx.get('price'),
+                    '涨跌幅': idx.get('change_percent'),
                 }
+            elif '深证' in name or '深成' in name:
+                market_data['深证成指'] = {
+                    '日期': idx.get('update_time', ''),
+                    '收盘': idx.get('price'),
+                    '涨跌幅': idx.get('change_percent'),
+                }
+            elif '创业' in name:
+                market_data['创业板指'] = {
+                    '日期': idx.get('update_time', ''),
+                    '收盘': idx.get('price'),
+                    '涨跌幅': idx.get('change_percent'),
+                }
+            elif '科创' in name:
+                market_data['科创50'] = {
+                    '日期': idx.get('update_time', ''),
+                    '收盘': idx.get('price'),
+                    '涨跌幅': idx.get('change_percent'),
+                }
+
         return market_data
     except Exception as e:
         print(f"Error fetching market indices: {e}")

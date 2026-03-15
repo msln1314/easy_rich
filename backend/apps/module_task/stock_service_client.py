@@ -294,6 +294,154 @@ class StockServiceClient:
             logger.error(f"获取市场汇总异常: {str(e)}")
             return {}
 
+    async def get_north_money_flow(self, days: int = 30) -> List[Dict[str, Any]]:
+        """
+        获取北向资金历史流向数据
+
+        Args:
+            days: 获取最近N天的数据
+
+        Returns:
+            List[Dict[str, Any]]: 北向资金流向数据列表
+        """
+        url = f"{self.base_url}/fund-flow/north-money/flow"
+        params = {"days": days}
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url, params=params) as response:
+                if response.status != 200:
+                    logger.warning(f"获取北向资金流向失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data.get("data", [])
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取北向资金流向失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取北向资金流向异常: {str(e)}")
+            return []
+
+    async def get_realtime_north_money(self) -> Dict[str, Any]:
+        """
+        获取实时北向资金
+
+        Returns:
+            Dict[str, Any]: 实时北向资金数据
+        """
+        url = f"{self.base_url}/fund-flow/north-money/realtime"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"获取实时北向资金失败，状态码: {response.status}")
+                    return {}
+
+                data = await response.json()
+                return data.get("data", {})
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取实时北向资金失败: {str(e)}")
+            return {}
+        except Exception as e:
+            logger.error(f"获取实时北向资金异常: {str(e)}")
+            return {}
+
+    async def get_north_money_summary(self) -> Dict[str, Any]:
+        """
+        获取北向资金汇总
+
+        Returns:
+            Dict[str, Any]: 北向资金汇总数据
+        """
+        url = f"{self.base_url}/fund-flow/north-money/summary"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"获取北向资金汇总失败，状态码: {response.status}")
+                    return {}
+
+                data = await response.json()
+                return data.get("data", {})
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取北向资金汇总失败: {str(e)}")
+            return {}
+        except Exception as e:
+            logger.error(f"获取北向资金汇总异常: {str(e)}")
+            return {}
+
+    async def get_market_fund_flow(self, days: int = 30) -> List[Dict[str, Any]]:
+        """
+        获取市场资金流向数据
+
+        Args:
+            days: 获取最近N天的数据
+
+        Returns:
+            List[Dict[str, Any]]: 市场资金流向数据列表
+        """
+        url = f"{self.base_url}/fund-flow/market/flow"
+        params = {"days": days}
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url, params=params) as response:
+                if response.status != 200:
+                    logger.warning(f"获取市场资金流向失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data.get("data", [])
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取市场资金流向失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取市场资金流向异常: {str(e)}")
+            return []
+
+    async def get_index_quotes(self) -> List[Dict[str, Any]]:
+        """
+        获取主要指数实时行情
+
+        Returns:
+            List[Dict[str, Any]]: 指数行情数据列表
+        """
+        url = f"{self.base_url}/index/quotes"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"获取指数行情失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data.get("data", [])
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取指数行情失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取指数行情异常: {str(e)}")
+            return []
+
 
 async def fetch_stock_list() -> List[Dict[str, Any]]:
     """

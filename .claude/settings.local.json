@@ -40,7 +40,15 @@
       "Bash(python -c \"import akshare as ak; print\\([f for f in dir\\(ak\\) if ''north'' in f.lower\\(\\) or ''hsgt'' in f.lower\\(\\)]\\)\")",
       "Bash(curl -s \"http://localhost:8008/api/v1/fund-flow/north-money/realtime\")",
       "Bash(curl -s \"http://127.0.0.1:8008/api/v1/fund-flow/north-money/realtime\")",
-      "Bash(curl -s http://127.0.0.1:8008/api/v1/openapi.json)"
+      "Bash(curl -s http://127.0.0.1:8008/api/v1/openapi.json)",
+      "Bash(curl -s http://localhost:8008/api/v1/fund-flow/north-money/realtime)",
+      "Bash(curl -s http://localhost:8008/api/v1/market/summary)",
+      "Bash(curl -s http://localhost:8008/api/v1/fund-flow/north-money/summary)",
+      "Bash(curl -s http://localhost:8008/docs)",
+      "Bash(python -c \"from app.api.endpoints import market_routes; print\\(''market_routes loaded successfully''\\)\")",
+      "Bash(curl -s http://localhost:8008/api/v1/openapi.json)",
+      "Bash(python -c \"import sys, json; data = json.load\\(sys.stdin\\); paths = list\\(data.get\\(''''paths'''', {}\\).keys\\(\\)\\); print\\(''''\\\\n''''.join\\(sorted\\(paths\\)[:30]\\)\\)\")",
+      "Bash(tasklist)"
     ]
   }
 }
