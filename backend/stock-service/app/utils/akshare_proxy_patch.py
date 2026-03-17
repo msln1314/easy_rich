@@ -1,10 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# @version        : 1.0
+# @version        : 1.1
 # @Create Time    : 2026/3/1
 # @File           : akshare_proxy_patch.py
 # @IDE            : PyCharm
-# @desc           : 本地版本的 akshare 代理补丁（支持本地直接配置 auth_res，无需远程授权服务器）
+# @desc           : akshare 代理补丁（支持云端授权、本地配置、代理池等多种模式）
 
 import time
 import random
@@ -12,9 +12,10 @@ import threading
 import requests
 from typing import Optional, Dict
 
-__version__ = "0.2.8"
+__version__ = "0.2.13"
 
-# 备份 Session 的原始 request 方法，这是所有 requests.get/post 的最终入口
+DEFAULT_AUTH_URL = "http://101.201.173.125:47001/api/akshare-auth"
+
 _original_request = requests.Session.request
 _auth_session = requests.Session()
 
@@ -246,45 +247,45 @@ class ProxyPool:
             return self._current_proxy
 
 
-def get_auth_config_with_cache(auth_url: str, auth_token: str) -> Optional[dict]:
+def get_auth_config_with_cache(
+    auth_url: str, 
+    auth_token: str = "", 
+    version: str = __version__,
+    ttl: int = 20
+) -> Optional[dict]:
     """
     从远程授权服务器获取授权配置（带缓存）
 
     Args:
-        auth_url: 授权接口地址
-        auth_token: 认证令牌
+        auth_url: 授权接口完整 URL
+        auth_token: 认证令牌（可选，部分公开服务不需要）
+        version: 版本号
+        ttl: 缓存时间（分钟）
 
     Returns:
         dict: 授权配置，包含 ua, nid18, nid18_create_time, proxy 等字段
     """
-    if not auth_token:
-        return None
-
     now = time.time()
 
-    # 1. 检查缓存是否有效
     if _cache.data and now < _cache.expire_at:
         return _cache.data
 
-    # 2. 缓存失效，加锁更新
     with _cache.lock:
         if _cache.data and now < _cache.expire_at:
             return _cache.data
 
         try:
-            resp = _auth_session.get(
-                auth_url,
-                params={"token": auth_token, "version": __version__},
-                timeout=5,
-            )
+            params = {"token": auth_token, "version": version}
+            resp = _auth_session.get(auth_url, params=params, timeout=10)
             data = resp.json()
             if data.get("ua"):
                 _cache.data = data
-                _cache.expire_at = now + _cache.ttl
+                _cache.expire_at = now + ttl * 60
+                print(f"[akshare补丁] 授权成功: proxy={data.get('proxy', '直连')[:50]}...")
                 return data
-            print(f"授权失败: {data.get('error_msg')}")
+            print(f"[akshare补丁] 授权失败: {data.get('error_msg')}")
         except Exception as e:
-            print(f"请求授权接口异常: {e}")
+            print(f"[akshare补丁] 请求授权接口异常: {e}")
 
         return _cache.data
 
@@ -379,26 +380,74 @@ def _build_patched_request(get_auth_res_fn, retry: int, timeout: int = 30, min_i
     return patched_request
 
 
-def install_patch(auth_ip: str = "127.0.0.1", auth_token: str = "", retry: int = 30, timeout: int = 30, min_interval: float = 0.5):
+def install_patch(
+    auth_url: str = DEFAULT_AUTH_URL,
+    auth_token: str = "",
+    version: str = __version__,
+    retry: int = 30,
+    timeout: int = 30,
+    min_interval: float = 0.5
+):
     """
     安装 akshare 代理补丁（云端模式，通过远程授权服务器获取代理配置）
 
     Args:
-        auth_ip: 授权服务器IP地址，默认为 127.0.0.1
-        auth_token: 认证令牌，不能为空
+        auth_url: 授权接口完整 URL，默认为公共授权服务
+        auth_token: 认证令牌（可选，部分公开服务不需要）
+        version: 版本号
         retry: 重试次数，默认为 30
+        timeout: 请求超时时间（秒）
+        min_interval: 两次请求最小间隔（秒）
     """
-    if not auth_token:
-        raise ValueError("install_patch 需要提供 auth_token，本地模式请使用 install_patch_local()")
-
-    auth_url = f"http://{auth_ip}:47001/api/akshare-auth"
-
     def get_auth_res():
-        return get_auth_config_with_cache(auth_url, auth_token)
+        return get_auth_config_with_cache(auth_url, auth_token, version)
 
-    requests.Session.request = _build_patched_request(get_auth_res, retry)
-    print(f"[akshare补丁] 已安装（云端模式），授权服务器: {auth_ip}:47001")
+    requests.Session.request = _build_patched_request(get_auth_res, retry, timeout, min_interval)
+    print(f"[akshare补丁] 已安装（云端模式），授权服务: {auth_url}")
 
+
+
+
+def install_patch_default(
+    auth_token: str = "",
+    version: str = __version__,
+    retry: int = 30,
+    timeout: int = 30,
+    min_interval: float = 0.5
+):
+    """
+    使用默认公共授权服务安装补丁
+
+    Args:
+        auth_token: 认证令牌（可选）
+        version: 版本号
+        retry: 重试次数
+        timeout: 请求超时时间（秒）
+        min_interval: 两次请求最小间隔（秒）
+    """
+    return install_patch(DEFAULT_AUTH_URL, auth_token, version, retry, timeout, min_interval)
+
+
+def install_patch_from_url(
+    auth_url: str,
+    auth_token: str = "",
+    version: str = __version__,
+    retry: int = 30,
+    timeout: int = 30,
+    min_interval: float = 0.5
+):
+    """
+    从指定 URL 获取授权配置并安装补丁
+
+    Args:
+        auth_url: 授权接口完整 URL
+        auth_token: 认证令牌（可选）
+        version: 版本号
+        retry: 重试次数
+        timeout: 请求超时时间（秒）
+        min_interval: 两次请求最小间隔（秒）
+    """
+    return install_patch(auth_url, auth_token, version, retry, timeout, min_interval)
 
 def install_patch_local(
     ua: str,
@@ -695,47 +744,44 @@ def clear_cache():
 # -----------------------------------------------------------------------
 # 使用示例
 #
-# 【方式1：自动Cookie模式】自动访问东财首页获取Cookie，无需手动填写：
-# from app.utils.akshare_proxy_patch import install_patch_auto
-#
-# # 1.1 直连模式
-# install_patch_auto(timeout=60, min_interval=1.0)
-#
-# # 1.2 固定代理模式
-# install_patch_auto(proxy="http://127.0.0.1:7890", timeout=60)
-#
-# # 1.3 代理池模式（推荐）
-# install_patch_auto(pool_url="http://127.0.0.1:5010", timeout=60, min_interval=1.5)
+# 【方式1：使用默认公共授权服务（推荐）】
+# from app.utils.akshare_proxy_patch import install_patch_default
+# install_patch_default(timeout=60)
 #
 #
-# 【方式2：手动Cookie模式】手动填写从浏览器或云端获取的Cookie：
+# 【方式2：使用自定义授权服务】
+# from app.utils.akshare_proxy_patch import install_patch_from_url
+# install_patch_from_url(
+#     auth_url="http://your-server/api/akshare-auth",
+#     auth_token="your_token",
+#     version="0.2.13",
+#     timeout=60
+# )
+#
+#
+# 【方式3：使用本地配置（无需远程服务）】
 # from app.utils.akshare_proxy_patch import install_patch_local
 # install_patch_local(
 #     ua="Mozilla/5.0 ...",
 #     nid18="0b6b01ec6206d93c0f1ea184e711daaa",
 #     nid18_create_time="1769821785641",
-#     timeout=60,
-#     min_interval=1.0,
+#     proxy="http://ip:port",  # 可选
+#     timeout=60
 # )
 #
 #
-# 【方式3：代理池+手动Cookie】配合 proxy_pool 服务动态轮换代理：
+# 【方式4：使用外部代理池】
 # from app.utils.akshare_proxy_patch import install_patch_with_pool
 # install_patch_with_pool(
 #     ua="Mozilla/5.0 ...",
 #     nid18="0b6b01ec6206d93c0f1ea184e711daaa",
 #     nid18_create_time="1769821785641",
 #     pool_url="http://127.0.0.1:5010",
-#     timeout=60,
-#     min_interval=1.5,
+#     timeout=60
 # )
 #
 #
-# 【方式4：云端授权模式】通过远程授权服务器动态获取代理配置：
-# from app.utils.akshare_proxy_patch import install_patch
-# install_patch("192.168.1.100", "your_token_here")
-#
-#
-# import akshare as ak
-# df = ak.stock_zh_a_spot_em()
+# 【方式5：自动获取 Cookie 模式】
+# from app.utils.akshare_proxy_patch import install_patch_auto
+# install_patch_auto(timeout=60)
 # -----------------------------------------------------------------------

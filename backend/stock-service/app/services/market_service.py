@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @version        : 1.0
+# @version        : 1.1
 # @Create Time    : 2026/3/15
 # @File           : market_service.py
 # @IDE            : PyCharm
-# @desc           : 市场服务 - 市场汇总、股票排行
+# @desc           : 市场服务 - 市场汇总、股票排行，支持多数据源降级
 
 import akshare as ak
 import pandas as pd
@@ -14,6 +14,7 @@ from dataclasses import dataclass, asdict
 from app.core.logging import get_logger
 from app.utils.cache import cache_result
 from app.services.pytdx_source import pytdx_source
+from app.services.tencent_source import tencent_source
 
 logger = get_logger(__name__)
 
@@ -21,6 +22,7 @@ logger = get_logger(__name__)
 @dataclass
 class MarketSummary:
     """市场汇总数据"""
+
     total_stocks: int
     up_stocks: int
     down_stocks: int
@@ -36,6 +38,7 @@ class MarketSummary:
 @dataclass
 class StockRankingItem:
     """股票排行项"""
+
     rank: int
     stock_code: str
     stock_name: str
@@ -77,8 +80,12 @@ class MarketService:
                 up_stocks = len(df[df["涨跌幅"] > 0])
                 down_stocks = len(df[df["涨跌幅"] < 0])
                 flat_stocks = len(df[df["涨跌幅"] == 0])
-                total_amount = float(df["成交额"].sum()) if "成交额" in df.columns else 0
-                total_volume = float(df["成交量"].sum()) if "成交量" in df.columns else 0
+                total_amount = (
+                    float(df["成交额"].sum()) if "成交额" in df.columns else 0
+                )
+                total_volume = (
+                    float(df["成交量"].sum()) if "成交量" in df.columns else 0
+                )
                 limit_up_count = len(df[df["涨跌幅"] >= 9.9])
                 limit_down_count = len(df[df["涨跌幅"] <= -9.9])
 
@@ -104,13 +111,13 @@ class MarketService:
             df = ak.stock_market_activity_legu()
             if df is not None and not df.empty:
                 # 解析数据
-                data_dict = dict(zip(df['item'], df['value']))
+                data_dict = dict(zip(df["item"], df["value"]))
 
-                up_stocks = int(float(data_dict.get('上涨', 0)))
-                down_stocks = int(float(data_dict.get('下跌', 0)))
-                flat_stocks = int(float(data_dict.get('平盘', 0)))
-                limit_up_count = int(float(data_dict.get('涨停', 0)))
-                limit_down_count = int(float(data_dict.get('跌停', 0)))
+                up_stocks = int(float(data_dict.get("上涨", 0)))
+                down_stocks = int(float(data_dict.get("下跌", 0)))
+                flat_stocks = int(float(data_dict.get("平盘", 0)))
+                limit_up_count = int(float(data_dict.get("涨停", 0)))
+                limit_down_count = int(float(data_dict.get("跌停", 0)))
                 total_stocks = up_stocks + down_stocks + flat_stocks
 
                 logger.info(f"乐股网获取市场汇总成功: {total_stocks}只股票")
@@ -134,7 +141,9 @@ class MarketService:
         try:
             pytdx_data = await pytdx_source.get_market_summary()
             if pytdx_data and pytdx_data.get("total_stocks", 0) > 0:
-                logger.info(f"pytdx 获取市场汇总成功: {pytdx_data.get('total_stocks')}只股票")
+                logger.info(
+                    f"pytdx 获取市场汇总成功: {pytdx_data.get('total_stocks')}只股票"
+                )
                 return pytdx_data
         except Exception as e:
             logger.warning(f"pytdx 获取市场汇总失败: {e}")
@@ -190,6 +199,37 @@ class MarketService:
         except Exception as e:
             logger.warning(f"AKShare 东方财富获取股票数据失败: {e}")
 
+        # 尝试腾讯财经批量获取
+        try:
+            tencent_quotes = await tencent_source.get_all_quotes()
+            if tencent_quotes:
+                records = []
+                for q in tencent_quotes:
+                    code = q.stock_code
+                    if code.startswith("sh"):
+                        code = code[2:]
+                    elif code.startswith("sz"):
+                        code = code[2:]
+                    records.append(
+                        {
+                            "代码": code,
+                            "名称": q.stock_name,
+                            "最新价": q.price,
+                            "涨跌幅": q.change_percent,
+                            "涨跌额": q.change,
+                            "成交量": q.volume,
+                            "成交额": q.amount,
+                            "今开": q.open,
+                            "最高": q.high,
+                            "最低": q.low,
+                            "昨收": q.pre_close,
+                        }
+                    )
+                logger.info(f"腾讯财经获取到 {len(records)} 条股票数据")
+                return records
+        except Exception as e:
+            logger.warning(f"腾讯财经获取股票数据失败: {e}")
+
         # 尝试使用涨停池+跌停池构建排行数据
         try:
             stocks = await self._fetch_ranking_from_zt_pool()
@@ -229,30 +269,34 @@ class MarketService:
             # 处理涨停股票
             if df_zt is not None and not df_zt.empty:
                 for _, row in df_zt.iterrows():
-                    stocks.append({
-                        "代码": row.get("代码", ""),
-                        "名称": row.get("名称", ""),
-                        "最新价": row.get("最新价", 0),
-                        "涨跌幅": row.get("涨跌幅", 9.9),
-                        "涨跌额": row.get("涨跌额", 0),
-                        "成交量": row.get("成交量", 0),
-                        "成交额": row.get("成交额", 0),
-                        "换手率": row.get("换手率", 0),
-                    })
+                    stocks.append(
+                        {
+                            "代码": row.get("代码", ""),
+                            "名称": row.get("名称", ""),
+                            "最新价": row.get("最新价", 0),
+                            "涨跌幅": row.get("涨跌幅", 9.9),
+                            "涨跌额": row.get("涨跌额", 0),
+                            "成交量": row.get("成交量", 0),
+                            "成交额": row.get("成交额", 0),
+                            "换手率": row.get("换手率", 0),
+                        }
+                    )
 
             # 处理跌停股票
             if df_dt is not None and not df_dt.empty:
                 for _, row in df_dt.iterrows():
-                    stocks.append({
-                        "代码": row.get("代码", ""),
-                        "名称": row.get("名称", ""),
-                        "最新价": row.get("最新价", 0),
-                        "涨跌幅": row.get("涨跌幅", -9.9),
-                        "涨跌额": row.get("涨跌额", 0),
-                        "成交量": row.get("成交量", 0),
-                        "成交额": row.get("成交额", 0),
-                        "换手率": row.get("换手率", 0),
-                    })
+                    stocks.append(
+                        {
+                            "代码": row.get("代码", ""),
+                            "名称": row.get("名称", ""),
+                            "最新价": row.get("最新价", 0),
+                            "涨跌幅": row.get("涨跌幅", -9.9),
+                            "涨跌额": row.get("涨跌额", 0),
+                            "成交量": row.get("成交量", 0),
+                            "成交额": row.get("成交额", 0),
+                            "换手率": row.get("换手率", 0),
+                        }
+                    )
 
             return stocks if stocks else None
 
@@ -263,7 +307,9 @@ class MarketService:
     async def get_change_percent_ranking(self, limit: int = 20) -> List[Dict[str, Any]]:
         """获取涨跌幅排行"""
         stocks = await self._get_stock_data()
-        sorted_stocks = sorted(stocks, key=lambda x: x.get("涨跌幅", 0) or 0, reverse=True)
+        sorted_stocks = sorted(
+            stocks, key=lambda x: x.get("涨跌幅", 0) or 0, reverse=True
+        )
         return self._format_ranking(sorted_stocks[:limit])
 
     async def get_down_ranking(self, limit: int = 20) -> List[Dict[str, Any]]:
@@ -277,19 +323,25 @@ class MarketService:
     async def get_turnover_ranking(self, limit: int = 20) -> List[Dict[str, Any]]:
         """获取换手率排行"""
         stocks = await self._get_stock_data()
-        sorted_stocks = sorted(stocks, key=lambda x: x.get("换手率", 0) or 0, reverse=True)
+        sorted_stocks = sorted(
+            stocks, key=lambda x: x.get("换手率", 0) or 0, reverse=True
+        )
         return self._format_ranking(sorted_stocks[:limit])
 
     async def get_volume_ranking(self, limit: int = 20) -> List[Dict[str, Any]]:
         """获取成交量排行"""
         stocks = await self._get_stock_data()
-        sorted_stocks = sorted(stocks, key=lambda x: x.get("成交量", 0) or 0, reverse=True)
+        sorted_stocks = sorted(
+            stocks, key=lambda x: x.get("成交量", 0) or 0, reverse=True
+        )
         return self._format_ranking(sorted_stocks[:limit])
 
     async def get_amount_ranking(self, limit: int = 20) -> List[Dict[str, Any]]:
         """获取成交额排行"""
         stocks = await self._get_stock_data()
-        sorted_stocks = sorted(stocks, key=lambda x: x.get("成交额", 0) or 0, reverse=True)
+        sorted_stocks = sorted(
+            stocks, key=lambda x: x.get("成交额", 0) or 0, reverse=True
+        )
         return self._format_ranking(sorted_stocks[:limit])
 
     async def get_realtime_rankings(self, limit: int = 20) -> Dict[str, Any]:
@@ -322,19 +374,31 @@ class MarketService:
             if not code:
                 continue
 
-            items.append({
-                "rank": idx + 1,
-                "stock_code": code,
-                "stock_name": s.get("名称", ""),
-                "current_price": float(s["最新价"]) if pd.notna(s.get("最新价")) else None,
-                "change_percent": float(s["涨跌幅"]) if pd.notna(s.get("涨跌幅")) else None,
-                "change_amount": float(s["涨跌额"]) if pd.notna(s.get("涨跌额")) else None,
-                "volume": float(s["成交量"]) / 100 if pd.notna(s.get("成交量")) else None,
-                "amount": float(s["成交额"]) if pd.notna(s.get("成交额")) else None,
-                "turnover_rate": float(s["换手率"]) if pd.notna(s.get("换手率")) else None,
-                "industry": s.get("所属行业", ""),
-                "market": "SH" if code.startswith(("6", "5")) else "SZ",
-            })
+            items.append(
+                {
+                    "rank": idx + 1,
+                    "stock_code": code,
+                    "stock_name": s.get("名称", ""),
+                    "current_price": float(s["最新价"])
+                    if pd.notna(s.get("最新价"))
+                    else None,
+                    "change_percent": float(s["涨跌幅"])
+                    if pd.notna(s.get("涨跌幅"))
+                    else None,
+                    "change_amount": float(s["涨跌额"])
+                    if pd.notna(s.get("涨跌额"))
+                    else None,
+                    "volume": float(s["成交量"]) / 100
+                    if pd.notna(s.get("成交量"))
+                    else None,
+                    "amount": float(s["成交额"]) if pd.notna(s.get("成交额")) else None,
+                    "turnover_rate": float(s["换手率"])
+                    if pd.notna(s.get("换手率"))
+                    else None,
+                    "industry": s.get("所属行业", ""),
+                    "market": "SH" if code.startswith(("6", "5")) else "SZ",
+                }
+            )
         return items
 
 

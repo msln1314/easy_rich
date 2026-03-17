@@ -8,12 +8,18 @@ import {
   ElOption,
   ElDatePicker,
   ElButton,
-  ElMessage
+  ElMessage,
+  ElTabs,
+  ElTabPane
 } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import SectorRanking from './components/SectorRanking.vue'
 import SectorTrend from './components/SectorTrend.vue'
 import SectorHeatmap from './components/SectorHeatmap.vue'
+import SectorLeader from './components/SectorLeader.vue'
+import SectorMonitor from './components/SectorMonitor.vue'
+import SectorStrategy from './components/SectorStrategy.vue'
+import SectorPrediction from './components/SectorPrediction.vue'
 import { getSectorRankingApi, getSectorTrendApi, getSectorHeatmapApi } from '@/api/stock/sector'
 import dayjs from 'dayjs'
 
@@ -26,7 +32,8 @@ const dateRange = ref<[string, string]>([
   dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
   dayjs().format('YYYY-MM-DD')
 ])
-const sectorType = ref('all')
+const sectorType = ref('industry')
+const activeTab = ref('leader')
 
 const rankingData = ref([])
 const trendData = ref([])
@@ -102,10 +109,8 @@ onMounted(() => {
           style="width: 100%"
           @change="handleRefresh"
         >
-          <ElOption label="全部板块" value="all" />
           <ElOption label="行业板块" value="industry" />
           <ElOption label="概念板块" value="concept" />
-          <ElOption label="地域板块" value="region" />
         </ElSelect>
       </ElCol>
       <ElCol :span="2">
@@ -113,7 +118,7 @@ onMounted(() => {
       </ElCol>
     </ElRow>
 
-    <ElRow :gutter="20" v-if="isDataAvailable">
+    <ElRow :gutter="20" v-if="isDataAvailable" class="mb-4">
       <ElCol :span="8">
         <ElCard class="h-full">
           <template #header>
@@ -148,9 +153,26 @@ onMounted(() => {
       </ElCol>
     </ElRow>
 
-    <div v-else-if="!loading" class="text-center py-20 text-gray-500">
+    <div v-else-if="!loading" class="text-center py-10 text-gray-500 mb-4">
       暂无数据，请调整筛选条件后重试
     </div>
+
+    <ElCard>
+      <ElTabs v-model="activeTab" type="border-card">
+        <ElTabPane label="龙头股追踪" name="leader">
+          <SectorLeader :sector-type="sectorType" :loading="loading" />
+        </ElTabPane>
+        <ElTabPane label="实时监控" name="monitor">
+          <SectorMonitor :sector-type="sectorType" :loading="loading" />
+        </ElTabPane>
+        <ElTabPane label="策略分析" name="strategy">
+          <SectorStrategy :sector-type="sectorType" :loading="loading" />
+        </ElTabPane>
+        <ElTabPane label="轮动预测" name="prediction">
+          <SectorPrediction :sector-type="sectorType" :loading="loading" />
+        </ElTabPane>
+      </ElTabs>
+    </ElCard>
 
     <div v-if="loading" class="text-center py-20">
       <ElButton loading>加载中...</ElButton>
@@ -160,7 +182,15 @@ onMounted(() => {
 
 <style scoped>
 .h-full {
-  height: calc(100vh - 280px);
+  height: calc(100vh - 200px);
+  min-height: 400px;
+}
+
+:deep(.el-tabs__content) {
+  padding: 16px;
+}
+
+:deep(.el-tab-pane) {
   min-height: 500px;
 }
 </style>

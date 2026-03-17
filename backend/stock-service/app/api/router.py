@@ -57,6 +57,60 @@ except ImportError:
     print("警告: 无法导入 market_routes 模块")
     market_routes = None
 
+try:
+    from app.api.endpoints import stock_extended_routes
+except ImportError:
+    print("警告: 无法导入 stock_extended_routes 模块")
+    stock_extended_routes = None
+
+try:
+    from app.api.endpoints import market_extended_routes
+except ImportError:
+    print("警告: 无法导入 market_extended_routes 模块")
+    market_extended_routes = None
+
+try:
+    from app.api.endpoints import margin_routes
+except ImportError:
+    print("警告: 无法导入 margin_routes 模块")
+    margin_routes = None
+
+try:
+    from app.api.endpoints import institution_routes
+except ImportError:
+    print("警告: 无法导入 institution_routes 模块")
+    institution_routes = None
+
+try:
+    from app.api.endpoints import macro_routes
+except ImportError:
+    print("警告: 无法导入 macro_routes 模块")
+    macro_routes = None
+
+try:
+    from app.api.endpoints import screener_routes
+except ImportError:
+    print("警告: 无法导入 screener_routes 模块")
+    screener_routes = None
+
+try:
+    from app.api.endpoints import export_routes
+except ImportError:
+    print("警告: 无法导入 export_routes 模块")
+    export_routes = None
+
+try:
+    from app.api.endpoints import watchlist_routes
+except ImportError:
+    print("警告: 无法导入 watchlist_routes 模块")
+    watchlist_routes = None
+
+try:
+    from app.api.endpoints import pattern_routes
+except ImportError:
+    print("警告: 无法导入 pattern_routes 模块")
+    pattern_routes = None
+
 api_router = APIRouter()
 
 # 根据模块是否成功导入来添加路由
@@ -67,14 +121,61 @@ if index_routes:
 if sector_routes:
     api_router.include_router(sector_routes.router, prefix="/sector", tags=["sector"])
 if sentiment_routes:
-    api_router.include_router(sentiment_routes.router, prefix="/sentiment", tags=["sentiment"])
+    api_router.include_router(
+        sentiment_routes.router, prefix="/sentiment", tags=["sentiment"]
+    )
 if technical_routes:
-    api_router.include_router(technical_routes.router, prefix="/technical", tags=["technical"])
+    api_router.include_router(
+        technical_routes.router, prefix="/technical", tags=["technical"]
+    )
 if news_routes:
     api_router.include_router(news_routes.router, prefix="/news", tags=["news"])
 if hot_news_routes:
-    api_router.include_router(hot_news_routes.router, prefix="/hot-news", tags=["hot-news"])
+    api_router.include_router(
+        hot_news_routes.router, prefix="/hot-news", tags=["hot-news"]
+    )
 if fund_flow_routes:
-    api_router.include_router(fund_flow_routes.router, prefix="/fund-flow", tags=["fund-flow"])
+    api_router.include_router(
+        fund_flow_routes.router, prefix="/fund-flow", tags=["fund-flow"]
+    )
 if market_routes:
     api_router.include_router(market_routes.router, prefix="/market", tags=["market"])
+
+if stock_extended_routes:
+    api_router.include_router(
+        stock_extended_routes.router, prefix="/stock-ext", tags=["stock-ext"]
+    )
+
+if market_extended_routes:
+    api_router.include_router(
+        market_extended_routes.router, prefix="/market-ext", tags=["market-ext"]
+    )
+
+if margin_routes:
+    api_router.include_router(margin_routes.router, prefix="/margin", tags=["margin"])
+
+if institution_routes:
+    api_router.include_router(
+        institution_routes.router, prefix="/institution", tags=["institution"]
+    )
+
+if macro_routes:
+    api_router.include_router(macro_routes.router, prefix="/macro", tags=["macro"])
+
+if screener_routes:
+    api_router.include_router(
+        screener_routes.router, prefix="/screener", tags=["screener"]
+    )
+
+if export_routes:
+    api_router.include_router(export_routes.router, prefix="/export", tags=["export"])
+
+if watchlist_routes:
+    api_router.include_router(
+        watchlist_routes.router, prefix="/watchlist", tags=["watchlist"]
+    )
+
+if pattern_routes:
+    api_router.include_router(
+        pattern_routes.router, prefix="/pattern", tags=["pattern"]
+    )

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @version        : 1.0
+# @version        : 1.1
 # @Create Time    : 2026/3/10
 # @File           : index_service.py
 # @IDE            : PyCharm
-# @desc           : 指数行情服务 - 支持 AKShare、新浪、掘金量化、pytdx 多数据源
+# @desc           : 指数行情服务 - 支持 AKShare、腾讯财经、新浪、掘金量化、pytdx 多数据源
 
 import akshare as ak
 import pandas as pd
@@ -14,6 +14,7 @@ from app.models.index_models import IndexQuote
 from app.core.logging import get_logger
 from app.utils.cache import cache_result
 from app.services.pytdx_source import pytdx_source
+from app.services.tencent_source import tencent_source  # 腾讯财经 - 成功率高
 
 logger = get_logger(__name__)
 
@@ -39,6 +40,7 @@ class IndexService:
         if self._gm_service is None:
             try:
                 from app.services.gm_service import gm_service
+
                 self._gm_service = gm_service
             except ImportError:
                 logger.warning("GM 服务不可用")
@@ -46,7 +48,9 @@ class IndexService:
         return self._gm_service
 
     @cache_result(expire=30)  # 缓存30秒
-    async def get_index_quotes(self, symbol: str = "沪深重要指数") -> tuple[List[IndexQuote], str]:
+    async def get_index_quotes(
+        self, symbol: str = "沪深重要指数"
+    ) -> tuple[List[IndexQuote], str]:
         """
         获取指数实时行情数据
 
@@ -58,26 +62,32 @@ class IndexService:
         """
         logger.info(f"获取指数实时行情: {symbol}")
 
-        # 数据源优先级：AKShare > 新浪 > GM
+        # 数据源优先级：AKShare > 腾讯财经 > 新浪 > GM > pytdx
         # 1. 尝试 AKShare 东方财富
         result, source = await self._try_akshare_em()
         if result:
             logger.info(f"当前数据源: AKShare 东方财富")
             return result, source
 
-        # 2. 尝试新浪接口
+        # 2. 尝试腾讯财经（成功率高）
+        result, source = await self._try_tencent()
+        if result:
+            logger.info(f"当前数据源: 腾讯财经")
+            return result, source
+
+        # 3. 尝试新浪接口
         result, source = await self._try_sina()
         if result:
             logger.info(f"当前数据源: 新浪财经")
             return result, source
 
-        # 3. 尝试掘金量化
+        # 4. 尝试掘金量化
         result, source = await self._try_gm()
         if result:
             logger.info(f"当前数据源: 掘金量化")
             return result, source
 
-        # 4. 尝试 pytdx
+        # 5. 尝试 pytdx
         result, source = await self._try_pytdx()
         if result:
             logger.info(f"当前数据源: pytdx")
@@ -121,7 +131,7 @@ class IndexService:
                         open=self._safe_float(row.get("今开")),
                         pre_close=self._safe_float(row.get("昨收")),
                         volume_ratio=self._safe_float(row.get("量比")),
-                        update_time=datetime.now()
+                        update_time=datetime.now(),
                     )
                     result.append(quote)
                 except Exception as e:
@@ -135,6 +145,50 @@ class IndexService:
             logger.warning(f"AKShare EM 接口失败: {e}")
             return None, ""
 
+    async def _try_tencent(self) -> tuple[Optional[List[IndexQuote]], str]:
+        """尝试使用腾讯财经接口获取主要指数"""
+        try:
+            result = []
+            index_codes = ["000001", "399001", "399006", "000688"]
+
+            for code in index_codes:
+                try:
+                    quote = await tencent_source.get_index_quote(code)
+                    if quote:
+                        if code in ["000001", "000688"]:
+                            std_code = f"{code}.SH"
+                        else:
+                            std_code = f"{code}.SZ"
+
+                        index_quote = IndexQuote(
+                            code=std_code,
+                            name=quote.stock_name,
+                            price=quote.price,
+                            change=quote.change,
+                            change_percent=quote.change_percent,
+                            volume=quote.volume,
+                            amount=quote.amount,
+                            high=quote.high,
+                            low=quote.low,
+                            open=quote.open,
+                            pre_close=quote.pre_close,
+                            update_time=datetime.now(),
+                        )
+                        result.append(index_quote)
+                except Exception as e:
+                    logger.warning(f"腾讯财经获取指数 {code} 失败: {e}")
+                    continue
+
+            if result:
+                logger.info(f"腾讯财经接口获取到 {len(result)} 条指数数据")
+                return result, "tencent"
+
+            return None, ""
+
+        except Exception as e:
+            logger.warning(f"腾讯财经接口失败: {e}")
+            return None, ""
+
     async def _try_sina(self) -> tuple[Optional[List[IndexQuote]], str]:
         """尝试使用新浪接口获取主要指数"""
         try:
@@ -142,7 +196,7 @@ class IndexService:
             url = "http://hq.sinajs.cn/list=sh000001,sz399001,sz399006,sh000688"
             headers = {
                 "Referer": "http://finance.sina.com.cn",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             }
 
             response = requests.get(url, headers=headers, timeout=10)
@@ -152,15 +206,15 @@ class IndexService:
                 return None, ""
 
             result = []
-            for line in response.text.strip().split('\n'):
-                if not line or 'hq_str_' not in line:
+            for line in response.text.strip().split("\n"):
+                if not line or "hq_str_" not in line:
                     continue
 
                 try:
                     # 解析格式: var hq_str_sh000001="上证指数,3391.88,..."
                     code_part, data_part = line.split('="')
-                    code = code_part.replace('var hq_str_', '').upper()
-                    data = data_part.rstrip('";').split(',')
+                    code = code_part.replace("var hq_str_", "").upper()
+                    data = data_part.rstrip('";').split(",")
 
                     if len(data) < 10:
                         continue
@@ -174,14 +228,20 @@ class IndexService:
                     volume = float(data[8]) if data[8] else None
                     amount = float(data[9]) if data[9] else None
 
-                    change = round(price - pre_close, 2) if price and pre_close else None
-                    change_percent = round((price - pre_close) / pre_close * 100, 2) if price and pre_close else None
+                    change = (
+                        round(price - pre_close, 2) if price and pre_close else None
+                    )
+                    change_percent = (
+                        round((price - pre_close) / pre_close * 100, 2)
+                        if price and pre_close
+                        else None
+                    )
 
                     # 转换代码格式
-                    if code.startswith('SH'):
-                        std_code = code.replace('SH', '') + '.SH'
+                    if code.startswith("SH"):
+                        std_code = code.replace("SH", "") + ".SH"
                     else:
-                        std_code = code.replace('SZ', '') + '.SZ'
+                        std_code = code.replace("SZ", "") + ".SZ"
 
                     quote = IndexQuote(
                         code=std_code,
@@ -195,7 +255,7 @@ class IndexService:
                         low=low,
                         open=open_price,
                         pre_close=pre_close,
-                        update_time=datetime.now()
+                        update_time=datetime.now(),
                     )
                     result.append(quote)
 
@@ -242,17 +302,23 @@ class IndexService:
 
                     index_quote = IndexQuote(
                         code=std_code,
-                        name=MAIN_INDICES.get(std_code, {}).get("name", quote.get("sec_name", "")),
+                        name=MAIN_INDICES.get(std_code, {}).get(
+                            "name", quote.get("sec_name", "")
+                        ),
                         price=price,
-                        change=round(price - pre_close, 2) if price and pre_close else None,
-                        change_percent=round((price - pre_close) / pre_close * 100, 2) if pre_close else None,
+                        change=round(price - pre_close, 2)
+                        if price and pre_close
+                        else None,
+                        change_percent=round((price - pre_close) / pre_close * 100, 2)
+                        if pre_close
+                        else None,
                         volume=float(quote.get("volume", 0) or 0),
                         amount=float(quote.get("amount", 0) or 0),
                         high=float(quote.get("high", 0) or 0),
                         low=float(quote.get("low", 0) or 0),
                         open=float(quote.get("open", 0) or 0),
                         pre_close=pre_close,
-                        update_time=datetime.now()
+                        update_time=datetime.now(),
                     )
                     result.append(index_quote)
 
@@ -276,22 +342,22 @@ class IndexService:
 
             result = []
             for q in pytdx_quotes:
-                code = q.get('code', '')
+                code = q.get("code", "")
                 # 转换代码格式
-                if code.startswith('6'):
+                if code.startswith("6"):
                     std_code = f"{code}.SH"
                 else:
                     std_code = f"{code}.SZ"
 
                 index_quote = IndexQuote(
                     code=std_code,
-                    name=q.get('name', ''),
-                    price=q.get('price'),
-                    change=q.get('change'),
-                    change_percent=q.get('change_percent'),
-                    volume=q.get('volume'),
-                    amount=q.get('amount'),
-                    update_time=datetime.now()
+                    name=q.get("name", ""),
+                    price=q.get("price"),
+                    change=q.get("change"),
+                    change_percent=q.get("change_percent"),
+                    volume=q.get("volume"),
+                    amount=q.get("amount"),
+                    update_time=datetime.now(),
                 )
                 result.append(index_quote)
 
@@ -319,7 +385,9 @@ class IndexService:
         except (ValueError, TypeError):
             return None
 
-    async def get_index_quote(self, index_code: str) -> tuple[Optional[IndexQuote], str]:
+    async def get_index_quote(
+        self, index_code: str
+    ) -> tuple[Optional[IndexQuote], str]:
         """
         获取单个指数的实时行情数据
 
@@ -336,13 +404,17 @@ class IndexService:
 
         # 查找匹配的指数
         for index in all_indices:
-            if index.code == index_code or index.code.replace('.', '') == index_code.replace('.', ''):
+            if index.code == index_code or index.code.replace(
+                ".", ""
+            ) == index_code.replace(".", ""):
                 return index, source
 
         logger.warning(f"未找到指数代码 {index_code} 的实时行情数据")
         return None, ""
 
-    async def get_index_history(self, index_code: str, start_date: str, end_date: str) -> tuple[List[dict], str]:
+    async def get_index_history(
+        self, index_code: str, start_date: str, end_date: str
+    ) -> tuple[List[dict], str]:
         """
         获取指数历史数据
 
@@ -368,7 +440,9 @@ class IndexService:
 
         return [], ""
 
-    async def _try_akshare_history(self, index_code: str, start_date: str, end_date: str) -> Optional[List[dict]]:
+    async def _try_akshare_history(
+        self, index_code: str, start_date: str, end_date: str
+    ) -> Optional[List[dict]]:
         """尝试使用 AKShare 获取历史数据"""
         try:
             # 转换代码格式
@@ -384,22 +458,24 @@ class IndexService:
                 return None
 
             # 过滤日期范围
-            df['date'] = pd.to_datetime(df['date'])
+            df["date"] = pd.to_datetime(df["date"])
             start_dt = pd.to_datetime(start_date)
             end_dt = pd.to_datetime(end_date)
 
-            df = df[(df['date'] >= start_dt) & (df['date'] <= end_dt)]
+            df = df[(df["date"] >= start_dt) & (df["date"] <= end_dt)]
 
             result = []
             for _, row in df.iterrows():
-                result.append({
-                    "date": row['date'].strftime('%Y-%m-%d'),
-                    "open": self._safe_float(row.get('open')),
-                    "high": self._safe_float(row.get('high')),
-                    "low": self._safe_float(row.get('low')),
-                    "close": self._safe_float(row.get('close')),
-                    "volume": self._safe_float(row.get('volume')),
-                })
+                result.append(
+                    {
+                        "date": row["date"].strftime("%Y-%m-%d"),
+                        "open": self._safe_float(row.get("open")),
+                        "high": self._safe_float(row.get("high")),
+                        "low": self._safe_float(row.get("low")),
+                        "close": self._safe_float(row.get("close")),
+                        "volume": self._safe_float(row.get("volume")),
+                    }
+                )
 
             logger.info(f"AKShare 获取到 {len(result)} 条历史数据")
             return result
@@ -408,7 +484,9 @@ class IndexService:
             logger.warning(f"AKShare 历史数据接口失败: {e}")
             return None
 
-    async def _try_gm_history(self, index_code: str, start_date: str, end_date: str) -> Optional[List[dict]]:
+    async def _try_gm_history(
+        self, index_code: str, start_date: str, end_date: str
+    ) -> Optional[List[dict]]:
         """尝试使用 GM 获取历史数据"""
         try:
             gm = self.gm_service
@@ -427,10 +505,10 @@ class IndexService:
             # 使用 GM 的 history 方法
             history_data = gm.gm.history(
                 symbol=gm_code,
-                frequency='1d',
+                frequency="1d",
                 start_time=start_time,
                 end_time=end_time,
-                adjust=0  # 不复权
+                adjust=0,  # 不复权
             )
 
             if not history_data:
@@ -438,14 +516,18 @@ class IndexService:
 
             result = []
             for item in history_data:
-                result.append({
-                    "date": item.get('eob', '').strftime('%Y-%m-%d') if hasattr(item.get('eob'), 'strftime') else str(item.get('eob', ''))[:10],
-                    "open": self._safe_float(item.get('open')),
-                    "high": self._safe_float(item.get('high')),
-                    "low": self._safe_float(item.get('low')),
-                    "close": self._safe_float(item.get('close')),
-                    "volume": self._safe_float(item.get('volume')),
-                })
+                result.append(
+                    {
+                        "date": item.get("eob", "").strftime("%Y-%m-%d")
+                        if hasattr(item.get("eob"), "strftime")
+                        else str(item.get("eob", ""))[:10],
+                        "open": self._safe_float(item.get("open")),
+                        "high": self._safe_float(item.get("high")),
+                        "low": self._safe_float(item.get("low")),
+                        "close": self._safe_float(item.get("close")),
+                        "volume": self._safe_float(item.get("volume")),
+                    }
+                )
 
             logger.info(f"GM 获取到 {len(result)} 条历史数据")
             return result

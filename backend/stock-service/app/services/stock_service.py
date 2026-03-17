@@ -10,13 +10,22 @@ import akshare as ak
 import pandas as pd  # 添加pandas导入
 from datetime import datetime, timedelta  # 添加timedelta导入
 from typing import List, Optional, Any, Dict
+
 # 更新导入语句
-from app.models.stock_models import StockInfo, StockQuote, StockFinancial, StockFundFlow, StockHistory
+from app.models.stock_models import (
+    StockInfo,
+    StockQuote,
+    StockFinancial,
+    StockFundFlow,
+    StockHistory,
+)
 from app.core.logging import get_logger
 from app.utils.cache import cache_result
 from app.services.gm_service import gm_service
+from app.services.tencent_source import tencent_source  # 腾讯财经 - 成功率高
 
 logger = get_logger(__name__)
+
 
 class StockService:
     @cache_result()
@@ -54,10 +63,18 @@ class StockService:
                 name=info_dict.get("股票简称", ""),
                 industry=info_dict.get("行业", None),
                 listing_date=listing_date,  # 使用转换后的字符串
-                total_market_value=float(info_dict.get("总市值", 0)) if info_dict.get("总市值") else None,
-                circulating_market_value=float(info_dict.get("流通市值", 0)) if info_dict.get("流通市值") else None,
-                total_share=float(info_dict.get("总股本", 0)) if info_dict.get("总股本") else None,
-                circulating_share=float(info_dict.get("流通股", 0)) if info_dict.get("流通股") else None
+                total_market_value=float(info_dict.get("总市值", 0))
+                if info_dict.get("总市值")
+                else None,
+                circulating_market_value=float(info_dict.get("流通市值", 0))
+                if info_dict.get("流通市值")
+                else None,
+                total_share=float(info_dict.get("总股本", 0))
+                if info_dict.get("总股本")
+                else None,
+                circulating_share=float(info_dict.get("流通股", 0))
+                if info_dict.get("流通股")
+                else None,
             )
 
         except Exception as e:
@@ -65,13 +82,17 @@ class StockService:
 
             if not gm_service.is_available():
                 logger.error("GM 服务不可用")
-                raise ValueError(f"无法获取股票 {stock_code} 的基本信息，AKShare 和 GM 均失败")
+                raise ValueError(
+                    f"无法获取股票 {stock_code} 的基本信息，AKShare 和 GM 均失败"
+                )
 
             try:
                 return await self._get_stock_info_from_gm(stock_code)
             except Exception as gm_error:
                 logger.error(f"GM 获取个股基本信息失败: {str(gm_error)}")
-                raise ValueError(f"无法获取股票 {stock_code} 的基本信息，AKShare 失败: {str(e)}，GM 失败: {str(gm_error)}")
+                raise ValueError(
+                    f"无法获取股票 {stock_code} 的基本信息，AKShare 失败: {str(e)}，GM 失败: {str(gm_error)}"
+                )
 
     async def _get_stock_info_from_gm(self, stock_code: str) -> StockInfo:
         """
@@ -101,16 +122,16 @@ class StockService:
                 total_market_value=None,  # 需要通过其他方式获取
                 circulating_market_value=None,
                 total_share=None,
-                circulating_share=None
+                circulating_share=None,
             )
         except Exception as e:
             logger.error(f"GM 获取个股基本信息失败: {str(e)}")
             raise
-    
+
     async def get_stock_quote(self, stock_code: str) -> StockQuote:
         """
         获取个股实时行情
-        优先使用 AKShare，失败时自动降级到 GM
+        优先级: AKShare → 腾讯财经 → GM
         """
         logger.info(f"获取个股实时行情: {stock_code}")
 
@@ -119,7 +140,7 @@ class StockService:
             stock_quote = ak.stock_zh_a_spot_em()
 
             # 筛选指定股票并处理数据
-            stock_data = stock_quote[stock_quote['代码'] == stock_code]
+            stock_data = stock_quote[stock_quote["代码"] == stock_code]
             if stock_data.empty:
                 logger.warning(f"未找到股票代码 {stock_code} 的行情数据")
                 raise ValueError(f"未找到股票代码 {stock_code} 的行情数据")
@@ -130,34 +151,71 @@ class StockService:
             # 创建并返回StockQuote对象，确保包含所有必需字段
             return StockQuote(
                 code=stock_code,
-                name=row['名称'],
-                price=float(row['最新价']),
-                change=float(row['涨跌额']),
-                change_percent=float(row['涨跌幅']),
-                open=float(row['今开']),
-                high=float(row['最高']),
-                low=float(row['最低']),
-                volume=int(row['成交量']),
-                amount=float(row['成交额']),
-                turnover_rate=float(row['换手率']),
-                pe_ratio=float(row['市盈率-动态']) if '市盈率-动态' in row and not pd.isna(row['市盈率-动态']) else None,
-                pb_ratio=float(row['市净率']) if '市净率' in row and not pd.isna(row['市净率']) else None,
-                market_cap=float(row['总市值']) if '总市值' in row and not pd.isna(row['总市值']) else None,
-                update_time=datetime.now()
+                name=row["名称"],
+                price=float(row["最新价"]),
+                change=float(row["涨跌额"]),
+                change_percent=float(row["涨跌幅"]),
+                open=float(row["今开"]),
+                high=float(row["最高"]),
+                low=float(row["最低"]),
+                volume=int(row["成交量"]),
+                amount=float(row["成交额"]),
+                turnover_rate=float(row["换手率"]),
+                pe_ratio=float(row["市盈率-动态"])
+                if "市盈率-动态" in row and not pd.isna(row["市盈率-动态"])
+                else None,
+                pb_ratio=float(row["市净率"])
+                if "市净率" in row and not pd.isna(row["市净率"])
+                else None,
+                market_cap=float(row["总市值"])
+                if "总市值" in row and not pd.isna(row["总市值"])
+                else None,
+                update_time=datetime.now(),
             )
 
         except Exception as e:
-            logger.warning(f"AKShare 获取个股实时行情失败: {str(e)}，尝试使用 GM 服务")
+            logger.warning(f"AKShare 获取个股实时行情失败: {str(e)}，尝试使用腾讯财经")
 
+            # 优先尝试腾讯财经（成功率高）
+            try:
+                tencent_quote = await tencent_source.get_quote(stock_code)
+                if tencent_quote:
+                    return StockQuote(
+                        code=stock_code,
+                        name=tencent_quote.stock_name,
+                        price=tencent_quote.price,
+                        change=tencent_quote.change,
+                        change_percent=tencent_quote.change_percent,
+                        open=tencent_quote.open,
+                        high=tencent_quote.high,
+                        low=tencent_quote.low,
+                        volume=int(tencent_quote.volume)
+                        if tencent_quote.volume
+                        else None,
+                        amount=tencent_quote.amount,
+                        turnover_rate=None,  # 腾讯不提供
+                        pe_ratio=None,
+                        pb_ratio=None,
+                        market_cap=None,
+                        update_time=datetime.now(),
+                    )
+            except Exception as tencent_error:
+                logger.warning(f"腾讯财经获取行情失败: {str(tencent_error)}")
+
+            # 最后尝试 GM
             if not gm_service.is_available():
                 logger.error("GM 服务不可用")
-                raise ValueError(f"无法获取股票 {stock_code} 的实时行情，AKShare 和 GM 均失败")
+                raise ValueError(
+                    f"无法获取股票 {stock_code} 的实时行情，所有数据源均失败"
+                )
 
             try:
                 return await self._get_stock_quote_from_gm(stock_code)
             except Exception as gm_error:
                 logger.error(f"GM 获取个股实时行情失败: {str(gm_error)}")
-                raise ValueError(f"无法获取股票 {stock_code} 的实时行情，AKShare 失败: {str(e)}，GM 失败: {str(gm_error)}")
+                raise ValueError(
+                    f"无法获取股票 {stock_code} 的实时行情，所有数据源均失败"
+                )
 
     async def _get_stock_quote_from_gm(self, stock_code: str) -> StockQuote:
         """
@@ -185,19 +243,22 @@ class StockService:
                 price=float(quote.get("last", 0)),
                 change=float(quote.get("last", 0) - quote.get("pre_close", 0)),
                 change_percent=self._calc_change_percent(
-                    float(quote.get("last", 0)),
-                    float(quote.get("pre_close", 0))
+                    float(quote.get("last", 0)), float(quote.get("pre_close", 0))
                 ),
                 open=float(quote.get("open", 0)),
                 high=float(quote.get("high", 0)),
                 low=float(quote.get("low", 0)),
                 volume=int(quote.get("volume", 0)),
                 amount=float(quote.get("amount", 0)),
-                turnover_rate=float(quote.get("turnover", 0)) if quote.get("turnover") else 0.0,
+                turnover_rate=float(quote.get("turnover", 0))
+                if quote.get("turnover")
+                else 0.0,
                 pe_ratio=None,
                 pb_ratio=None,
-                market_cap=float(quote.get("market_cap", 0)) if quote.get("market_cap") else None,
-                update_time=datetime.now()
+                market_cap=float(quote.get("market_cap", 0))
+                if quote.get("market_cap")
+                else None,
+                update_time=datetime.now(),
             )
         except Exception as e:
             logger.error(f"GM 获取个股实时行情失败: {str(e)}")
@@ -217,38 +278,113 @@ class StockService:
         if pre_close and pre_close != 0:
             return round((current - pre_close) / pre_close * 100, 2)
         return 0.0
-    
-    async def get_stock_financial(self, stock_code: str) -> StockFinancial:
-        """
-        获取个股财务信息
-        优先使用 AKShare，失败时自动降级到 GM
-        """
+
+    async def get_stock_financial(self, stock_code: str) -> Dict[str, Any]:
+        """获取个股财务信息"""
         logger.info(f"获取个股财务信息: {stock_code}")
-        raise NotImplementedError("获取个股财务信息功能待实现")
 
-    async def get_stock_fund_flow(self, stock_code: str) -> StockFundFlow:
-        """
-        获取个股资金流向
-        优先使用 AKShare，失败时自动降级到 GM
-        """
+        try:
+            df = ak.stock_financial_analysis_indicator(symbol=stock_code)
+
+            if df.empty:
+                return {"stock_code": stock_code, "data": []}
+
+            result = []
+            for _, row in df.iterrows():
+                result.append(
+                    {
+                        "report_date": str(row.get("日期", "")),
+                        "roe": self._safe_float(row.get("净资产收益率")),
+                        "roa": self._safe_float(row.get("总资产净利率")),
+                        "gross_margin": self._safe_float(row.get("销售毛利率")),
+                        "net_margin": self._safe_float(row.get("销售净利率")),
+                        "debt_ratio": self._safe_float(row.get("资产负债率")),
+                        "current_ratio": self._safe_float(row.get("流动比率")),
+                        "quick_ratio": self._safe_float(row.get("速动比率")),
+                        "eps": self._safe_float(row.get("每股收益")),
+                        "bvps": self._safe_float(row.get("每股净资产")),
+                    }
+                )
+
+            return {"stock_code": stock_code, "data": result[:10]}
+
+        except Exception as e:
+            logger.warning(f"获取财务信息失败: {e}")
+            return {"stock_code": stock_code, "data": [], "error": str(e)}
+
+    async def get_stock_fund_flow(self, stock_code: str) -> Dict[str, Any]:
+        """获取个股资金流向"""
         logger.info(f"获取个股资金流向: {stock_code}")
-        raise NotImplementedError("获取个股资金流向功能待实现")
 
-    async def get_stock_margin(self, stock_code: str) -> dict[str, Any]:
-        """
-        获取个股融资融券信息
-        优先使用 AKShare，失败时自动降级到 GM
-        """
+        try:
+            market = "sh" if stock_code.startswith("6") else "sz"
+            df = ak.stock_individual_fund_flow(stock=stock_code, market=market)
+
+            if df.empty:
+                return {"stock_code": stock_code, "data": None}
+
+            row = df.iloc[0]
+            return {
+                "stock_code": stock_code,
+                "stock_name": str(row.get("名称", "")),
+                "close_price": self._safe_float(row.get("收盘价")),
+                "change_percent": self._safe_float(row.get("涨跌幅")),
+                "main_net_inflow": self._safe_float(row.get("主力净流入")),
+                "main_net_inflow_ratio": self._safe_float(row.get("主力净占比")),
+                "super_net_inflow": self._safe_float(row.get("超大单净流入")),
+                "big_net_inflow": self._safe_float(row.get("大单净流入")),
+                "medium_net_inflow": self._safe_float(row.get("中单净流入")),
+                "small_net_inflow": self._safe_float(row.get("小单净流入")),
+            }
+
+        except Exception as e:
+            logger.warning(f"获取资金流向失败: {e}")
+            return {"stock_code": stock_code, "data": None, "error": str(e)}
+
+    async def get_stock_margin(self, stock_code: str) -> Dict[str, Any]:
+        """获取个股融资融券信息"""
         logger.info(f"获取个股融资融券信息: {stock_code}")
-        raise NotImplementedError("获取个股融资融券信息功能待实现")
-    
+
+        try:
+            df = ak.stock_margin_detail_szsh(symbol=stock_code)
+
+            if df.empty:
+                return {"stock_code": stock_code, "data": []}
+
+            result = []
+            for _, row in df.iterrows():
+                result.append(
+                    {
+                        "trade_date": str(row.get("交易日期", "")),
+                        "financing_balance": self._safe_float(row.get("融资余额")),
+                        "financing_buy": self._safe_float(row.get("融资买入额")),
+                        "financing_repay": self._safe_float(row.get("融资偿还额")),
+                        "securities_balance": self._safe_float(row.get("融券余额")),
+                        "securities_sell": self._safe_float(row.get("融券卖出量")),
+                    }
+                )
+
+            return {"stock_code": stock_code, "data": result[:30]}
+
+        except Exception as e:
+            logger.warning(f"获取融资融券失败: {e}")
+            return {"stock_code": stock_code, "data": [], "error": str(e)}
+
+    def _safe_float(self, value) -> Optional[float]:
+        if value is None or pd.isna(value):
+            return None
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
+
     @cache_result()
     async def get_stock_history(
         self,
         stock_code: str,
         period: str = "daily",
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> List[StockHistory]:
         """
         获取个股历史行情数据
@@ -266,7 +402,9 @@ class StockService:
         Raises:
             ValueError: 当获取数据失败或参数错误时抛出
         """
-        logger.info(f"获取个股历史行情: {stock_code}, 周期: {period}, 开始日期: {start_date}, 结束日期: {end_date}")
+        logger.info(
+            f"获取个股历史行情: {stock_code}, 周期: {period}, 开始日期: {start_date}, 结束日期: {end_date}"
+        )
 
         try:
             # 标准化股票代码（去掉市场前缀）
@@ -287,7 +425,7 @@ class StockService:
                 period=period,
                 start_date=start_date,
                 end_date=end_date,
-                adjust="qfq"  # 使用前复权数据
+                adjust="qfq",  # 使用前复权数据
             )
 
             if df.empty:
@@ -315,7 +453,7 @@ class StockService:
                     amplitude=float(row["振幅"]),
                     change_percent=float(row["涨跌幅"]),
                     change_amount=float(row["涨跌额"]),
-                    turnover=float(row["换手率"])
+                    turnover=float(row["换手率"]),
                 )
                 result.append(history)
 
@@ -326,20 +464,26 @@ class StockService:
 
             if not gm_service.is_available():
                 logger.error("GM 服务不可用")
-                raise ValueError(f"无法获取股票 {stock_code} 的历史行情，AKShare 和 GM 均失败")
+                raise ValueError(
+                    f"无法获取股票 {stock_code} 的历史行情，AKShare 和 GM 均失败"
+                )
 
             try:
-                return await self._get_stock_history_from_gm(stock_code, period, start_date, end_date)
+                return await self._get_stock_history_from_gm(
+                    stock_code, period, start_date, end_date
+                )
             except Exception as gm_error:
                 logger.error(f"GM 获取个股历史行情失败: {str(gm_error)}")
-                raise ValueError(f"无法获取股票 {stock_code} 的历史行情，AKShare 失败: {str(e)}，GM 失败: {str(gm_error)}")
+                raise ValueError(
+                    f"无法获取股票 {stock_code} 的历史行情，AKShare 失败: {str(e)}，GM 失败: {str(gm_error)}"
+                )
 
     async def _get_stock_history_from_gm(
         self,
         stock_code: str,
         period: str = "daily",
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> List[StockHistory]:
         """
         从 GM 服务获取个股历史行情
@@ -348,16 +492,18 @@ class StockService:
 
         try:
             # 映射周期参数
-            period_map = {
-                "daily": "1d",
-                "weekly": "1w",
-                "monthly": "1M"
-            }
+            period_map = {"daily": "1d", "weekly": "1w", "monthly": "1M"}
             gm_period = period_map.get(period, "1d")
 
             # 转换日期格式
-            start_dt = datetime.strptime(start_date, "%Y%m%d") if start_date else (datetime.now() - timedelta(days=30))
-            end_dt = datetime.strptime(end_date, "%Y%m%d") if end_date else datetime.now()
+            start_dt = (
+                datetime.strptime(start_date, "%Y%m%d")
+                if start_date
+                else (datetime.now() - timedelta(days=30))
+            )
+            end_dt = (
+                datetime.strptime(end_date, "%Y%m%d") if end_date else datetime.now()
+            )
 
             # 转换为 GM 需要的格式
             gm_symbol = self._convert_to_gm_symbol(stock_code)
@@ -370,7 +516,7 @@ class StockService:
                 frequency=gm_period,
                 start_time=start_time,
                 end_time=end_time,
-                adjust="none"  # 不复权
+                adjust="none",  # 不复权
             )
 
             if not quotes or len(quotes) == 0:
@@ -398,11 +544,14 @@ class StockService:
                     amount=float(quote.get("amount", 0)),
                     amplitude=self._calc_amplitude_gm(quote),
                     change_percent=self._calc_change_percent(
-                        float(quote.get("close", 0)),
-                        float(quote.get("pre_close", 0))
+                        float(quote.get("close", 0)), float(quote.get("pre_close", 0))
                     ),
-                    change_amount=float(quote.get("close", 0) - quote.get("pre_close", 0)),
-                    turnover=float(quote.get("turnover", 0)) if quote.get("turnover") else 0.0
+                    change_amount=float(
+                        quote.get("close", 0) - quote.get("pre_close", 0)
+                    ),
+                    turnover=float(quote.get("turnover", 0))
+                    if quote.get("turnover")
+                    else 0.0,
                 )
                 result.append(history)
 
@@ -440,11 +589,7 @@ class StockService:
             code = stock_code
 
         # 映射市场代码
-        market_map = {
-            "SH": "SHSE",
-            "SZ": "SZSE",
-            "BJ": "BJSE"
-        }
+        market_map = {"SH": "SHSE", "SZ": "SZSE", "BJ": "BJSE"}
 
         gm_market = market_map.get(market, "SHSE")
         return f"{gm_market}.{code}"
@@ -484,7 +629,6 @@ class StockService:
         if pre_close and pre_close != 0:
             return round((high - low) / pre_close * 100, 2)
         return 0.0
-
 
     @cache_result(expire=300)
     async def get_all_stock_list(self) -> List[Dict[str, Any]]:
@@ -548,31 +692,69 @@ class StockService:
                     if not stock_code:
                         continue
 
-                
-
                     stock = {
                         "code": stock_code,
-                        "name": str(row["stock_name"]) if pd.notna(row["stock_name"]) else "",
-                        "price": float(row["current_price"]) if pd.notna(row["current_price"]) else None,
-                        "change_amount": float(row["change_amount"]) if pd.notna(row["change_amount"]) else None,
-                        "change_percent": float(row["change_percent"]) if pd.notna(row["change_percent"]) else None,
-                        "open": float(row["open_price"]) if pd.notna(row["open_price"]) else None,
-                        "high": float(row["high_price"]) if pd.notna(row["high_price"]) else None,
-                        "low": float(row["low_price"]) if pd.notna(row["low_price"]) else None,
-                        "volume": float(row["volume"]) if pd.notna(row["volume"]) else None,
-                        "amount": float(row["amount"]) if pd.notna(row["amount"]) else None,
-                        "turnover_rate": float(row["turnover_rate"]) if pd.notna(row["turnover_rate"]) else None,
-                        "volume_ratio": float(row["volume_ratio"]) if pd.notna(row["volume_ratio"]) else None,
-                        "amplitude": float(row["amplitude"]) if pd.notna(row["amplitude"]) else None,
-                        "pe_ratio": float(row["pe_ratio"]) if pd.notna(row["pe_ratio"]) else None,
-                        "pb_ratio": float(row["pb_ratio"]) if pd.notna(row["pb_ratio"]) else None,
-                        "market_cap": float(row["total_market_cap"]) if pd.notna(row["total_market_cap"]) else None,
-                        "circulating_market_cap": float(row["circulating_market_cap"]) if pd.notna(row["circulating_market_cap"]) else None,
-                        "change_speed": float(row["change_speed"]) if pd.notna(row["change_speed"]) else None,
-                        "change_5min": float(row["change_5min"]) if pd.notna(row["change_5min"]) else None,
-                        "change_60day": float(row["change_60day"]) if pd.notna(row["change_60day"]) else None,
-                        "change_ytd": float(row["change_ytd"]) if pd.notna(row["change_ytd"]) else None,
-                        "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        "name": str(row["stock_name"])
+                        if pd.notna(row["stock_name"])
+                        else "",
+                        "price": float(row["current_price"])
+                        if pd.notna(row["current_price"])
+                        else None,
+                        "change_amount": float(row["change_amount"])
+                        if pd.notna(row["change_amount"])
+                        else None,
+                        "change_percent": float(row["change_percent"])
+                        if pd.notna(row["change_percent"])
+                        else None,
+                        "open": float(row["open_price"])
+                        if pd.notna(row["open_price"])
+                        else None,
+                        "high": float(row["high_price"])
+                        if pd.notna(row["high_price"])
+                        else None,
+                        "low": float(row["low_price"])
+                        if pd.notna(row["low_price"])
+                        else None,
+                        "volume": float(row["volume"])
+                        if pd.notna(row["volume"])
+                        else None,
+                        "amount": float(row["amount"])
+                        if pd.notna(row["amount"])
+                        else None,
+                        "turnover_rate": float(row["turnover_rate"])
+                        if pd.notna(row["turnover_rate"])
+                        else None,
+                        "volume_ratio": float(row["volume_ratio"])
+                        if pd.notna(row["volume_ratio"])
+                        else None,
+                        "amplitude": float(row["amplitude"])
+                        if pd.notna(row["amplitude"])
+                        else None,
+                        "pe_ratio": float(row["pe_ratio"])
+                        if pd.notna(row["pe_ratio"])
+                        else None,
+                        "pb_ratio": float(row["pb_ratio"])
+                        if pd.notna(row["pb_ratio"])
+                        else None,
+                        "market_cap": float(row["total_market_cap"])
+                        if pd.notna(row["total_market_cap"])
+                        else None,
+                        "circulating_market_cap": float(row["circulating_market_cap"])
+                        if pd.notna(row["circulating_market_cap"])
+                        else None,
+                        "change_speed": float(row["change_speed"])
+                        if pd.notna(row["change_speed"])
+                        else None,
+                        "change_5min": float(row["change_5min"])
+                        if pd.notna(row["change_5min"])
+                        else None,
+                        "change_60day": float(row["change_60day"])
+                        if pd.notna(row["change_60day"])
+                        else None,
+                        "change_ytd": float(row["change_ytd"])
+                        if pd.notna(row["change_ytd"])
+                        else None,
+                        "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     result.append(stock)
                 except Exception as e:
@@ -585,3 +767,391 @@ class StockService:
         except Exception as e:
             logger.error(f"获取A股股票列表失败: {str(e)}")
             raise ValueError(f"获取A股股票列表失败: {str(e)}")
+
+    # ========== 扩展接口 ==========
+
+    @cache_result(expire=60)
+    async def get_minute_data(
+        self, stock_code: str, period: str = "1", adjust: str = ""
+    ) -> List[Dict[str, Any]]:
+        """获取分时数据 (1/5/15/30/60分钟)"""
+        logger.info(f"获取分时数据: {stock_code}, 周期: {period}分钟")
+
+        try:
+            period_map = {"1": "1", "5": "5", "15": "15", "30": "30", "60": "60"}
+            ak_period = period_map.get(str(period), "1")
+
+            df = ak.stock_zh_a_hist_min_em(
+                symbol=stock_code, period=ak_period, adjust=adjust
+            )
+
+            if df.empty:
+                return []
+
+            result = []
+            for _, row in df.iterrows():
+                result.append(
+                    {
+                        "time": str(row.get("时间", "")),
+                        "open": self._safe_float(row.get("开盘")),
+                        "close": self._safe_float(row.get("收盘")),
+                        "high": self._safe_float(row.get("最高")),
+                        "low": self._safe_float(row.get("最低")),
+                        "volume": self._safe_float(row.get("成交量")),
+                        "amount": self._safe_float(row.get("成交额")),
+                    }
+                )
+
+            return result
+
+        except Exception as e:
+            logger.warning(f"获取分时数据失败: {e}")
+            return []
+
+    @cache_result(expire=30)
+    async def get_quote_detail(self, stock_code: str) -> Dict[str, Any]:
+        """获取五档买卖盘详情"""
+        logger.info(f"获取五档买卖盘: {stock_code}")
+
+        try:
+            df = ak.stock_zh_a_spot_em()
+            row = df[df["代码"] == stock_code]
+
+            if row.empty:
+                return {"stock_code": stock_code, "data": None}
+
+            r = row.iloc[0]
+            return {
+                "stock_code": stock_code,
+                "stock_name": str(r.get("名称", "")),
+                "price": self._safe_float(r.get("最新价")),
+                "open": self._safe_float(r.get("今开")),
+                "high": self._safe_float(r.get("最高")),
+                "low": self._safe_float(r.get("最低")),
+                "pre_close": self._safe_float(r.get("昨收")),
+                "volume": self._safe_float(r.get("成交量")),
+                "amount": self._safe_float(r.get("成交额")),
+                "bid1": self._safe_float(r.get("买一")),
+                "bid1_vol": self._safe_float(r.get("买一量")),
+                "bid2": self._safe_float(r.get("买二")),
+                "bid2_vol": self._safe_float(r.get("买二量")),
+                "bid3": self._safe_float(r.get("买三")),
+                "bid3_vol": self._safe_float(r.get("买三量")),
+                "bid4": self._safe_float(r.get("买四")),
+                "bid4_vol": self._safe_float(r.get("买四量")),
+                "bid5": self._safe_float(r.get("买五")),
+                "bid5_vol": self._safe_float(r.get("买五量")),
+                "ask1": self._safe_float(r.get("卖一")),
+                "ask1_vol": self._safe_float(r.get("卖一量")),
+                "ask2": self._safe_float(r.get("卖二")),
+                "ask2_vol": self._safe_float(r.get("卖二量")),
+                "ask3": self._safe_float(r.get("卖三")),
+                "ask3_vol": self._safe_float(r.get("卖三量")),
+                "ask4": self._safe_float(r.get("卖四")),
+                "ask4_vol": self._safe_float(r.get("卖四量")),
+                "ask5": self._safe_float(r.get("卖五")),
+                "ask5_vol": self._safe_float(r.get("卖五量")),
+            }
+
+        except Exception as e:
+            logger.warning(f"获取五档买卖盘失败: {e}")
+            return {"stock_code": stock_code, "data": None, "error": str(e)}
+
+    @cache_result(expire=3600)
+    async def get_stock_sectors(self, stock_code: str) -> Dict[str, Any]:
+        """获取股票所属板块"""
+        logger.info(f"获取股票所属板块: {stock_code}")
+
+        try:
+            df = ak.stock_individual_info_em(symbol=stock_code)
+
+            if df.empty:
+                return {"stock_code": stock_code, "sectors": []}
+
+            info = dict(zip(df.iloc[:, 0], df.iloc[:, 1]))
+
+            sectors = []
+            if info.get("行业"):
+                sectors.append({"type": "industry", "name": info.get("行业")})
+            if info.get("概念"):
+                concepts = info.get("概念", "").split(";")
+                for c in concepts[:10]:
+                    if c.strip():
+                        sectors.append({"type": "concept", "name": c.strip()})
+
+            return {"stock_code": stock_code, "sectors": sectors}
+
+        except Exception as e:
+            logger.warning(f"获取股票板块失败: {e}")
+            return {"stock_code": stock_code, "sectors": [], "error": str(e)}
+
+    @cache_result(expire=300)
+    async def get_suspend_info(self, stock_code: str) -> Dict[str, Any]:
+        """获取停复牌信息"""
+        logger.info(f"获取停复牌信息: {stock_code}")
+
+        try:
+            df = ak.stock_tfp_em()
+
+            if df.empty:
+                return {"stock_code": stock_code, "status": "正常", "data": None}
+
+            row = df[df["代码"] == stock_code]
+
+            if row.empty:
+                return {"stock_code": stock_code, "status": "正常", "data": None}
+
+            r = row.iloc[0]
+            return {
+                "stock_code": stock_code,
+                "status": str(r.get("停牌状态", "停牌")),
+                "suspend_date": str(r.get("停牌日期", "")),
+                "resume_date": str(r.get("预计复牌日期", "")),
+                "reason": str(r.get("停牌原因", "")),
+            }
+
+        except Exception as e:
+            logger.warning(f"获取停复牌信息失败: {e}")
+            return {"stock_code": stock_code, "status": "未知", "error": str(e)}
+
+    @cache_result(expire=3600)
+    async def get_stock_notices(
+        self, stock_code: str, page: int = 1
+    ) -> List[Dict[str, Any]]:
+        """获取股票公告"""
+        logger.info(f"获取股票公告: {stock_code}")
+
+        try:
+            df = ak.stock_notice_report(symbol=stock_code)
+
+            if df.empty:
+                return []
+
+            result = []
+            for _, row in df.head(20).iterrows():
+                result.append(
+                    {
+                        "title": str(row.get("公告标题", "")),
+                        "date": str(row.get("公告日期", "")),
+                        "type": str(row.get("公告类型", "")),
+                        "url": str(row.get("公告链接", "")),
+                    }
+                )
+
+            return result
+
+        except Exception as e:
+            logger.warning(f"获取股票公告失败: {e}")
+            return []
+
+    @cache_result(expire=3600)
+    async def get_share_pledge(self, stock_code: str) -> Dict[str, Any]:
+        """获取股权质押数据"""
+        logger.info(f"获取股权质押: {stock_code}")
+
+        try:
+            df = ak.stock_gpZY_profile_em(symbol=stock_code)
+
+            if df.empty:
+                return {"stock_code": stock_code, "data": []}
+
+            result = []
+            for _, row in df.iterrows():
+                result.append(
+                    {
+                        "shareholder": str(row.get("股东名称", "")),
+                        "pledged_shares": self._safe_float(row.get("质押股份数量")),
+                        "pledged_ratio": self._safe_float(row.get("质押股份占比")),
+                        "total_shares": self._safe_float(row.get("持股数量")),
+                        "update_date": str(row.get("公告日期", "")),
+                    }
+                )
+
+            return {"stock_code": stock_code, "data": result}
+
+        except Exception as e:
+            logger.warning(f"获取股权质押失败: {e}")
+            return {"stock_code": stock_code, "data": [], "error": str(e)}
+
+    @cache_result(expire=86400)
+    async def get_unlock_schedule(self, stock_code: str) -> List[Dict[str, Any]]:
+        """获取限售解禁计划"""
+        logger.info(f"获取限售解禁: {stock_code}")
+
+        try:
+            df = ak.stock_restricted_release_summary_em(symbol=stock_code)
+
+            if df.empty:
+                return []
+
+            result = []
+            for _, row in df.iterrows():
+                result.append(
+                    {
+                        "unlock_date": str(row.get("解禁日期", "")),
+                        "unlock_shares": self._safe_float(row.get("解禁股数")),
+                        "unlock_ratio": self._safe_float(row.get("解禁股占总股本比例")),
+                        "unlock_amount": self._safe_float(row.get("解禁市值")),
+                        "unlock_type": str(row.get("解禁类型", "")),
+                    }
+                )
+
+            return result
+
+        except Exception as e:
+            logger.warning(f"获取限售解禁失败: {e}")
+            return []
+
+    @cache_result(expire=86400)
+    async def get_adjust_factor(self, stock_code: str) -> List[Dict[str, Any]]:
+        """获取复权因子"""
+        logger.info(f"获取复权因子: {stock_code}")
+
+        try:
+            df = ak.stock_qsjy_em(symbol=stock_code)
+
+            if df.empty:
+                return []
+
+            result = []
+            for _, row in df.iterrows():
+                result.append(
+                    {
+                        "date": str(row.get("日期", "")),
+                        "factor": self._safe_float(row.get("复权因子")),
+                    }
+                )
+
+            return result
+
+        except Exception as e:
+            logger.warning(f"获取复权因子失败: {e}")
+            return []
+
+    @cache_result(expire=60)
+    async def search_stock(self, keyword: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """搜索股票"""
+        logger.info(f"搜索股票: {keyword}")
+
+        try:
+            df = ak.stock_zh_a_spot_em()
+
+            if df.empty:
+                return []
+
+            df = df[
+                df["名称"].str.contains(keyword, na=False)
+                | df["代码"].str.contains(keyword, na=False)
+            ]
+
+            result = []
+            for _, row in df.head(limit).iterrows():
+                result.append(
+                    {
+                        "code": str(row.get("代码", "")),
+                        "name": str(row.get("名称", "")),
+                        "price": self._safe_float(row.get("最新价")),
+                        "change_percent": self._safe_float(row.get("涨跌幅")),
+                    }
+                )
+
+            return result
+
+        except Exception as e:
+            logger.warning(f"搜索股票失败: {e}")
+            return []
+
+    @cache_result(expire=3600)
+    async def get_stock_rating(self, stock_code: str) -> Dict[str, Any]:
+        """获取股票评级"""
+        logger.info(f"获取股票评级: {stock_code}")
+
+        try:
+            df = ak.stock_rank_forecast_cninfo(symbol=stock_code)
+
+            if df.empty:
+                return {"stock_code": stock_code, "data": []}
+
+            result = []
+            for _, row in df.iterrows():
+                result.append(
+                    {
+                        "org_name": str(row.get("机构名称", "")),
+                        "rating": str(row.get("评级", "")),
+                        "rating_change": str(row.get("评级变动", "")),
+                        "target_price": self._safe_float(row.get("目标价")),
+                        "report_date": str(row.get("报告日期", "")),
+                    }
+                )
+
+            return {"stock_code": stock_code, "data": result[:10]}
+
+        except Exception as e:
+            logger.warning(f"获取股票评级失败: {e}")
+            return {"stock_code": stock_code, "data": [], "error": str(e)}
+
+    @cache_result(expire=86400)
+    async def get_stock_report(self, stock_code: str) -> List[Dict[str, Any]]:
+        """获取研报"""
+        logger.info(f"获取研报: {stock_code}")
+
+        try:
+            df = ak.stock_research_report_em(symbol=stock_code)
+
+            if df.empty:
+                return []
+
+            result = []
+            for _, row in df.iterrows():
+                result.append(
+                    {
+                        "title": str(row.get("报告名称", "")),
+                        "org_name": str(row.get("机构名称", "")),
+                        "author": str(row.get("作者", "")),
+                        "date": str(row.get("报告日期", "")),
+                        "rating": str(row.get("评级", "")),
+                    }
+                )
+
+            return result[:20]
+
+        except Exception as e:
+            logger.warning(f"获取研报失败: {e}")
+            return []
+
+    @cache_result(expire=300)
+    async def get_realtime_quote(self, stock_code: str) -> Dict[str, Any]:
+        """获取实时行情（新浪接口，更快响应）"""
+        logger.info(f"获取实时行情: {stock_code}")
+
+        try:
+            market = "sh" if stock_code.startswith("6") else "sz"
+            df = ak.stock_zh_a_spot()
+
+            if df.empty:
+                return {"stock_code": stock_code, "data": None}
+
+            row = df[df["代码"] == stock_code]
+
+            if row.empty:
+                return {"stock_code": stock_code, "data": None}
+
+            r = row.iloc[0]
+            return {
+                "stock_code": stock_code,
+                "stock_name": str(r.get("名称", "")),
+                "price": self._safe_float(r.get("现价")),
+                "open": self._safe_float(r.get("今开")),
+                "high": self._safe_float(r.get("最高")),
+                "low": self._safe_float(r.get("最低")),
+                "volume": self._safe_float(r.get("成交量")),
+                "amount": self._safe_float(r.get("成交额")),
+                "time": str(r.get("时间", "")),
+            }
+
+        except Exception as e:
+            logger.warning(f"获取实时行情失败: {e}")
+            return {"stock_code": stock_code, "data": None, "error": str(e)}
+
+
+stock_service = StockService()

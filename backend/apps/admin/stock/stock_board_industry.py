@@ -15,6 +15,7 @@ from . import schemas, crud
 from core.dependencies import IdList
 from sqlalchemy import select, desc, func, and_
 import random
+from .services.stock_service import sector_rotation_service
 
 
 router = APIRouter()
@@ -744,3 +745,112 @@ async def get_sector_rotation_analysis_summary(
 
     except Exception as e:
         return SuccessResponse(f"查询失败: {str(e)}")
+
+
+###########################################################
+#    板块轮动增强接口（调用 stock-service）
+###########################################################
+
+
+@router.get("/sector/leaders", summary="获取板块龙头股排行")
+async def get_sector_leaders(
+    sector_type: str = Query("industry", description="板块类型: industry 或 concept"),
+    limit: int = Query(50, description="返回数量限制"),
+    auth: Auth = Depends(AllUserAuth()),
+):
+    """
+    获取板块龙头股排行
+    """
+    try:
+        result = await sector_rotation_service.get_sector_leaders(sector_type, limit)
+        return SuccessResponse(result, count=len(result))
+    except Exception as e:
+        return SuccessResponse([], message=f"获取板块龙头股排行失败: {str(e)}")
+
+
+@router.get("/sector/{board_code}/leader", summary="获取指定板块龙头股")
+async def get_sector_leader_by_code(
+    board_code: str,
+    sector_type: str = Query("industry", description="板块类型: industry 或 concept"),
+    auth: Auth = Depends(AllUserAuth()),
+):
+    """
+    获取指定板块的龙头股信息
+    """
+    try:
+        result = await sector_rotation_service.get_sector_leader_by_code(
+            board_code, sector_type
+        )
+        if result:
+            return SuccessResponse(result)
+        return SuccessResponse(None, message=f"未找到板块 {board_code} 的龙头股数据")
+    except Exception as e:
+        return SuccessResponse(None, message=f"获取板块龙头股失败: {str(e)}")
+
+
+@router.get("/sector/realtime/status", summary="获取板块实时状态")
+async def get_sector_realtime_status(
+    sector_type: str = Query("industry", description="板块类型: industry 或 concept"),
+    auth: Auth = Depends(AllUserAuth()),
+):
+    """
+    获取板块实时状态（用于监控）
+    """
+    try:
+        result = await sector_rotation_service.get_sector_realtime_status(sector_type)
+        return SuccessResponse(result, count=len(result))
+    except Exception as e:
+        return SuccessResponse([], message=f"获取板块实时状态失败: {str(e)}")
+
+
+@router.get("/sector/rotation/history/{board_code}", summary="获取板块历史行情")
+async def get_sector_rotation_history_api(
+    board_code: str,
+    sector_type: str = Query("industry", description="板块类型: industry 或 concept"),
+    start_date: Optional[str] = Query(None, description="开始日期 YYYYMMDD"),
+    end_date: Optional[str] = Query(None, description="结束日期 YYYYMMDD"),
+    auth: Auth = Depends(AllUserAuth()),
+):
+    """
+    获取板块历史行情数据
+    """
+    try:
+        result = await sector_rotation_service.get_sector_rotation_history(
+            board_code, sector_type, start_date, end_date
+        )
+        return SuccessResponse(result, count=len(result))
+    except Exception as e:
+        return SuccessResponse([], message=f"获取板块历史行情失败: {str(e)}")
+
+
+@router.get("/sector/factors", summary="获取板块多因子数据")
+async def get_sector_factors(
+    sector_type: str = Query("industry", description="板块类型: industry 或 concept"),
+    limit: int = Query(30, description="返回数量限制"),
+    auth: Auth = Depends(AllUserAuth()),
+):
+    """
+    获取板块多因子数据
+    """
+    try:
+        result = await sector_rotation_service.get_sector_factors(sector_type, limit)
+        return SuccessResponse(result, count=len(result))
+    except Exception as e:
+        return SuccessResponse([], message=f"获取板块多因子数据失败: {str(e)}")
+
+
+@router.get("/sector/rotation/predict", summary="预测板块轮动")
+async def predict_sector_rotation(
+    sector_type: str = Query("industry", description="板块类型: industry 或 concept"),
+    auth: Auth = Depends(AllUserAuth()),
+):
+    """
+    预测板块轮动
+    """
+    try:
+        result = await sector_rotation_service.predict_sector_rotation(sector_type)
+        if result:
+            return SuccessResponse(result)
+        return SuccessResponse(None, message="预测失败")
+    except Exception as e:
+        return SuccessResponse(None, message=f"预测板块轮动失败: {str(e)}")

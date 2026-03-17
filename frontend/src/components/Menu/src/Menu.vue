@@ -78,6 +78,14 @@ export default defineComponent({
     }
 
     const renderMenu = () => {
+      // 顶部菜单使用不同的背景色
+      const isHorizontal = unref(menuMode) === 'horizontal'
+      const bgColor = isHorizontal ? 'var(--top-header-bg-color)' : 'var(--left-menu-bg-color)'
+      const txtColor = isHorizontal ? 'var(--top-header-text-color)' : 'var(--left-menu-text-color)'
+      const activeTxtColor = isHorizontal
+        ? 'var(--el-color-primary)'
+        : 'var(--left-menu-text-active-color)'
+
       return (
         <ElMenu
           defaultActive={unref(activeMenu)}
@@ -86,9 +94,9 @@ export default defineComponent({
             unref(layout) === 'top' || unref(layout) === 'cutMenu' ? false : unref(collapse)
           }
           uniqueOpened={unref(layout) === 'top' ? false : unref(uniqueOpened)}
-          backgroundColor="var(--left-menu-bg-color)"
-          textColor="var(--left-menu-text-color)"
-          activeTextColor="var(--left-menu-text-active-color)"
+          backgroundColor={bgColor}
+          textColor={txtColor}
+          activeTextColor={activeTxtColor}
           popperClass={
             unref(menuMode) === 'vertical'
               ? `${prefixCls}-popper--vertical`
@@ -111,7 +119,10 @@ export default defineComponent({
         id={prefixCls}
         class={[
           `${prefixCls} ${prefixCls}__${unref(menuMode)}`,
-          'h-[100%] overflow-hidden flex-col bg-[var(--left-menu-bg-color)]',
+          'h-[100%] overflow-hidden flex-col',
+          unref(menuMode) === 'horizontal'
+            ? 'bg-[var(--top-header-bg-color)]'
+            : 'bg-[var(--left-menu-bg-color)]',
           {
             'w-[var(--left-menu-min-width)]': unref(collapse) && unref(layout) !== 'cutMenu',
             'w-[var(--left-menu-max-width)]': !unref(collapse) && unref(layout) !== 'cutMenu'
@@ -204,14 +215,27 @@ export default defineComponent({
       & > .@{elNamespace}-sub-menu.is-active {
         .@{elNamespace}-sub-menu__title {
           border-bottom-color: var(--el-color-primary) !important;
+          color: var(--el-color-primary) !important;
         }
       }
 
+      // 水平菜单项选中状态
       .@{elNamespace}-menu-item.is-active {
         position: relative;
+        color: var(--el-color-primary) !important;
+        background-color: transparent !important;
 
         &::after {
           display: none !important;
+        }
+      }
+
+      // 水平菜单悬停状态
+      .@{elNamespace}-sub-menu__title,
+      .@{elNamespace}-menu-item {
+        &:hover {
+          color: var(--el-color-primary) !important;
+          background-color: var(--top-header-hover-color) !important;
         }
       }
 
@@ -255,6 +279,14 @@ export default defineComponent({
     &:hover {
       background-color: var(--left-menu-bg-active-color) !important;
     }
+  }
+}
+
+// 水平菜单弹出层样式
+.@{prefix-cls}--horizontal {
+  .el-menu-item.is-active {
+    color: var(--el-color-primary) !important;
+    background-color: transparent !important;
   }
 }
 
