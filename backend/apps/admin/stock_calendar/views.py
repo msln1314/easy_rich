@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from utils.response import SuccessResponse, ErrorResponse
 from apps.admin.auth.utils.current import AllUserAuth, Auth
 from . import schemas, crud
-from .services import CalendarDataSyncService, AIAnalysisService
+from .services import CalendarDataSyncService, AIAnalysisService, ReminderService
 
 router = APIRouter()
 
@@ -199,3 +199,10 @@ async def analyze_stock_events(
         )
 
     return SuccessResponse(results)
+
+
+@router.post("/reminders/check", summary="检查并发送提醒")
+async def check_reminders(auth: Auth = Depends(AllUserAuth())):
+    service = ReminderService(auth.db)
+    result = await service.check_and_send_reminders()
+    return SuccessResponse(result)
