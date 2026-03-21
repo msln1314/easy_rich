@@ -3,6 +3,7 @@ import json
 import redis
 from typing import Any, Callable, Optional
 from datetime import datetime
+from dataclasses import asdict, is_dataclass
 from pydantic import BaseModel
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -14,6 +15,8 @@ class PydanticEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, BaseModel):
             return obj.model_dump()
+        if is_dataclass(obj) and not isinstance(obj, type):
+            return asdict(obj)
         if isinstance(obj, datetime):
             return obj.isoformat()
         return super().default(obj)

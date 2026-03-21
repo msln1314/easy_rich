@@ -476,3 +476,51 @@ async def get_all_dashboard_data(auth: Auth = Depends(OpenAuth())):
     except Exception as e:
         logger.error(f"获取大盘座舱数据失败: {str(e)}")
         return ErrorResponse(f"获取大盘座舱数据失败: {str(e)}")
+
+
+# ============ 代理到 stock-service 的新接口 ============
+
+
+@router.get("/etf/overview", summary="获取ETF资金流向概览")
+async def get_etf_overview(
+    top: int = Query(10, ge=1, le=50),
+    auth: Auth = Depends(OpenAuth()),
+):
+    """获取ETF资金流向概览"""
+    data = await call_stock_service("/etf/overview", params={"top": top}, timeout=15.0)
+    return SuccessResponse(data.get("data", {}) if data else {})
+
+
+@router.get("/index/global", summary="获取全球主要指数")
+async def get_global_indices(auth: Auth = Depends(OpenAuth())):
+    """获取全球主要指数行情"""
+    data = await call_stock_service("/index/global", timeout=15.0)
+    return SuccessResponse(data if data else {"data": [], "total": 0})
+
+
+@router.get("/sentiment/fear-greed", summary="获取恐慌贪婪指数")
+async def get_fear_greed_index(auth: Auth = Depends(OpenAuth())):
+    """获取恐慌贪婪指数"""
+    data = await call_stock_service("/sentiment/fear-greed", timeout=30.0)
+    return SuccessResponse(data.get("data", {}) if data else {})
+
+
+@router.get("/south-money/realtime", summary="获取南向资金")
+async def get_south_money_realtime(auth: Auth = Depends(OpenAuth())):
+    """获取南向资金（港股通）"""
+    data = await call_stock_service("/fund-flow/south-money/realtime", timeout=15.0)
+    return SuccessResponse(data.get("data", {}) if data else {})
+
+
+@router.get("/limit-up-pool", summary="获取涨停池数据")
+async def get_limit_up_pool(auth: Auth = Depends(OpenAuth())):
+    """获取涨停池数据，用于涨停热力图"""
+    data = await call_stock_service("/market/limit-up-pool", timeout=15.0)
+    return SuccessResponse(data.get("data", {}) if data else {})
+
+
+@router.get("/up-down-distribution", summary="获取涨跌分布数据")
+async def get_up_down_distribution(auth: Auth = Depends(OpenAuth())):
+    """获取涨跌分布数据"""
+    data = await call_stock_service("/market/up-down-distribution", timeout=15.0)
+    return SuccessResponse(data.get("data", {}) if data else {})

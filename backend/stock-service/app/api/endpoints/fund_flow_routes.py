@@ -7,7 +7,9 @@ logger = get_logger(__name__)
 
 
 @router.get("/north-money/flow")
-async def get_north_money_flow(days: int = Query(30, ge=1, le=365, description="获取最近N天的数据")):
+async def get_north_money_flow(
+    days: int = Query(30, ge=1, le=365, description="获取最近N天的数据"),
+):
     """
     获取北向资金历史流向数据
 
@@ -20,10 +22,7 @@ async def get_north_money_flow(days: int = Query(30, ge=1, le=365, description="
     """
     try:
         data = await fund_flow_service.get_north_money_flow(days)
-        return {
-            "data": data,
-            "total": len(data)
-        }
+        return {"data": data, "total": len(data)}
     except Exception as e:
         logger.error(f"获取北向资金流向失败: {e}")
         return {"data": [], "total": 0, "error": str(e)}
@@ -64,7 +63,9 @@ async def get_north_money_summary():
 
 
 @router.get("/market/flow")
-async def get_market_fund_flow(days: int = Query(30, ge=1, le=365, description="获取最近N天的数据")):
+async def get_market_fund_flow(
+    days: int = Query(30, ge=1, le=365, description="获取最近N天的数据"),
+):
     """
     获取市场资金流向数据
 
@@ -83,10 +84,7 @@ async def get_market_fund_flow(days: int = Query(30, ge=1, le=365, description="
     """
     try:
         data = await fund_flow_service.get_market_fund_flow(days)
-        return {
-            "data": data,
-            "total": len(data)
-        }
+        return {"data": data, "total": len(data)}
     except Exception as e:
         logger.error(f"获取市场资金流向失败: {e}")
         return {"data": [], "total": 0, "error": str(e)}
@@ -94,14 +92,21 @@ async def get_market_fund_flow(days: int = Query(30, ge=1, le=365, description="
 
 @router.get("/market/flow/today")
 async def get_today_market_fund_flow():
-    """
-    获取今日市场资金流向
-
-    返回今日的主力资金、超大单、大单、中单、小单净流入数据
-    """
+    """获取今日市场资金流向"""
     try:
         data = await fund_flow_service.get_today_market_fund_flow()
         return {"data": data}
     except Exception as e:
         logger.error(f"获取今日市场资金流向失败: {e}")
+        return {"data": None, "error": str(e)}
+
+
+@router.get("/south-money/realtime")
+async def get_realtime_south_money():
+    """获取实时南向资金（港股通）"""
+    try:
+        data = await fund_flow_service.get_south_money_realtime()
+        return {"data": data}
+    except Exception as e:
+        logger.error(f"获取南向资金失败: {e}")
         return {"data": None, "error": str(e)}

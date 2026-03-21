@@ -476,6 +476,136 @@ class MarketService:
             )
         return items
 
+    @cache_result(expire=30)
+    async def get_limit_up_pool(self) -> Dict[str, Any]:
+        """获取涨停池数据，用于涨停热力图"""
+        logger.info("获取涨停池数据")
+
+        result = []
+        limit_down_count = 0
+
+        try:
+            today = datetime.now().strftime("%Y%m%d")
+
+            # 获取涨停池
+            df_zt = ak.stock_zt_pool_em(date=today)
+
+            # 获取跌停池
+            try:
+                df_dt = ak.stock_zt_pool_dtgc_em(date=today)
+                limit_down_count = (
+                    len(df_dt) if df_dt is not None and not df_dt.empty else 0
+                )
+            except:
+                limit_down_count = 0
+
+            if df_zt is not None and not df_zt.empty:
+                for _, row in df_zt.iterrows():
+                    try:
+                        # 涨停池列：序号,代码,名称,涨跌幅,最新价,涨停统计,所属行业,涨停原因类别,涨停原因,...
+                        item = {
+                            "stock_code": str(row.iloc[1]) if len(row) > 1 else "",
+                            "stock_name": str(row.iloc[2]) if len(row) > 2 else "",
+                            "industry": str(row.iloc[6]) if len(row) > 6 else "",
+                            "concept": str(row.iloc[7]) if len(row) > 7 else "",
+                            "limit_up_time": str(row.iloc[10]) if len(row) > 10 else "",
+                            "seal_amount": float(row.iloc[9])
+                            if len(row) > 9 and pd.notna(row.iloc[9])
+                            else 0,
+                            "continuous_days": int(row.iloc[5])
+                            if len(row) > 5 and pd.notna(row.iloc[5])
+                            else 1,
+                            "change_percent": float(row.iloc[3])
+                            if len(row) > 3 and pd.notna(row.iloc[3])
+                            else 9.9,
+                        }
+                        result.append(item)
+                    except Exception as e:
+                        logger.warning(f"解析涨停数据失败: {e}")
+                        continue
+
+            logger.info(
+                f"获取涨停池数据成功: {len(result)}条涨停, {limit_down_count}条跌停"
+            )
+            return {
+                "limit_up_list": result,
+                "limit_down_count": limit_down_count,
+                "update_time": datetime.now().isoformat(),
+            }
+
+        except Exception as e:
+            logger.error(f"获取涨停池数据失败: {e}")
+            return {
+                "limit_up_list": [],
+                "limit_down_count": 0,
+                "update_time": datetime.now().isoformat(),
+            }
+
+    @cache_result(expire=30)
+    async def get_up_down_distribution(self) -> Dict[str, Any]:
+        """获取涨跌分布数据"""
+        logger.info("获取涨跌分布数据")
+
+        try:
+            df = ak.stock_zh_a_spot_em()
+
+            if df is None or df.empty:
+                return self._empty_distribution()
+
+            # 按涨幅区间统计
+            limit_up = len(df[df["涨跌幅"] >= 9.9])
+            high_up = len(df[(df["涨跌幅"] >= 7) & (df["涨跌幅"] < 9.9)])
+            medium_up = len(df[(df["涨跌幅"] >= 3) & (df["涨跌幅"] < 7)])
+            low_up = len(df[(df["涨跌幅"] > 0) & (df["涨跌幅"] < 3)])
+            flat = len(df[df["涨跌幅"] == 0])
+            low_down = len(df[(df["涨跌幅"] < 0) & (df["涨跌幅"] > -3)])
+            medium_down = len(df[(df["涨跌幅"] <= -3) & (df["涨跌幅"] > -7)])
+            high_down = len(df[(df["涨跌幅"] <= -7) & (df["涨跌幅"] > -9.9)])
+            limit_down = len(df[df["涨跌幅"] <= -9.9])
+
+            up_total = limit_up + high_up + medium_up + low_up
+            down_total = limit_down + high_down + medium_down + low_down
+
+            logger.info(f"涨跌分布: 涨{up_total}, 跌{down_total}, 平{flat}")
+
+            return {
+                "limitUp": limit_up,
+                "highUp": high_up,
+                "mediumUp": medium_up,
+                "lowUp": low_up,
+                "flat": flat,
+                "lowDown": low_down,
+                "mediumDown": medium_down,
+                "highDown": high_down,
+                "limitDown": limit_down,
+                "upTotal": up_total,
+                "downTotal": down_total,
+                "flatTotal": flat,
+                "update_time": datetime.now().isoformat(),
+            }
+
+        except Exception as e:
+            logger.error(f"获取涨跌分布数据失败: {e}")
+            return self._empty_distribution()
+
+    def _empty_distribution(self) -> Dict[str, Any]:
+        """返回空的涨跌分布数据"""
+        return {
+            "limitUp": 0,
+            "highUp": 0,
+            "mediumUp": 0,
+            "lowUp": 0,
+            "flat": 0,
+            "lowDown": 0,
+            "mediumDown": 0,
+            "highDown": 0,
+            "limitDown": 0,
+            "upTotal": 0,
+            "downTotal": 0,
+            "flatTotal": 0,
+            "update_time": datetime.now().isoformat(),
+        }
+
 
 # 创建服务实例
 market_service = MarketService()

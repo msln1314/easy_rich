@@ -318,11 +318,11 @@ export interface ETFFlowItem {
 }
 
 export const getETFFlowOverviewApi = (top: number = 10): Promise<IResponse> => {
-  return request.get({ url: '/stock/etf/overview', params: { top } })
+  return request.get({ url: '/stock/dashboard/etf/overview', params: { top } })
 }
 
 export const getETFFlowRankApi = (top: number = 20): Promise<IResponse> => {
-  return request.get({ url: '/stock/etf/net-flow', params: { top } })
+  return request.get({ url: '/stock/dashboard/etf/net-flow', params: { top } })
 }
 
 // 全球指数
@@ -336,7 +336,7 @@ export interface GlobalIndexItem {
 }
 
 export const getGlobalIndicesApi = (): Promise<IResponse> => {
-  return request.get({ url: '/stock/index/global' })
+  return request.get({ url: '/stock/dashboard/index/global' })
 }
 
 // 恐慌贪婪指数
@@ -349,5 +349,62 @@ export interface FearGreedIndex {
 }
 
 export const getFearGreedIndexApi = (): Promise<IResponse> => {
-  return request.get({ url: '/stock/sentiment/fear-greed' })
+  return request.get({ url: '/stock/dashboard/sentiment/fear-greed' })
+}
+
+// 南向资金
+export interface SouthMoneyData {
+  sh_hk_flow: number
+  sz_hk_flow: number
+  total_flow: number
+  date: string
+  time: string
+  update_time: string
+}
+
+export const getSouthMoneyRealtimeApi = (): Promise<IResponse> => {
+  return request.get({ url: '/stock/dashboard/south-money/realtime' })
+}
+
+// 涨停池数据 - 用于涨停热力图
+export interface LimitUpPoolItem {
+  stock_code: string
+  stock_name: string
+  industry?: string
+  concept?: string
+  limit_up_time?: string
+  seal_amount?: number
+  continuous_days?: number
+  change_percent?: number
+}
+
+export interface LimitUpPoolResponse {
+  limit_up_list: LimitUpPoolItem[]
+  limit_down_count: number
+  update_time: string
+}
+
+export const getLimitUpPoolApi = (): Promise<IResponse> => {
+  return request.get({ url: '/stock/dashboard/limit-up-pool' })
+}
+
+// 涨跌分布数据
+export interface UpDownDistribution {
+  limitUp: number
+  highUp: number
+  mediumUp: number
+  lowUp: number
+  flat: number
+  lowDown: number
+  mediumDown: number
+  highDown: number
+  limitDown: number
+  upTotal: number
+  downTotal: number
+  flatTotal: number
+  update_time: string
+}
+
+export const getUpDownDistributionApi = (): Promise<IResponse> => {
+  return request.get({ url: '/stock/dashboard/up-down-distribution' })
 }

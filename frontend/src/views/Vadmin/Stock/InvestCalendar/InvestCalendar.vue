@@ -7,7 +7,7 @@
           <el-radio-button label="week">周历</el-radio-button>
           <el-radio-button label="timeline">时间线</el-radio-button>
         </el-radio-group>
-        
+
         <div class="date-nav">
           <el-button @click="navigateDate(-1)" :icon="ArrowLeft" circle />
           <span class="current-date">{{ currentDateDisplay }}</span>
@@ -15,10 +15,15 @@
           <el-button @click="goToToday" type="primary" size="small">今天</el-button>
         </div>
       </div>
-      
+
       <div class="header-right">
         <el-checkbox v-model="showWatchlistOnly">仅显示自选股</el-checkbox>
-        <el-select v-model="selectedEventType" placeholder="事件类型" clearable style="width: 150px">
+        <el-select
+          v-model="selectedEventType"
+          placeholder="事件类型"
+          clearable
+          style="width: 150px"
+        >
           <el-option
             v-for="(info, type) in EVENT_TYPE_MAP"
             :key="type"
@@ -28,7 +33,7 @@
         </el-select>
       </div>
     </div>
-    
+
     <div class="calendar-content" v-loading="loading">
       <CalendarMonth
         v-if="viewType === 'month'"
@@ -37,29 +42,37 @@
         @date-click="handleDateClick"
         @event-click="handleEventClick"
       />
-      
+
       <div v-else-if="viewType === 'week'" class="coming-soon">
         <el-empty description="周历视图开发中..." />
       </div>
-      
+
       <div v-else class="coming-soon">
         <el-empty description="时间线视图开发中..." />
       </div>
     </div>
-    
+
     <el-dialog v-model="showEventDetail" :title="selectedEvent?.title" width="500px">
       <div v-if="selectedEvent" class="event-detail">
         <el-descriptions :column="1" border>
-          <el-descriptions-item label="股票">{{ selectedEvent.stock_name }} ({{ selectedEvent.stock_code }})</el-descriptions-item>
+          <el-descriptions-item label="股票"
+            >{{ selectedEvent.stock_name }} ({{ selectedEvent.stock_code }})</el-descriptions-item
+          >
           <el-descriptions-item label="事件类型">
             <el-tag :color="EVENT_TYPE_MAP[selectedEvent.event_type]?.color" effect="dark">
               {{ EVENT_TYPE_MAP[selectedEvent.event_type]?.label }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="日期">{{ selectedEvent.event_date }}</el-descriptions-item>
-          <el-descriptions-item label="详情">{{ selectedEvent.content || '暂无详情' }}</el-descriptions-item>
-          <el-descriptions-item v-if="selectedEvent.ai_analysis" label="AI分析">{{ selectedEvent.ai_analysis }}</el-descriptions-item>
-          <el-descriptions-item v-if="selectedEvent.ai_suggestion" label="AI建议">{{ selectedEvent.ai_suggestion }}</el-descriptions-item>
+          <el-descriptions-item label="详情">{{
+            selectedEvent.content || '暂无详情'
+          }}</el-descriptions-item>
+          <el-descriptions-item v-if="selectedEvent.ai_analysis" label="AI分析">{{
+            selectedEvent.ai_analysis
+          }}</el-descriptions-item>
+          <el-descriptions-item v-if="selectedEvent.ai_suggestion" label="AI建议">{{
+            selectedEvent.ai_suggestion
+          }}</el-descriptions-item>
         </el-descriptions>
       </div>
       <template #footer>
@@ -115,8 +128,11 @@ async function loadEvents() {
     const month = currentDate.value.getMonth() + 1
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`
     const endDate = new Date(year, month, 0)
-    const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
-    
+    const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(
+      2,
+      '0'
+    )}-${String(endDate.getDate()).padStart(2, '0')}`
+
     const { data } = await getEventList({
       start_date: startDate,
       end_date: endDateStr,
@@ -125,7 +141,7 @@ async function loadEvents() {
       page: 1,
       page_size: 500
     })
-    
+
     events.value = data.data || []
   } catch (error) {
     console.error('加载事件失败:', error)
@@ -164,24 +180,24 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background: var(--el-bg-color);
-  
+
   .calendar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 16px;
     border-bottom: 1px solid var(--el-border-color);
-    
+
     .header-left {
       display: flex;
       align-items: center;
       gap: 20px;
-      
+
       .date-nav {
         display: flex;
         align-items: center;
         gap: 8px;
-        
+
         .current-date {
           font-size: 16px;
           font-weight: 500;
@@ -190,18 +206,18 @@ onMounted(() => {
         }
       }
     }
-    
+
     .header-right {
       display: flex;
       align-items: center;
       gap: 12px;
     }
   }
-  
+
   .calendar-content {
     flex: 1;
     overflow: auto;
-    
+
     .coming-soon {
       display: flex;
       justify-content: center;
@@ -209,7 +225,7 @@ onMounted(() => {
       height: 100%;
     }
   }
-  
+
   .event-detail {
     padding: 16px 0;
   }

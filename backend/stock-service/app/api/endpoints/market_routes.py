@@ -142,3 +142,25 @@ async def get_amount_ranking(limit: int = Query(20, ge=1, le=100)):
     except Exception as e:
         logger.error(f"获取成交额排行失败: {e}")
         return {"data": [], "error": str(e)}
+
+
+@router.get("/limit-up-pool")
+async def get_limit_up_pool():
+    """获取涨停池数据，用于涨停热力图"""
+    try:
+        data = await market_service.get_limit_up_pool()
+        return {"data": data}
+    except Exception as e:
+        logger.error(f"获取涨停池数据失败: {e}")
+        return {"data": None, "error": str(e)}
+
+
+@router.get("/up-down-distribution")
+async def get_up_down_distribution():
+    """获取涨跌分布数据"""
+    try:
+        data = await market_service.get_up_down_distribution()
+        return {"data": data}
+    except Exception as e:
+        logger.error(f"获取涨跌分布数据失败: {e}")
+        return {"data": None, "error": str(e)}

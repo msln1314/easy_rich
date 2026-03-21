@@ -25,6 +25,16 @@ async def get_index_quotes(
         raise HTTPException(status_code=500, detail=f"获取指数行情列表失败: {str(e)}")
 
 
+@router.get("/global")
+async def get_global_indices():
+    """获取全球主要指数行情"""
+    try:
+        result = await index_service.get_global_indices()
+        return {"data": result, "total": len(result)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取全球指数失败: {str(e)}")
+
+
 @router.get("/{index_code}", response_model=IndexQuote)
 async def get_index_quote(index_code: str):
     """获取单个指数实时行情"""
@@ -44,13 +54,3 @@ async def get_index_quote(index_code: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取指数行情失败: {str(e)}")
-
-
-@router.get("/global")
-async def get_global_indices():
-    """获取全球主要指数行情"""
-    try:
-        result = await index_service.get_global_indices()
-        return {"data": result, "total": len(result)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取全球指数失败: {str(e)}")

@@ -549,42 +549,60 @@ class IndexService:
         """获取全球主要指数行情"""
         logger.info("获取全球主要指数行情")
 
-        try:
-            df = ak.index_world_index()
+        result = []
 
-            if df is None or df.empty:
-                logger.warning("全球指数数据为空")
-                return []
+        # 定义需要获取的指数
+        indices_config = [
+            {"symbol": "道琼斯", "name": "道琼斯", "region": "美股"},
+            {"symbol": "纳斯达克", "name": "纳斯达克", "region": "美股"},
+            {"symbol": "标普500", "name": "标普500", "region": "美股"},
+            {"symbol": "日经225", "name": "日经225", "region": "亚太"},
+            {"symbol": "恒生指数", "name": "恒生指数", "region": "亚太"},
+            {"symbol": "韩国KOSPI", "name": "韩国综指", "region": "亚太"},
+            {"symbol": "英国富时100", "name": "英国富时", "region": "欧洲"},
+            {"symbol": "德国DAX30", "name": "德国DAX", "region": "欧洲"},
+            {"symbol": "法国CAC40", "name": "法国CAC", "region": "欧洲"},
+        ]
 
-            result = []
-            for _, row in df.iterrows():
-                try:
+        for idx_config in indices_config:
+            try:
+                df = ak.index_global_spot_em(symbol=idx_config["symbol"])
+                if df is not None and not df.empty:
+                    latest = df.iloc[-1]
                     cols = list(df.columns)
                     item = {
-                        "index_code": str(row.iloc[0]) if len(cols) > 0 else "",
-                        "index_name": str(row.iloc[1]) if len(cols) > 1 else "",
-                        "price": self._safe_float(row.iloc[2])
+                        "index_code": idx_config["symbol"],
+                        "index_name": idx_config["name"],
+                        "region": idx_config["region"],
+                        "price": self._safe_float(latest.iloc[1])
+                        if len(cols) > 1
+                        else None,
+                        "change": self._safe_float(latest.iloc[2])
                         if len(cols) > 2
                         else None,
-                        "change": self._safe_float(row.iloc[3])
+                        "change_percent": self._safe_float(latest.iloc[3])
                         if len(cols) > 3
-                        else None,
-                        "change_percent": self._safe_float(row.iloc[4])
-                        if len(cols) > 4
                         else None,
                         "update_time": datetime.now().isoformat(),
                     }
                     result.append(item)
-                except Exception as e:
-                    logger.warning(f"解析全球指数数据失败: {e}")
-                    continue
+            except Exception as e:
+                logger.warning(f"获取 {idx_config['name']} 失败: {e}")
+                # 添加默认数据
+                result.append(
+                    {
+                        "index_code": idx_config["symbol"],
+                        "index_name": idx_config["name"],
+                        "region": idx_config["region"],
+                        "price": None,
+                        "change": None,
+                        "change_percent": None,
+                        "update_time": datetime.now().isoformat(),
+                    }
+                )
 
-            logger.info(f"获取到 {len(result)} 条全球指数数据")
-            return result
-
-        except Exception as e:
-            logger.warning(f"获取全球指数失败: {e}")
-            return []
+        logger.info(f"获取到 {len(result)} 条全球指数数据")
+        return result
 
 
 index_service = IndexService()

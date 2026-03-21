@@ -31,7 +31,9 @@ export function createEvent(data: any) {
 }
 
 export function getReminderList(userId: number, isActive?: number) {
-  return request.get(`${API_PREFIX}/reminders`, { params: { user_id: userId, is_active: isActive } })
+  return request.get(`${API_PREFIX}/reminders`, {
+    params: { user_id: userId, is_active: isActive }
+  })
 }
 
 export function createReminder(data: {

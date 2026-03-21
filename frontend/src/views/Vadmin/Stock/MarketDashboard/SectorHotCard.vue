@@ -150,9 +150,6 @@ defineExpose({
 }
 
 .sector-list {
-  max-height: 280px;
-  overflow-y: auto;
-
   .sector-item {
     display: flex;
     align-items: center;

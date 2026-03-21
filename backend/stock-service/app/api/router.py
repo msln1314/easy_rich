@@ -1,11 +1,8 @@
 from fastapi import APIRouter
 
-# 修改导入语句，先尝试单独导入每个模块
-# 如果某个模块不存在或有错误，可以暂时注释掉
 try:
     from app.api.endpoints import stock_routes
 except ImportError:
-    # 如果导入失败，记录日志或打印警告
     print("警告: 无法导入 stock_routes 模块")
     stock_routes = None
 
@@ -119,7 +116,6 @@ except ImportError:
 
 api_router = APIRouter()
 
-# 根据模块是否成功导入来添加路由
 if stock_routes:
     api_router.include_router(stock_routes.router, prefix="/stock", tags=["stock"])
 if index_routes:
@@ -146,45 +142,35 @@ if fund_flow_routes:
     )
 if market_routes:
     api_router.include_router(market_routes.router, prefix="/market", tags=["market"])
-
 if stock_extended_routes:
     api_router.include_router(
         stock_extended_routes.router, prefix="/stock-ext", tags=["stock-ext"]
     )
-
 if market_extended_routes:
     api_router.include_router(
         market_extended_routes.router, prefix="/market-ext", tags=["market-ext"]
     )
-
 if margin_routes:
     api_router.include_router(margin_routes.router, prefix="/margin", tags=["margin"])
-
 if institution_routes:
     api_router.include_router(
         institution_routes.router, prefix="/institution", tags=["institution"]
     )
-
 if macro_routes:
     api_router.include_router(macro_routes.router, prefix="/macro", tags=["macro"])
-
 if screener_routes:
     api_router.include_router(
         screener_routes.router, prefix="/screener", tags=["screener"]
     )
-
 if export_routes:
     api_router.include_router(export_routes.router, prefix="/export", tags=["export"])
-
 if watchlist_routes:
     api_router.include_router(
         watchlist_routes.router, prefix="/watchlist", tags=["watchlist"]
     )
-
 if pattern_routes:
     api_router.include_router(
         pattern_routes.router, prefix="/pattern", tags=["pattern"]
     )
-
 if etf_routes:
     api_router.include_router(etf_routes.router, prefix="/etf", tags=["etf"])

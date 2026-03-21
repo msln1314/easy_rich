@@ -3,7 +3,7 @@
     <div class="weekday-header">
       <div v-for="day in weekdays" :key="day" class="weekday-cell">{{ day }}</div>
     </div>
-    
+
     <div class="date-grid">
       <div
         v-for="(cell, index) in calendarCells"
@@ -23,7 +23,7 @@
             :key="i"
             class="event-dot"
             :style="{ backgroundColor: getEventColor(event.event_type) }"
-          />
+          ></span>
           <span v-if="cell.events.length > 3" class="more-dots">+{{ cell.events.length - 3 }}</span>
         </div>
         <div class="event-list" v-if="cell.events.length > 0">
@@ -74,15 +74,15 @@ interface CalendarCell {
 const calendarCells = computed(() => {
   const year = props.currentDate.getFullYear()
   const month = props.currentDate.getMonth()
-  
+
   const firstDay = new Date(year, month, 1)
   const lastDay = new Date(year, month + 1, 0)
-  
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  
+
   const cells: CalendarCell[] = []
-  
+
   const firstDayWeek = firstDay.getDay()
   for (let i = firstDayWeek - 1; i >= 0; i--) {
     const date = new Date(year, month, -i)
@@ -94,7 +94,7 @@ const calendarCells = computed(() => {
       events: getEventsForDate(date)
     })
   }
-  
+
   for (let i = 1; i <= lastDay.getDate(); i++) {
     const date = new Date(year, month, i)
     cells.push({
@@ -105,7 +105,7 @@ const calendarCells = computed(() => {
       events: getEventsForDate(date)
     })
   }
-  
+
   const remaining = 42 - cells.length
   for (let i = 1; i <= remaining; i++) {
     const date = new Date(year, month + 1, i)
@@ -117,13 +117,13 @@ const calendarCells = computed(() => {
       events: getEventsForDate(date)
     })
   }
-  
+
   return cells
 })
 
 function getEventsForDate(date: Date): CalendarEvent[] {
   const dateStr = formatDate(date)
-  return props.events.filter(event => event.event_date === dateStr)
+  return props.events.filter((event) => event.event_date === dateStr)
 }
 
 function formatDate(date: Date): string {
@@ -151,13 +151,13 @@ function handleEventClick(event: CalendarEvent) {
   height: 100%;
   display: flex;
   flex-direction: column;
-  
+
   .weekday-header {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     background: var(--el-fill-color-light);
     border-bottom: 1px solid var(--el-border-color);
-    
+
     .weekday-cell {
       padding: 12px;
       text-align: center;
@@ -165,13 +165,13 @@ function handleEventClick(event: CalendarEvent) {
       color: var(--el-text-color-secondary);
     }
   }
-  
+
   .date-grid {
     flex: 1;
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     grid-template-rows: repeat(6, 1fr);
-    
+
     .date-cell {
       min-height: 100px;
       padding: 8px;
@@ -179,18 +179,18 @@ function handleEventClick(event: CalendarEvent) {
       border-bottom: 1px solid var(--el-border-color-lighter);
       cursor: pointer;
       transition: background-color 0.2s;
-      
+
       &:hover {
         background-color: var(--el-fill-color-light);
       }
-      
+
       &.other-month {
         background-color: var(--el-fill-color-lighter);
         .date-number {
           color: var(--el-text-color-placeholder);
         }
       }
-      
+
       &.is-today {
         background-color: var(--el-color-primary-light-9);
         .date-number {
@@ -204,30 +204,30 @@ function handleEventClick(event: CalendarEvent) {
           justify-content: center;
         }
       }
-      
+
       .date-number {
         font-size: 14px;
         font-weight: 500;
         margin-bottom: 4px;
       }
-      
+
       .event-dots {
         display: flex;
         gap: 4px;
         margin-bottom: 4px;
-        
+
         .event-dot {
           width: 6px;
           height: 6px;
           border-radius: 50%;
         }
-        
+
         .more-dots {
           font-size: 10px;
           color: var(--el-text-color-secondary);
         }
       }
-      
+
       .event-list {
         .event-item {
           font-size: 12px;
@@ -237,21 +237,21 @@ function handleEventClick(event: CalendarEvent) {
           margin-bottom: 2px;
           overflow: hidden;
           cursor: pointer;
-          
+
           &:hover {
             background: var(--el-fill-color);
           }
-          
+
           .event-stock {
             color: var(--el-text-color-secondary);
             margin-right: 4px;
           }
-          
+
           .event-title {
             color: var(--el-text-color-primary);
           }
         }
-        
+
         .more-events {
           font-size: 11px;
           color: var(--el-color-primary);

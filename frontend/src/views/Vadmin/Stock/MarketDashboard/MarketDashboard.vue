@@ -1,5 +1,22 @@
 <template>
   <div class="market-dashboard">
+    <!-- 市场情绪 | 恐慌贪婪指数(含市场统计+情绪图表) | 板块热度 -->
+    <div class="top-sentiment-section">
+      <SentimentCard ref="sentimentRef" />
+      <div class="center-section">
+        <FearGreedCard
+          ref="fearGreedRef"
+          :market-summary="marketSummary"
+          :last-update-time="lastUpdateTime"
+        />
+        <div class="emotion-charts-row">
+          <LimitHeatmapCard ref="limitHeatmapRef" />
+          <UpDownDistributionCard ref="upDownDistRef" :market-summary="marketSummary" />
+        </div>
+      </div>
+      <SectorHotCard ref="sectorHotRef" class="narrow" />
+    </div>
+
     <!-- 顶部指数行情卡片 -->
     <div class="index-cards">
       <div
@@ -35,97 +52,11 @@
           </div>
         </div>
       </div>
+      <!-- 全球指数卡片 -->
+      <GlobalIndexCard ref="globalIndexRef" class="global-index-in-row" />
     </div>
 
-    <!-- 市场统计概览 -->
-    <div class="market-overview">
-      <div class="overview-card">
-        <div class="overview-header">
-          <span class="title">市场统计</span>
-          <span class="update-time">{{ formatTime(lastUpdateTime) }}</span>
-        </div>
-        <div class="overview-content">
-          <div class="stats-grid">
-            <div class="stat-item up">
-              <div class="stat-icon">
-                <el-icon><CaretTop /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ marketSummary ? marketSummary.up_stocks : 0 }}</div>
-                <div class="stat-label">上涨家数</div>
-              </div>
-            </div>
-            <div class="stat-item down">
-              <div class="stat-icon">
-                <el-icon><CaretBottom /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ marketSummary ? marketSummary.down_stocks : 0 }}</div>
-                <div class="stat-label">下跌家数</div>
-              </div>
-            </div>
-            <div class="stat-item flat">
-              <div class="stat-icon">
-                <el-icon><Minus /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ marketSummary ? marketSummary.flat_stocks : 0 }}</div>
-                <div class="stat-label">平盘家数</div>
-              </div>
-            </div>
-          </div>
-          <!-- 涨跌比例条 -->
-          <div class="stats-ratio">
-            <div class="ratio-bar">
-              <div class="ratio-up" :style="{ width: upPercentVal + '%' }">
-                <span v-if="upPercentVal > 15">{{ upPercentVal.toFixed(1) }}%</span>
-              </div>
-              <div class="ratio-flat" :style="{ width: flatPercentVal + '%' }"></div>
-              <div class="ratio-down" :style="{ width: downPercentVal + '%' }">
-                <span v-if="downPercentVal > 15">{{ downPercentVal.toFixed(1) }}%</span>
-              </div>
-            </div>
-            <div class="ratio-legend">
-              <span class="legend-item up">上涨 {{ upPercentVal.toFixed(1) }}%</span>
-              <span class="legend-item flat">平盘 {{ flatPercentVal.toFixed(1) }}%</span>
-              <span class="legend-item down">下跌 {{ downPercentVal.toFixed(1) }}%</span>
-            </div>
-          </div>
-          <!-- 涨跌停统计 -->
-          <div class="limit-stats">
-            <div class="limit-item limit-up">
-              <div class="limit-value">
-                <span class="number">{{ marketSummary ? marketSummary.limit_up_count : 0 }}</span>
-                <span class="label">涨停</span>
-              </div>
-            </div>
-            <div class="limit-item limit-down">
-              <div class="limit-value">
-                <span class="number">{{ marketSummary ? marketSummary.limit_down_count : 0 }}</span>
-                <span class="label">跌停</span>
-              </div>
-            </div>
-          </div>
-          <!-- 成交统计 -->
-          <div class="trade-stats">
-            <div class="trade-item">
-              <span class="label">总成交额</span>
-              <span class="value">{{
-                formatAmount(marketSummary ? marketSummary.total_amount : null)
-              }}</span>
-            </div>
-            <div class="trade-item">
-              <span class="label">总成交量</span>
-              <span class="value">{{
-                formatVolume(marketSummary ? marketSummary.total_volume : null)
-              }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 北向资金 + 市场资金流向 -->
+    <!-- 北向资金 + 南向资金 + 市场资金流向 + ETF资金流入 -->
     <div class="fund-flow-section">
       <!-- 北向资金 -->
       <div class="fund-card north-money-card">
@@ -150,6 +81,35 @@
               <span class="flow-name">深港通</span>
               <span class="flow-num" :class="getFlowClass(northMoney.sz_hk_flow)">
                 {{ formatFlowNum(northMoney.sz_hk_flow) }}亿
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 南向资金 -->
+      <div class="fund-card south-money-card">
+        <div class="fund-header">
+          <span class="title">南向资金</span>
+          <el-tag type="success" size="small" effect="dark">港股通</el-tag>
+        </div>
+        <div class="north-money-content">
+          <div class="total-flow" :class="getFlowClass(southMoney.total_flow)">
+            <div class="flow-label">今日净流入</div>
+            <div class="flow-value">{{ formatFlowAmount(southMoney.total_flow) }}</div>
+            <div class="flow-unit">亿港元</div>
+          </div>
+          <div class="flow-details">
+            <div class="flow-item">
+              <span class="flow-name">港股通(沪)</span>
+              <span class="flow-num" :class="getFlowClass(southMoney.sh_hk_flow)">
+                {{ formatFlowNum(southMoney.sh_hk_flow) }}亿
+              </span>
+            </div>
+            <div class="flow-item">
+              <span class="flow-name">港股通(深)</span>
+              <span class="flow-num" :class="getFlowClass(southMoney.sz_hk_flow)">
+                {{ formatFlowNum(southMoney.sz_hk_flow) }}亿
               </span>
             </div>
           </div>
@@ -204,8 +164,8 @@
         </div>
       </div>
 
-      <!-- 龙虎榜 -->
-      <LonghubangCard ref="longhubangRef" />
+      <!-- ETF资金流入 (原龙虎榜位置) -->
+      <EtfFlowCard ref="etfFlowRef" />
     </div>
 
     <!-- 涨跌幅排行 -->
@@ -295,19 +255,11 @@
       </div>
     </div>
 
-    <!-- 市场情绪 + 板块热度 + 涨跌停监控 + 融资融券 -->
+    <!-- 涨跌停监控 + 龙虎榜 + 融资融券 -->
     <div class="analysis-section">
-      <SentimentCard ref="sentimentRef" />
-      <SectorHotCard ref="sectorHotRef" />
       <LimitPoolCard ref="limitPoolRef" />
+      <LonghubangCard ref="longhubangRef" />
       <MarginCard ref="marginRef" />
-    </div>
-
-    <!-- ETF资金流向 + 全球指数 + 恐慌贪婪指数 -->
-    <div class="extended-section">
-      <EtfFlowCard ref="etfFlowRef" />
-      <GlobalIndexCard ref="globalIndexRef" />
-      <FearGreedCard ref="fearGreedRef" />
     </div>
 
     <!-- 底部操作栏 -->
@@ -338,14 +290,16 @@ import {
   getMarketSummaryApi,
   getRealtimeRankingsApi,
   getNorthMoneyRealtimeApi,
-  getMarketFundFlowTodayApi
+  getMarketFundFlowTodayApi,
+  getSouthMoneyRealtimeApi
 } from '/@/api/stock/stockIndex'
 import type {
   IndexQuoteItem,
   MarketSummary,
   StockRankingItem,
   NorthMoneyRealtime,
-  MarketFundFlowToday
+  MarketFundFlowToday,
+  SouthMoneyData
 } from '/@/api/stock/stockIndex'
 import LonghubangCard from './LonghubangCard.vue'
 import LimitPoolCard from './LimitPoolCard.vue'
@@ -355,6 +309,8 @@ import MarginCard from './MarginCard.vue'
 import EtfFlowCard from './EtfFlowCard.vue'
 import GlobalIndexCard from './GlobalIndexCard.vue'
 import FearGreedCard from './FearGreedCard.vue'
+import LimitHeatmapCard from './LimitHeatmapCard.vue'
+import UpDownDistributionCard from './UpDownDistributionCard.vue'
 
 // 数据
 const loading = ref(false)
@@ -368,6 +324,14 @@ const lastUpdateTime = ref<string>('')
 const dataSource = ref<string>('')
 const autoRefresh = ref(true)
 const northMoney = ref<NorthMoneyRealtime>({
+  sh_hk_flow: 0,
+  sz_hk_flow: 0,
+  total_flow: 0,
+  date: '',
+  time: '',
+  update_time: ''
+})
+const southMoney = ref<SouthMoneyData>({
   sh_hk_flow: 0,
   sz_hk_flow: 0,
   total_flow: 0,
@@ -399,6 +363,8 @@ const marginRef = ref<InstanceType<typeof MarginCard> | null>(null)
 const etfFlowRef = ref<InstanceType<typeof EtfFlowCard> | null>(null)
 const globalIndexRef = ref<InstanceType<typeof GlobalIndexCard> | null>(null)
 const fearGreedRef = ref<InstanceType<typeof FearGreedCard> | null>(null)
+const limitHeatmapRef = ref<InstanceType<typeof LimitHeatmapCard> | null>(null)
+const upDownDistRef = ref<InstanceType<typeof UpDownDistributionCard> | null>(null)
 
 // 计算涨跌比例
 const upPercentVal = computed(() => {
@@ -508,13 +474,15 @@ async function fetchData() {
   loading.value = true
   try {
     // 并行请求所有数据
-    const [quoteRes, summaryRes, rankingsRes, northMoneyRes, marketFlowRes] = await Promise.all([
-      getIndexQuotesApi(),
-      getMarketSummaryApi().catch(() => ({ data: null })),
-      getRealtimeRankingsApi(10).catch(() => ({ data: null })),
-      getNorthMoneyRealtimeApi().catch(() => ({ data: null })),
-      getMarketFundFlowTodayApi().catch(() => ({ data: null }))
-    ])
+    const [quoteRes, summaryRes, rankingsRes, northMoneyRes, southMoneyRes, marketFlowRes] =
+      await Promise.all([
+        getIndexQuotesApi(),
+        getMarketSummaryApi().catch(() => ({ data: null })),
+        getRealtimeRankingsApi(10).catch(() => ({ data: null })),
+        getNorthMoneyRealtimeApi().catch(() => ({ data: null })),
+        getSouthMoneyRealtimeApi().catch(() => ({ data: null })),
+        getMarketFundFlowTodayApi().catch(() => ({ data: null }))
+      ])
 
     // 处理指数数据
     if (quoteRes.data && quoteRes.data.items) {
@@ -560,6 +528,11 @@ async function fetchData() {
       northMoney.value = northMoneyRes.data
     }
 
+    // 处理南向资金数据
+    if (southMoneyRes.data) {
+      southMoney.value = southMoneyRes.data
+    }
+
     // 处理市场资金流向数据
     if (marketFlowRes.data) {
       marketFundFlow.value = marketFlowRes.data
@@ -601,6 +574,12 @@ async function refreshData() {
   if (fearGreedRef.value) {
     fearGreedRef.value.refresh()
   }
+  if (limitHeatmapRef.value) {
+    limitHeatmapRef.value.refresh()
+  }
+  if (upDownDistRef.value) {
+    upDownDistRef.value.refresh()
+  }
   ElMessage.success('数据已刷新')
 }
 
@@ -639,26 +618,83 @@ onUnmounted(() => {
   color: #e0e6ed;
 }
 
-// 指数卡片区域
-.index-cards {
+// 市场情绪 | 恐慌贪婪指数 + 情绪图表 | 板块热度 - 顶部
+.top-sentiment-section {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr 2fr 1fr;
   gap: 12px;
   margin-bottom: 12px;
 
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(2, 1fr);
+  .center-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .emotion-charts-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  @media (max-width: 1400px) {
+    grid-template-columns: 1fr 1.5fr 1fr;
+  }
+
+  @media (max-width: 1000px) {
+    grid-template-columns: 1fr 1fr;
+
+    .center-section {
+      grid-column: span 2;
+    }
   }
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+
+    .center-section {
+      grid-column: span 1;
+    }
+  }
+}
+
+// 指数卡片区域
+.index-cards {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+
+  .global-index-in-row {
+    // 全球指数卡片在指数行中
+  }
+
+  @media (max-width: 1400px) {
+    grid-template-columns: repeat(4, 1fr);
+    .global-index-in-row {
+      grid-column: span 2;
+    }
+  }
+
+  @media (max-width: 1000px) {
+    grid-template-columns: repeat(2, 1fr);
+    .global-index-in-row {
+      grid-column: span 2;
+    }
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    .global-index-in-row {
+      grid-column: span 1;
+    }
   }
 }
 
 .index-card {
   background: linear-gradient(145deg, #151c2c 0%, #1a2234 100%);
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 8px;
+  padding: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.3s ease;
 
@@ -769,255 +805,14 @@ onUnmounted(() => {
   }
 }
 
-// 市场统计概览
-.market-overview {
-  margin-bottom: 12px;
-}
-
-.overview-card {
-  background: linear-gradient(145deg, #151c2c 0%, #1a2234 100%);
-  border-radius: 10px;
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.overview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-
-  .title {
-    font-size: 16px;
-    font-weight: 600;
-  }
-
-  .update-time {
-    font-size: 12px;
-    color: #64748b;
-  }
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-
-  .stat-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-  }
-
-  .stat-info {
-    .stat-value {
-      font-size: 24px;
-      font-weight: 700;
-      font-family: 'DIN Alternate', sans-serif;
-    }
-
-    .stat-label {
-      font-size: 12px;
-      color: #64748b;
-    }
-  }
-
-  &.up {
-    .stat-icon {
-      background: rgba(244, 63, 94, 0.15);
-      color: #f43f5e;
-    }
-    .stat-value {
-      color: #f43f5e;
-    }
-  }
-
-  &.down {
-    .stat-icon {
-      background: rgba(34, 197, 94, 0.15);
-      color: #22c55e;
-    }
-    .stat-value {
-      color: #22c55e;
-    }
-  }
-
-  &.flat {
-    .stat-icon {
-      background: rgba(100, 116, 139, 0.15);
-      color: #64748b;
-    }
-    .stat-value {
-      color: #94a3b8;
-    }
-  }
-}
-
-.stats-ratio {
-  margin-bottom: 20px;
-
-  .ratio-bar {
-    display: flex;
-    height: 24px;
-    border-radius: 4px;
-    overflow: hidden;
-
-    > div {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 500;
-    }
-
-    .ratio-up {
-      background: #f43f5e;
-      color: #fff;
-    }
-
-    .ratio-flat {
-      background: #475569;
-    }
-
-    .ratio-down {
-      background: #22c55e;
-      color: #fff;
-    }
-  }
-
-  .ratio-legend {
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    margin-top: 8px;
-
-    .legend-item {
-      font-size: 12px;
-      color: #94a3b8;
-
-      &.up::before {
-        content: '';
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        background: #f43f5e;
-        border-radius: 2px;
-        margin-right: 6px;
-      }
-
-      &.flat::before {
-        content: '';
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        background: #475569;
-        border-radius: 2px;
-        margin-right: 6px;
-      }
-
-      &.down::before {
-        content: '';
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        background: #22c55e;
-        border-radius: 2px;
-        margin-right: 6px;
-      }
-    }
-  }
-}
-
-.limit-stats {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-
-  .limit-item {
-    flex: 1;
-    padding: 16px;
-    border-radius: 8px;
-    text-align: center;
-
-    &.limit-up {
-      background: linear-gradient(135deg, rgba(244, 63, 94, 0.2) 0%, rgba(244, 63, 94, 0.05) 100%);
-      border: 1px solid rgba(244, 63, 94, 0.3);
-    }
-
-    &.limit-down {
-      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.05) 100%);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-
-    .limit-value {
-      .number {
-        display: block;
-        font-size: 28px;
-        font-weight: 700;
-        font-family: 'DIN Alternate', sans-serif;
-      }
-
-      .label {
-        font-size: 12px;
-        color: #94a3b8;
-      }
-    }
-  }
-
-  .limit-up .number {
-    color: #f43f5e;
-  }
-  .limit-down .number {
-    color: #22c55e;
-  }
-}
-
-.trade-stats {
-  display: flex;
-  justify-content: space-around;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-
-  .trade-item {
-    text-align: center;
-
-    .label {
-      display: block;
-      font-size: 12px;
-      color: #64748b;
-      margin-bottom: 4px;
-    }
-
-    .value {
-      font-size: 18px;
-      font-weight: 600;
-      color: #3b82f6;
-    }
-  }
-}
-
 // 资金流向区域
 .fund-flow-section {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-bottom: 12px;
 
-  @media (max-width: 1200px) {
+  @media (max-width: 1400px) {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -1029,13 +824,9 @@ onUnmounted(() => {
 // 分析区域
 .analysis-section {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
-
-  @media (max-width: 1400px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -1255,31 +1046,20 @@ onUnmounted(() => {
   }
 }
 
-// 分析区域
+// 扩展区域 - 龙虎榜
+.extended-section {
+  margin-bottom: 16px;
+}
+
+// 涨跌停监控 + 龙虎榜 + 融资融券
 .analysis-section {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr 1.5fr 1fr;
   gap: 12px;
   margin-bottom: 12px;
 
   @media (max-width: 1400px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-// 扩展区域
-.extended-section {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr 1fr;
   }
 
   @media (max-width: 768px) {

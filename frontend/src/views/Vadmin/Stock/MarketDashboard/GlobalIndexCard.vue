@@ -29,119 +29,38 @@
 import { ref, computed, onMounted } from 'vue'
 import { Promotion } from '@element-plus/icons-vue'
 import { getGlobalIndicesApi } from '/@/api/stock/stockIndex'
-import type { GlobalIndexItem } from '/@/api/stock/stockIndex'
+
+interface GlobalIndexItem {
+  index_code: string
+  index_name: string
+  region?: string
+  price: number | null
+  change: number | null
+  change_percent: number | null
+  update_time: string
+}
 
 const loading = ref(false)
 const allIndices = ref<GlobalIndexItem[]>([])
 
 const regions = computed(() => {
-  const usNames = ['道琼斯', '纳斯达克', '标普500', 'DJI', 'NASDAQ', 'S&P']
-  const asiaNames = ['日经', '恒生', '韩国', 'Nikkei', 'Hang Seng', 'KOSPI']
-  const euNames = ['富时', 'DAX', 'CAC', 'FTSE', '英国', '德国', '法国']
-
-  const usIndices = allIndices.value
-    .filter((i) => usNames.some((n) => i.index_name?.includes(n)))
-    .slice(0, 3)
-  const asiaIndices = allIndices.value
-    .filter((i) => asiaNames.some((n) => i.index_name?.includes(n)))
-    .slice(0, 3)
-  const euIndices = allIndices.value
-    .filter((i) => euNames.some((n) => i.index_name?.includes(n)))
-    .slice(0, 3)
+  const usIndices = allIndices.value.filter(
+    (i) =>
+      i.region === '美股' || ['道琼斯', '纳斯达克', '标普'].some((n) => i.index_name?.includes(n))
+  )
+  const asiaIndices = allIndices.value.filter(
+    (i) => i.region === '亚太' || ['日经', '恒生', '韩国'].some((n) => i.index_name?.includes(n))
+  )
+  const euIndices = allIndices.value.filter(
+    (i) => i.region === '欧洲' || ['富时', 'DAX', 'CAC'].some((n) => i.index_name?.includes(n))
+  )
 
   return [
-    { name: '美股', indices: usIndices.length > 0 ? usIndices : getDefaultUS() },
-    { name: '亚太', indices: asiaIndices.length > 0 ? asiaIndices : getDefaultAsia() },
-    { name: '欧洲', indices: euIndices.length > 0 ? euIndices : getDefaultEU() }
+    { name: '美股', indices: usIndices.slice(0, 3) },
+    { name: '亚太', indices: asiaIndices.slice(0, 3) },
+    { name: '欧洲', indices: euIndices.slice(0, 3) }
   ]
 })
-
-function getDefaultUS() {
-  return [
-    {
-      index_code: 'DJI',
-      index_name: '道琼斯',
-      price: null,
-      change: null,
-      change_percent: null,
-      update_time: ''
-    },
-    {
-      index_code: 'IXIC',
-      index_name: '纳斯达克',
-      price: null,
-      change: null,
-      change_percent: null,
-      update_time: ''
-    },
-    {
-      index_code: 'SPX',
-      index_name: '标普500',
-      price: null,
-      change: null,
-      change_percent: null,
-      update_time: ''
-    }
-  ]
-}
-
-function getDefaultAsia() {
-  return [
-    {
-      index_code: 'N225',
-      index_name: '日经225',
-      price: null,
-      change: null,
-      change_percent: null,
-      update_time: ''
-    },
-    {
-      index_code: 'HSI',
-      index_name: '恒生指数',
-      price: null,
-      change: null,
-      change_percent: null,
-      update_time: ''
-    },
-    {
-      index_code: 'KS11',
-      index_name: '韩国综指',
-      price: null,
-      change: null,
-      change_percent: null,
-      update_time: ''
-    }
-  ]
-}
-
-function getDefaultEU() {
-  return [
-    {
-      index_code: 'FTSE',
-      index_name: '英国富时',
-      price: null,
-      change: null,
-      change_percent: null,
-      update_time: ''
-    },
-    {
-      index_code: 'DAX',
-      index_name: '德国DAX',
-      price: null,
-      change: null,
-      change_percent: null,
-      update_time: ''
-    },
-    {
-      index_code: 'CAC',
-      index_name: '法国CAC',
-      price: null,
-      change: null,
-      change_percent: null,
-      update_time: ''
-    }
-  ]
-}
 
 function getIndexShortName(name: string): string {
   if (!name) return '-'
@@ -200,8 +119,8 @@ defineExpose({
 <style scoped lang="scss">
 .global-index-card {
   background: linear-gradient(145deg, #151c2c 0%, #1a2234 100%);
-  border-radius: 12px;
-  padding: 14px;
+  border-radius: 10px;
+  padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   height: 100%;
 }
@@ -210,66 +129,67 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 
   .header-title {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: #fff;
 
     .icon {
       color: #3b82f6;
+      font-size: 14px;
     }
   }
 }
 
 .region-section {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 
   &:last-child {
     margin-bottom: 0;
   }
 
   .region-title {
-    font-size: 11px;
+    font-size: 10px;
     color: #64748b;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     padding-left: 2px;
   }
 
   .index-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
+    gap: 4px;
   }
 }
 
 .index-item {
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  padding: 8px;
+  border-radius: 4px;
+  padding: 6px;
   text-align: center;
 
   .index-name {
-    font-size: 10px;
+    font-size: 9px;
     color: #94a3b8;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .index-price {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: #fff;
     font-family: 'DIN Alternate', sans-serif;
   }
 
   .index-change {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 500;
-    margin-top: 2px;
+    margin-top: 1px;
 
     &.up {
       color: #f43f5e;

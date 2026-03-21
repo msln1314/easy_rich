@@ -1,4 +1,4 @@
-export type EventType = 
+export type EventType =
   | 'earnings_report'
   | 'earnings_forecast'
   | 'dividend'
@@ -59,8 +59,9 @@ export const EVENT_TYPE_MAP: Record<EventType, { label: string; color: string }>
   major_news: { label: '重要公告', color: '#F56C6C' }
 }
 
-export const AI_SENTIMENT_MAP: Record<AISentiment, { label: string; color: string; icon: string }> = {
-  1: { label: '利好', color: '#67C23A', icon: '↑' },
-  2: { label: '中性', color: '#909399', icon: '→' },
-  3: { label: '利空', color: '#F56C6C', icon: '↓' }
-}
+export const AI_SENTIMENT_MAP: Record<AISentiment, { label: string; color: string; icon: string }> =
+  {
+    1: { label: '利好', color: '#67C23A', icon: '↑' },
+    2: { label: '中性', color: '#909399', icon: '→' },
+    3: { label: '利空', color: '#F56C6C', icon: '↓' }
+  }
