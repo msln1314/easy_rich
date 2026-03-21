@@ -37,6 +37,23 @@
         </div>
       </div>
 
+      <!-- 连板TOP 5 -->
+      <div class="continuous-top5" v-if="continuousTop5.length > 0">
+        <div class="top5-title">连板TOP 5</div>
+        <div class="top5-list">
+          <div v-for="(item, idx) in continuousTop5" :key="item.stock_code" class="top5-item">
+            <div class="item-rank" :class="getRankClass(idx + 1)">{{ idx + 1 }}</div>
+            <div class="item-info">
+              <span class="item-name">{{ item.stock_name }}</span>
+              <span class="item-code">{{ item.stock_code }}</span>
+            </div>
+            <div class="item-days" :class="getDaysClass(item.continuous_days)">
+              {{ item.continuous_days || '-' }}板
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="continuous-bar" v-if="continuousList.length > 0">
         <div class="bar-title">连板分布</div>
         <div class="bar-content">
@@ -73,8 +90,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { DataAnalysis, CaretTop, CaretBottom, Minus } from '@element-plus/icons-vue'
-import { getMarketSentimentApi } from '/@/api/stock/stockIndex'
-import type { MarketSentiment } from '/@/api/stock/stockIndex'
+import { getMarketSentimentApi, getLimitUpPoolApi } from '/@/api/stock/stockIndex'
+import type { MarketSentiment, LimitUpPoolItem } from '/@/api/stock/stockIndex'
 
 const loading = ref(false)
 const sentiment = ref<Partial<MarketSentiment>>({
@@ -86,6 +103,8 @@ const sentiment = ref<Partial<MarketSentiment>>({
   sentiment_score: 50,
   sentiment_level: '计算中'
 })
+
+const limitUpList = ref<LimitUpPoolItem[]>([])
 
 const sentimentClass = computed(() => {
   const score = sentiment.value.sentiment_score || 50
@@ -109,12 +128,41 @@ const continuousList = computed(() => {
     .slice(0, 5)
 })
 
+const continuousTop5 = computed(() => {
+  return limitUpList.value
+    .filter((item) => item.continuous_days && item.continuous_days >= 2)
+    .sort((a, b) => (b.continuous_days || 0) - (a.continuous_days || 0))
+    .slice(0, 5)
+})
+
+function getRankClass(rank: number): string {
+  if (rank === 1) return 'gold'
+  if (rank === 2) return 'silver'
+  if (rank === 3) return 'bronze'
+  return ''
+}
+
+function getDaysClass(days: number | undefined): string {
+  if (!days) return ''
+  if (days >= 5) return 'high'
+  if (days >= 3) return 'medium'
+  return 'low'
+}
+
 async function fetchData() {
   loading.value = true
   try {
-    const res = await getMarketSentimentApi()
-    if (res.data) {
-      sentiment.value = res.data
+    const [sentimentRes, limitUpRes] = await Promise.all([
+      getMarketSentimentApi(),
+      getLimitUpPoolApi()
+    ])
+
+    if (sentimentRes.data) {
+      sentiment.value = sentimentRes.data
+    }
+
+    if (limitUpRes.data && limitUpRes.data.limit_up_list) {
+      limitUpList.value = limitUpRes.data.limit_up_list
     }
   } catch (error) {
     console.error('获取市场情绪失败:', error)
@@ -262,6 +310,103 @@ defineExpose({
       font-size: 10px;
       color: #64748b;
       margin-top: 2px;
+    }
+  }
+}
+
+// 连板TOP 5
+.continuous-top5 {
+  margin-bottom: 12px;
+
+  .top5-title {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  .top5-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .top5-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+
+    .item-rank {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      color: #94a3b8;
+      margin-right: 8px;
+
+      &.gold {
+        background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+        color: #000;
+      }
+
+      &.silver {
+        background: linear-gradient(135deg, #c0c0c0 0%, #a0a0a0 100%);
+        color: #000;
+      }
+
+      &.bronze {
+        background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%);
+        color: #fff;
+      }
+    }
+
+    .item-info {
+      flex: 1;
+      min-width: 0;
+
+      .item-name {
+        display: block;
+        font-size: 12px;
+        font-weight: 500;
+        color: #fff;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .item-code {
+        font-size: 10px;
+        color: #64748b;
+      }
+    }
+
+    .item-days {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+
+      &.high {
+        background: rgba(244, 63, 94, 0.2);
+        color: #f43f5e;
+      }
+
+      &.medium {
+        background: rgba(251, 146, 60, 0.2);
+        color: #fb923c;
+      }
+
+      &.low {
+        background: rgba(245, 158, 11, 0.2);
+        color: #f59e0b;
+      }
     }
   }
 }

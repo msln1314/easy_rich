@@ -88,7 +88,12 @@ export function checkRebalance(portfolioId: number) {
   return request.get(`${API_PREFIX}/risk/${portfolioId}/rebalance`)
 }
 
-export function preTradeCheck(portfolioId: number, stockCode: string, tradeType: string, amount: number) {
+export function preTradeCheck(
+  portfolioId: number,
+  stockCode: string,
+  tradeType: string,
+  amount: number
+) {
   return request.post(`${API_PREFIX}/risk/${portfolioId}/pre_check`, null, {
     params: { stock_code: stockCode, trade_type: tradeType, amount }
   })

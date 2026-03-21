@@ -2,10 +2,17 @@
   <div class="portfolio-page">
     <div class="portfolio-header">
       <div class="header-left">
-        <el-select v-model="selectedPortfolioId" placeholder="选择组合" style="width: 200px" @change="handlePortfolioChange">
+        <el-select
+          v-model="selectedPortfolioId"
+          placeholder="选择组合"
+          style="width: 200px"
+          @change="handlePortfolioChange"
+        >
           <el-option v-for="p in portfolios" :key="p.id" :label="p.name" :value="p.id">
             <span>{{ p.name }}</span>
-            <el-tag v-if="p.is_default" size="small" type="success" style="margin-left: 8px">默认</el-tag>
+            <el-tag v-if="p.is_default" size="small" type="success" style="margin-left: 8px"
+              >默认</el-tag
+            >
           </el-option>
         </el-select>
         <el-button type="primary" @click="showCreateDialog = true">新建组合</el-button>
@@ -36,7 +43,11 @@
               </el-col>
               <el-col :span="6">
                 <el-card shadow="hover">
-                  <el-statistic title="总盈亏" :value="performance.total_profit || 0" :precision="2">
+                  <el-statistic
+                    title="总盈亏"
+                    :value="performance.total_profit || 0"
+                    :precision="2"
+                  >
                     <template #suffix>元</template>
                   </el-statistic>
                 </el-card>
@@ -88,7 +99,9 @@
             </el-table-column>
             <el-table-column label="操作" width="100" fixed="right">
               <template #default="{ row }">
-                <el-button type="danger" size="small" link @click="handleDeletePosition(row)">删除</el-button>
+                <el-button type="danger" size="small" link @click="handleDeletePosition(row)"
+                  >删除</el-button
+                >
               </template>
             </el-table-column>
           </el-table>
@@ -100,8 +113,18 @@
             <el-table-column prop="stock_name" label="股票名称" width="120" />
             <el-table-column prop="trade_type" label="类型" width="80">
               <template #default="{ row }">
-                <el-tag :type="row.trade_type === 'buy' ? 'success' : row.trade_type === 'sell' ? 'danger' : 'info'">
-                  {{ row.trade_type === 'buy' ? '买入' : row.trade_type === 'sell' ? '卖出' : '分红' }}
+                <el-tag
+                  :type="
+                    row.trade_type === 'buy'
+                      ? 'success'
+                      : row.trade_type === 'sell'
+                      ? 'danger'
+                      : 'info'
+                  "
+                >
+                  {{
+                    row.trade_type === 'buy' ? '买入' : row.trade_type === 'sell' ? '卖出' : '分红'
+                  }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -129,7 +152,15 @@
             <el-table-column prop="alert_type" label="预警类型" width="120" />
             <el-table-column prop="alert_level" label="级别" width="80">
               <template #default="{ row }">
-                <el-tag :type="row.alert_level === 'warning' ? 'warning' : row.alert_level === 'error' ? 'danger' : 'info'">
+                <el-tag
+                  :type="
+                    row.alert_level === 'warning'
+                      ? 'warning'
+                      : row.alert_level === 'error'
+                      ? 'danger'
+                      : 'info'
+                  "
+                >
                   {{ row.alert_level }}
                 </el-tag>
               </template>
@@ -137,12 +168,21 @@
             <el-table-column prop="title" label="标题" width="200" />
             <el-table-column prop="content" label="内容" />
             <el-table-column prop="created_at" label="时间" width="180">
-              <template #default="{ row }">{{ row.created_at?.replace('T', ' ').slice(0, 19) }}</template>
+              <template #default="{ row }">{{
+                row.created_at?.replace('T', ' ').slice(0, 19)
+              }}</template>
             </el-table-column>
             <el-table-column label="操作" width="100">
               <template #default="{ row }">
-                <el-button v-if="!row.is_handled" type="primary" size="small" link @click="handleAlert(row)">处理</el-button>
-                <span v-else style="color: #67C23A">已处理</span>
+                <el-button
+                  v-if="!row.is_handled"
+                  type="primary"
+                  size="small"
+                  link
+                  @click="handleAlert(row)"
+                  >处理</el-button
+                >
+                <span v-else style="color: #67c23a">已处理</span>
               </template>
             </el-table-column>
           </el-table>
@@ -176,7 +216,12 @@
           <el-input v-model="createForm.name" placeholder="请输入组合名称" />
         </el-form-item>
         <el-form-item label="组合描述">
-          <el-input v-model="createForm.description" type="textarea" rows="3" placeholder="请输入组合描述" />
+          <el-input
+            v-model="createForm.description"
+            type="textarea"
+            rows="3"
+            placeholder="请输入组合描述"
+          />
         </el-form-item>
         <el-form-item label="单股最大仓位">
           <el-input-number v-model="createForm.max_single_position" :min="5" :max="100" /> %
@@ -198,7 +243,11 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showTradeDialogVisible" :title="tradeType === 'buy' ? '买入股票' : '卖出股票'" width="500px">
+    <el-dialog
+      v-model="showTradeDialogVisible"
+      :title="tradeType === 'buy' ? '买入股票' : '卖出股票'"
+      width="500px"
+    >
       <el-form :model="tradeForm" label-width="100px">
         <el-form-item label="股票代码" required>
           <el-input v-model="tradeForm.stock_code" placeholder="请输入股票代码" />
@@ -207,19 +256,40 @@
           <el-input v-model="tradeForm.stock_name" placeholder="请输入股票名称" />
         </el-form-item>
         <el-form-item label="交易日期" required>
-          <el-date-picker v-model="tradeForm.trade_date" type="date" placeholder="选择日期" style="width: 100%" />
+          <el-date-picker
+            v-model="tradeForm.trade_date"
+            type="date"
+            placeholder="选择日期"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="股数" required>
           <el-input-number v-model="tradeForm.shares" :min="1" :step="100" style="width: 100%" />
         </el-form-item>
         <el-form-item label="价格" required>
-          <el-input-number v-model="tradeForm.price" :min="0.01" :precision="2" :step="0.01" style="width: 100%" />
+          <el-input-number
+            v-model="tradeForm.price"
+            :min="0.01"
+            :precision="2"
+            :step="0.01"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="手续费">
-          <el-input-number v-model="tradeForm.commission" :min="0" :precision="2" style="width: 100%" />
+          <el-input-number
+            v-model="tradeForm.commission"
+            :min="0"
+            :precision="2"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item v-if="tradeType === 'sell'" label="印花税">
-          <el-input-number v-model="tradeForm.stamp_duty" :min="0" :precision="2" style="width: 100%" />
+          <el-input-number
+            v-model="tradeForm.stamp_duty"
+            :min="0"
+            :precision="2"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="tradeForm.remark" type="textarea" rows="2" />
@@ -227,7 +297,9 @@
       </el-form>
       <template #footer>
         <el-button @click="showTradeDialogVisible = false">取消</el-button>
-        <el-button :type="tradeType === 'buy' ? 'primary' : 'danger'" @click="handleTrade">确定</el-button>
+        <el-button :type="tradeType === 'buy' ? 'primary' : 'danger'" @click="handleTrade"
+          >确定</el-button
+        >
       </template>
     </el-dialog>
   </div>
@@ -291,7 +363,7 @@ async function loadPortfolios() {
     const { data } = await getPortfolioList()
     portfolios.value = data.data || []
     if (portfolios.value.length > 0 && !selectedPortfolioId.value) {
-      const defaultPortfolio = portfolios.value.find(p => p.is_default)
+      const defaultPortfolio = portfolios.value.find((p) => p.is_default)
       selectedPortfolioId.value = defaultPortfolio?.id || portfolios.value[0].id
     }
   } catch (error) {
@@ -368,7 +440,13 @@ function showTradeDialog(type: 'buy' | 'sell') {
 }
 
 async function handleTrade() {
-  if (!selectedPortfolioId.value || !tradeForm.stock_code || !tradeForm.trade_date || tradeForm.shares <= 0 || tradeForm.price <= 0) {
+  if (
+    !selectedPortfolioId.value ||
+    !tradeForm.stock_code ||
+    !tradeForm.trade_date ||
+    tradeForm.shares <= 0 ||
+    tradeForm.price <= 0
+  ) {
     ElMessage.warning('请填写完整信息')
     return
   }
@@ -376,7 +454,10 @@ async function handleTrade() {
   try {
     const data = {
       ...tradeForm,
-      trade_date: typeof tradeForm.trade_date === 'string' ? tradeForm.trade_date : new Date(tradeForm.trade_date).toISOString().slice(0, 10)
+      trade_date:
+        typeof tradeForm.trade_date === 'string'
+          ? tradeForm.trade_date
+          : new Date(tradeForm.trade_date).toISOString().slice(0, 10)
     }
 
     if (tradeType.value === 'buy') {

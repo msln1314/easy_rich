@@ -500,24 +500,23 @@ class MarketService:
                 limit_down_count = 0
 
             if df_zt is not None and not df_zt.empty:
+                logger.info(f"涨停池列名: {df_zt.columns.tolist()}")
+
                 for _, row in df_zt.iterrows():
                     try:
-                        # 涨停池列：序号,代码,名称,涨跌幅,最新价,涨停统计,所属行业,涨停原因类别,涨停原因,...
                         item = {
-                            "stock_code": str(row.iloc[1]) if len(row) > 1 else "",
-                            "stock_name": str(row.iloc[2]) if len(row) > 2 else "",
-                            "industry": str(row.iloc[6]) if len(row) > 6 else "",
-                            "concept": str(row.iloc[7]) if len(row) > 7 else "",
-                            "limit_up_time": str(row.iloc[10]) if len(row) > 10 else "",
-                            "seal_amount": float(row.iloc[9])
-                            if len(row) > 9 and pd.notna(row.iloc[9])
-                            else 0,
-                            "continuous_days": int(row.iloc[5])
-                            if len(row) > 5 and pd.notna(row.iloc[5])
-                            else 1,
-                            "change_percent": float(row.iloc[3])
-                            if len(row) > 3 and pd.notna(row.iloc[3])
-                            else 9.9,
+                            "stock_code": str(
+                                row.get("代码", row.iloc[1] if len(row) > 1 else "")
+                            ),
+                            "stock_name": str(
+                                row.get("名称", row.iloc[2] if len(row) > 2 else "")
+                            ),
+                            "industry": str(row.get("所属行业", "")),
+                            "concept": str(row.get("涨停原因类别", "")),
+                            "limit_up_time": str(row.get("涨停时间", "")),
+                            "seal_amount": float(row.get("封板资金", 0) or 0),
+                            "continuous_days": int(row.get("连板数", 1) or 1),
+                            "change_percent": float(row.get("涨跌幅", 9.9) or 9.9),
                         }
                         result.append(item)
                     except Exception as e:
