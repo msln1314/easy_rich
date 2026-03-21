@@ -14,14 +14,30 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 
 from app.models.sector_models import (
-    ConceptBoard, IndustryBoard, BoardSpot,
-    ConceptBoardSpot, IndustryBoardSpot,
-    ConceptBoardConstituent, IndustryBoardConstituent
+    ConceptBoard,
+    IndustryBoard,
+    BoardSpot,
+    ConceptBoardSpot,
+    IndustryBoardSpot,
+    ConceptBoardConstituent,
+    IndustryBoardConstituent,
 )
 from app.models.stock_models import StockInfo, StockQuote
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def safe_float(value, default=None):
+    if value is None or pd.isna(value):
+        return default
+    try:
+        float_value = float(value)
+        if math.isnan(float_value) or math.isinf(float_value):
+            return default
+        return float_value
+    except (ValueError, TypeError):
+        return default
 
 
 class TushareService:
@@ -42,11 +58,13 @@ class TushareService:
         """初始化 Tushare Pro 连接"""
         try:
             import tushare as ts
+
             self.ts = ts
 
             # 获取 token
             if not token:
                 from app.core.config import settings
+
                 token = settings.TUSHARE_TOKEN
 
             if not token:
@@ -105,12 +123,28 @@ class TushareService:
         logger.info("使用 Tushare 获取概念板块列表")
 
         try:
-            # Tushare Pro 没有直接的概念板块列表接口
-            # 需要通过其他方式获取，这里提供示例框架
-            # 实际实现需要根据 Tushare API 调整
+            df = self.pro.concept(src="ts")
 
-            logger.warning("Tushare Pro 概念板块接口待实现")
-            raise ValueError("Tushare Pro 概念板块接口待实现")
+            if df is None or df.empty:
+                logger.warning("Tushare 未返回概念板块数据")
+                return []
+
+            result = []
+            for _, row in df.iterrows():
+                board = ConceptBoard(
+                    code=str(row.get("code", "")),
+                    name=str(row.get("name", "")),
+                    change_percent=safe_float(row.get("change")) or 0,
+                    change=safe_float(row.get("change")) or 0,
+                    price=safe_float(row.get("close")) or 0,
+                    up_count=0,
+                    down_count=0,
+                    update_time=datetime.now(),
+                )
+                result.append(board)
+
+            logger.info(f"Tushare 获取到 {len(result)} 个概念板块")
+            return result
 
         except Exception as e:
             logger.error(f"Tushare 获取概念板块失败: {str(e)}")
@@ -130,12 +164,28 @@ class TushareService:
         logger.info("使用 Tushare 获取行业板块列表")
 
         try:
-            # Tushare Pro 没有直接的行业板块列表接口
-            # 需要通过其他方式获取，这里提供示例框架
-            # 实际实现需要根据 Tushare API 调整
+            df = self.pro.index_classify(level="L1", src="TS")
 
-            logger.warning("Tushare Pro 行业板块接口待实现")
-            raise ValueError("Tushare Pro 行业板块接口待实现")
+            if df is None or df.empty:
+                logger.warning("Tushare 未返回行业板块数据")
+                return []
+
+            result = []
+            for _, row in df.iterrows():
+                board = IndustryBoard(
+                    code=str(row.get("index_code", "")),
+                    name=str(row.get("industry_name", "")),
+                    change_percent=safe_float(row.get("change")) or 0,
+                    change=safe_float(row.get("change")) or 0,
+                    price=safe_float(row.get("close")) or 0,
+                    up_count=0,
+                    down_count=0,
+                    update_time=datetime.now(),
+                )
+                result.append(board)
+
+            logger.info(f"Tushare 获取到 {len(result)} 个行业板块")
+            return result
 
         except Exception as e:
             logger.error(f"Tushare 获取行业板块失败: {str(e)}")

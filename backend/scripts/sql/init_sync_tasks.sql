@@ -28,7 +28,7 @@ VALUES ('小时数据同步', 'default', 'default', 'cron', '0 0 9-15 * * ?', 's
 ON DUPLICATE KEY UPDATE trigger_args = '0 0 9-15 * * ?', updated_at = NOW();
 
 -- 4. 收盘后数据同步任务
--- 包含: 个股资金流向、每日排行历史
+-- 包含: 个股资金流向、每日排行历史、选股信号生成
 INSERT INTO sys_task (name, jobstore, executor, trigger, trigger_args, job_class, args, kwargs, coalesce, max_instances, status, task_group_id, created_at, updated_at, is_delete)
 VALUES ('收盘数据同步', 'default', 'default', 'cron', '0 30 15 * * ?', 'scheduler.main_close', NULL, NULL, 0, 1, 1, @task_group_id, NOW(), NOW(), 0)
 ON DUPLICATE KEY UPDATE trigger_args = '0 30 15 * * ?', updated_at = NOW();

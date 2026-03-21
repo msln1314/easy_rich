@@ -17,3 +17,6 @@ from .stock_index import StockIndex
 from .stock_fund_flow import StockFundFlow
 from .stock_north_money import StockNorthMoney, StockNorthMoneyRealtime
 from .stock_technical import StockChipDistribution
+from .stock_selection_signal import StockSelectionSignal
+from .stock_longhubang import StockLonghubang, StockLonghubangDetail
+from .stock_margin import StockMarginSummary, StockMarginDetail

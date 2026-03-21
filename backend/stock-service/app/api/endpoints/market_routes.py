@@ -41,20 +41,37 @@ async def get_main_indices():
         quotes, source = await index_service.get_index_quotes()
         items = []
         for q in quotes:
-            items.append({
-                "index_code": q.code,
-                "index_name": q.name,
-                "close_price": q.price,
-                "change_percent": q.change_percent,
-                "change_amount": q.change,
-                "volume": q.volume,
-                "amount": q.amount,
-            })
+            if isinstance(q, dict):
+                items.append(
+                    {
+                        "index_code": q.get("code"),
+                        "index_name": q.get("name"),
+                        "close_price": q.get("price"),
+                        "change_percent": q.get("change_percent"),
+                        "change_amount": q.get("change"),
+                        "volume": q.get("volume"),
+                        "amount": q.get("amount"),
+                    }
+                )
+            else:
+                items.append(
+                    {
+                        "index_code": q.code,
+                        "index_name": q.name,
+                        "close_price": q.price,
+                        "change_percent": q.change_percent,
+                        "change_amount": q.change,
+                        "volume": q.volume,
+                        "amount": q.amount,
+                    }
+                )
         return {
             "data": {
                 "items": items,
                 "source": source,
-                "update_time": quotes[0].update_time.isoformat() if quotes else None
+                "update_time": quotes[0].update_time.isoformat()
+                if quotes and hasattr(quotes[0], "update_time")
+                else None,
             }
         }
     except Exception as e:
@@ -63,7 +80,9 @@ async def get_main_indices():
 
 
 @router.get("/rankings")
-async def get_realtime_rankings(limit: int = Query(20, ge=1, le=100, description="每类排行数量")):
+async def get_realtime_rankings(
+    limit: int = Query(20, ge=1, le=100, description="每类排行数量"),
+):
     """
     获取实时排行数据
 

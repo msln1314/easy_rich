@@ -16,7 +16,12 @@ from apps.admin.stock.models import (
     StockDailyRanking,
     StockHotRankDetail,
     News,
+    StockLonghubang,
+    StockLonghubangDetail,
+    StockMarginSummary,
+    StockMarginDetail,
 )
+import json
 from apps.module_task.stock_service_client import StockServiceClient
 from utils.stock import StockUtils
 
@@ -123,7 +128,197 @@ async def sync_stock_base_info(db: AsyncSession) -> dict:
 
     except Exception as e:
         await db.rollback()
-        print(f"同步股票基础信息失败: {str(e)}")
+        print(f"同步实时行情数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_longhubang(db: AsyncSession) -> dict:
+    """
+    同步龙虎榜数据
+    从 Stock Service 获取龙虎榜数据并存储
+    """
+    try:
+        print("开始从 Stock Service 同步龙虎榜数据...")
+
+        async with StockServiceClient() as client:
+            lhb_list = await client.get_longhubang_list()
+
+        if not lhb_list:
+            return {"is_success": False, "message": "未获取到龙虎榜数据"}
+
+        current_time = datetime.now()
+        current_date = date.today()
+
+        added_count = 0
+        updated_count = 0
+        detail_added_count = 0
+
+        for lhb in lhb_list:
+            try:
+                stock_code = lhb.get("stock_code", "") or lhb.get("code", "")
+                if not stock_code:
+                    continue
+
+                full_code = StockUtils.get_full_code(stock_code)
+
+                trade_date_str = lhb.get("trade_date", "") or lhb.get("date", "")
+                if trade_date_str:
+                    if isinstance(trade_date_str, str):
+                        if len(trade_date_str) == 10:
+                            trade_date = datetime.strptime(
+                                trade_date_str, "%Y-%m-%d"
+                            ).date()
+                        else:
+                            trade_date = datetime.strptime(
+                                trade_date_str, "%Y%m%d"
+                            ).date()
+                    else:
+                        trade_date = trade_date_str
+                else:
+                    trade_date = current_date
+
+                buy_details = lhb.get("buy_details", []) or lhb.get("buy_list", [])
+                sell_details = lhb.get("sell_details", []) or lhb.get("sell_list", [])
+
+                lhb_data = {
+                    "trade_date": trade_date,
+                    "stock_code": stock_code,
+                    "stock_name": lhb.get("stock_name") or lhb.get("name"),
+                    "full_code": full_code,
+                    "market": "SH" if stock_code.startswith("6") else "SZ",
+                    "close_price": lhb.get("close_price") or lhb.get("close"),
+                    "change_percent": lhb.get("change_percent") or lhb.get("pct_chg"),
+                    "turnover_rate": lhb.get("turnover_rate"),
+                    "total_amount": lhb.get("total_amount") or lhb.get("amount"),
+                    "net_buy_amount": lhb.get("net_buy_amount")
+                    or lhb.get("net_amount"),
+                    "net_buy_ratio": lhb.get("net_buy_ratio"),
+                    "reason": lhb.get("reason") or lhb.get("exalt_reason"),
+                    "buy_details": json.dumps(buy_details, ensure_ascii=False)
+                    if buy_details
+                    else None,
+                    "sell_details": json.dumps(sell_details, ensure_ascii=False)
+                    if sell_details
+                    else None,
+                    "buy_amount_total": lhb.get("buy_amount_total")
+                    or lhb.get("buy_value"),
+                    "sell_amount_total": lhb.get("sell_amount_total")
+                    or lhb.get("sell_value"),
+                    "data_from": "stock_service",
+                    "data_time": current_time,
+                }
+
+                existing_sql = select(StockLonghubang).where(
+                    StockLonghubang.stock_code == stock_code,
+                    StockLonghubang.trade_date == trade_date,
+                )
+                result = await db.execute(existing_sql)
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    del lhb_data["stock_code"]
+                    del lhb_data["trade_date"]
+                    update_stmt = (
+                        update(StockLonghubang)
+                        .where(StockLonghubang.id == existing.id)
+                        .values(**lhb_data)
+                    )
+                    await db.execute(update_stmt)
+                    updated_count += 1
+                    lhb_id = existing.id
+                else:
+                    new_lhb = StockLonghubang(**lhb_data)
+                    db.add(new_lhb)
+                    await db.flush()
+                    lhb_id = new_lhb.id
+                    added_count += 1
+
+                all_details = []
+                for detail in buy_details:
+                    all_details.append(
+                        {
+                            "longhubang_id": lhb_id,
+                            "trade_date": trade_date,
+                            "stock_code": stock_code,
+                            "stock_name": lhb.get("stock_name") or lhb.get("name"),
+                            "trade_type": "buy",
+                            "broker_name": detail.get("broker_name")
+                            or detail.get("name"),
+                            "broker_type": detail.get("broker_type")
+                            or detail.get("type"),
+                            "buy_amount": detail.get("buy_amount") or detail.get("buy"),
+                            "sell_amount": detail.get("sell_amount")
+                            or detail.get("sell"),
+                            "net_amount": detail.get("net_amount") or detail.get("net"),
+                            "data_from": "stock_service",
+                            "data_time": current_time,
+                        }
+                    )
+
+                for detail in sell_details:
+                    all_details.append(
+                        {
+                            "longhubang_id": lhb_id,
+                            "trade_date": trade_date,
+                            "stock_code": stock_code,
+                            "stock_name": lhb.get("stock_name") or lhb.get("name"),
+                            "trade_type": "sell",
+                            "broker_name": detail.get("broker_name")
+                            or detail.get("name"),
+                            "broker_type": detail.get("broker_type")
+                            or detail.get("type"),
+                            "buy_amount": detail.get("buy_amount") or detail.get("buy"),
+                            "sell_amount": detail.get("sell_amount")
+                            or detail.get("sell"),
+                            "net_amount": detail.get("net_amount") or detail.get("net"),
+                            "data_from": "stock_service",
+                            "data_time": current_time,
+                        }
+                    )
+
+                for detail_data in all_details:
+                    existing_detail_sql = select(StockLonghubangDetail).where(
+                        StockLonghubangDetail.longhubang_id == lhb_id,
+                        StockLonghubangDetail.broker_name
+                        == detail_data.get("broker_name"),
+                        StockLonghubangDetail.trade_type
+                        == detail_data.get("trade_type"),
+                    )
+                    detail_result = await db.execute(existing_detail_sql)
+                    existing_detail = detail_result.scalar_one_or_none()
+
+                    if existing_detail:
+                        del detail_data["longhubang_id"]
+                        del detail_data["broker_name"]
+                        del detail_data["trade_type"]
+                        update_detail_stmt = (
+                            update(StockLonghubangDetail)
+                            .where(StockLonghubangDetail.id == existing_detail.id)
+                            .values(**detail_data)
+                        )
+                        await db.execute(update_detail_stmt)
+                    else:
+                        new_detail = StockLonghubangDetail(**detail_data)
+                        db.add(new_detail)
+                        detail_added_count += 1
+
+            except Exception as e:
+                print(f"处理龙虎榜数据 {stock_code} 失败: {str(e)}")
+                traceback.print_exc()
+                continue
+
+        await db.commit()
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条龙虎榜数据，"
+            f"新增 {detail_added_count} 条明细数据"
+        )
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步龙虎榜数据失败: {str(e)}")
         traceback.print_exc()
         raise e
 
@@ -1477,5 +1672,155 @@ async def sync_realtime_from_stock_service(db: AsyncSession) -> dict:
     except Exception as e:
         await db.rollback()
         print(f"同步实时行情数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_margin_summary(db: AsyncSession) -> dict:
+    """
+    同步融资融券汇总数据
+    从 Stock Service 获取融资融券汇总数据并存储
+    """
+    try:
+        print("开始从 Stock Service 同步融资融券汇总数据...")
+
+        async with StockServiceClient() as client:
+            margin_data = await client.get_margin_summary()
+
+        if not margin_data:
+            return {"is_success": False, "message": "未获取到融资融券汇总数据"}
+
+        current_time = datetime.now()
+        trade_date_str = margin_data.get("trade_date", "")
+        
+        if trade_date_str:
+            if len(trade_date_str) == 8:
+                trade_date = datetime.strptime(trade_date_str, "%Y%m%d").date()
+            else:
+                trade_date = datetime.strptime(trade_date_str[:10], "%Y-%m-%d").date()
+        else:
+            trade_date = date.today()
+
+        existing_sql = select(StockMarginSummary).where(
+            StockMarginSummary.trade_date == trade_date
+        )
+        result = await db.execute(existing_sql)
+        existing = result.scalar_one_or_none()
+
+        margin_summary_data = {
+            "trade_date": trade_date,
+            "rzye": margin_data.get("rzye"),
+            "rzmre": margin_data.get("rzmre"),
+            "rzche": margin_data.get("rzche"),
+            "rqye": margin_data.get("rqye"),
+            "rqmcl": margin_data.get("rqmcl"),
+            "rqchl": margin_data.get("rqchl"),
+            "total": margin_data.get("total"),
+            "data_time": current_time,
+            "data_from": "stock_service",
+        }
+
+        if existing:
+            del margin_summary_data["trade_date"]
+            update_stmt = (
+                update(StockMarginSummary)
+                .where(StockMarginSummary.id == existing.id)
+                .values(**margin_summary_data)
+            )
+            await db.execute(update_stmt)
+            message = f"成功更新融资融券汇总数据，日期: {trade_date}"
+        else:
+            new_margin = StockMarginSummary(**margin_summary_data)
+            db.add(new_margin)
+            message = f"成功新增融资融券汇总数据，日期: {trade_date}"
+
+        await db.commit()
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步融资融券汇总数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_margin_detail(db: AsyncSession) -> dict:
+    """
+    同步融资融券明细数据
+    从 Stock Service 获取融资融券明细数据并存储
+    """
+    try:
+        print("开始从 Stock Service 同步融资融券明细数据...")
+
+        async with StockServiceClient() as client:
+            detail_list = await client.get_margin_detail()
+
+        if not detail_list:
+            return {"is_success": False, "message": "未获取到融资融券明细数据"}
+
+        current_time = datetime.now()
+        current_date = date.today()
+
+        existing_sql = select(StockMarginDetail.stock_code).where(
+            StockMarginDetail.trade_date == current_date
+        )
+        result = await db.execute(existing_sql)
+        existing_codes = set(result.scalars().all())
+
+        added_count = 0
+        updated_count = 0
+
+        for detail in detail_list:
+            try:
+                stock_code = detail.stock_code if hasattr(detail, 'stock_code') else detail.get("stock_code", "")
+                if not stock_code:
+                    continue
+
+                full_code = StockUtils.get_full_code(stock_code)
+
+                detail_data = {
+                    "trade_date": current_date,
+                    "stock_code": stock_code,
+                    "stock_name": detail.stock_name if hasattr(detail, 'stock_name') else detail.get("stock_name"),
+                    "full_code": full_code,
+                    "rzye": detail.financing_balance if hasattr(detail, 'financing_balance') else detail.get("financing_balance"),
+                    "rzmre": detail.financing_buy_amount if hasattr(detail, 'financing_buy_amount') else detail.get("financing_buy_amount"),
+                    "rzche": detail.financing_repay_amount if hasattr(detail, 'financing_repay_amount') else detail.get("financing_repay_amount"),
+                    "rqye": detail.securities_balance if hasattr(detail, 'securities_balance') else detail.get("securities_balance"),
+                    "rqmcl": detail.securities_sell_volume if hasattr(detail, 'securities_sell_volume') else detail.get("securities_sell_volume"),
+                    "rqchl": detail.securities_repay_volume if hasattr(detail, 'securities_repay_volume') else detail.get("securities_repay_volume"),
+                    "data_time": current_time,
+                    "data_from": "stock_service",
+                }
+
+                if stock_code in existing_codes:
+                    del detail_data["stock_code"]
+                    del detail_data["trade_date"]
+                    update_stmt = (
+                        update(StockMarginDetail)
+                        .where(StockMarginDetail.stock_code == stock_code)
+                        .where(StockMarginDetail.trade_date == current_date)
+                        .values(**detail_data)
+                    )
+                    await db.execute(update_stmt)
+                    updated_count += 1
+                else:
+                    new_detail = StockMarginDetail(**detail_data)
+                    db.add(new_detail)
+                    added_count += 1
+
+            except Exception as e:
+                print(f"处理融资融券明细 {stock_code} 失败: {str(e)}")
+                continue
+
+        await db.commit()
+        message = f"成功同步：新增 {added_count} 条，更新 {updated_count} 条融资融券明细数据"
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步融资融券明细数据失败: {str(e)}")
         traceback.print_exc()
         raise e

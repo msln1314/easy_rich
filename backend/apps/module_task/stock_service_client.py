@@ -597,6 +597,175 @@ class StockServiceClient:
             logger.error(f"获取热门新闻 {source_id} 异常: {str(e)}")
             return {}
 
+    async def get_longhubang_list(
+        self, trade_date: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        获取龙虎榜数据
+
+        Args:
+            trade_date: 交易日期，格式YYYYMMDD，默认获取最新
+
+        Returns:
+            List[Dict[str, Any]]: 龙虎榜数据列表
+        """
+        url = f"{self.base_url}/lhb/list"
+        params = {}
+        if trade_date:
+            params["trade_date"] = trade_date
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url, params=params) as response:
+                if response.status != 200:
+                    logger.warning(f"获取龙虎榜数据失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data if isinstance(data, list) else data.get("data", [])
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取龙虎榜数据失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取龙虎榜数据异常: {str(e)}")
+            return []
+
+    async def get_longhubang_by_stock(
+        self, stock_code: str, days: int = 30
+    ) -> List[Dict[str, Any]]:
+        """
+        获取个股龙虎榜历史数据
+
+        Args:
+            stock_code: 股票代码
+            days: 获取最近N天的数据
+
+        Returns:
+            List[Dict[str, Any]]: 个股龙虎榜历史数据列表
+        """
+        url = f"{self.base_url}/lhb/stock/{stock_code}"
+        params = {"days": days}
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url, params=params) as response:
+                if response.status != 200:
+                    logger.warning(
+                        f"获取股票 {stock_code} 龙虎榜历史失败，状态码: {response.status}"
+                    )
+                    return []
+
+                data = await response.json()
+                return data if isinstance(data, list) else data.get("data", [])
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取股票 {stock_code} 龙虎榜历史失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取股票 {stock_code} 龙虎榜历史异常: {str(e)}")
+            return []
+
+    async def get_margin_summary(self) -> Dict[str, Any]:
+        """
+        获取融资融券汇总数据
+
+        Returns:
+            Dict[str, Any]: 融资融券汇总数据
+        """
+        url = f"{self.base_url}/margin/summary"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"获取融资融券汇总失败，状态码: {response.status}")
+                    return {}
+
+                data = await response.json()
+                return data.get("data", {})
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取融资融券汇总失败: {str(e)}")
+            return {}
+        except Exception as e:
+            logger.error(f"获取融资融券汇总异常: {str(e)}")
+            return {}
+
+    async def get_margin_detail(
+        self, trade_date: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        获取融资融券明细数据
+
+        Args:
+            trade_date: 交易日期，格式YYYYMMDD，默认获取最新
+
+        Returns:
+            List[Dict[str, Any]]: 融资融券明细数据列表
+        """
+        url = f"{self.base_url}/margin/detail"
+        params = {}
+        if trade_date:
+            params["trade_date"] = trade_date
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url, params=params) as response:
+                if response.status != 200:
+                    logger.warning(f"获取融资融券明细失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data.get("data", [])
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取融资融券明细失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取融资融券明细异常: {str(e)}")
+            return []
+
+    async def get_margin_rank(self, top: int = 50) -> List[Dict[str, Any]]:
+        """
+        获取融资融券排名数据
+
+        Args:
+            top: 返回数量
+
+        Returns:
+            List[Dict[str, Any]]: 融资融券排名数据列表
+        """
+        url = f"{self.base_url}/margin/rank"
+        params = {"top": top}
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url, params=params) as response:
+                if response.status != 200:
+                    logger.warning(f"获取融资融券排名失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data.get("data", [])
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取融资融券排名失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取融资融券排名异常: {str(e)}")
+            return []
+
 
 async def fetch_stock_list() -> List[Dict[str, Any]]:
     """

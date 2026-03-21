@@ -19,6 +19,9 @@ from apps.admin.stock import (
     stock_quote,
     hot_news,
     fund_flow,
+    stock_selection,
+    stock_longhubang,
+    stock_market_dashboard,
 )
 
 
@@ -55,6 +58,9 @@ router.include_router(stock_daily_ranking.router, tags=["每日排行"])
 router.include_router(stock_quote.router, tags=["股票行情"])
 router.include_router(hot_news.router, tags=["热门头条"])
 router.include_router(fund_flow.router, tags=["资金流向"])
+router.include_router(stock_selection.router, tags=["选股信号"])
+router.include_router(stock_longhubang.router, tags=["龙虎榜"])
+router.include_router(stock_market_dashboard.router, tags=["大盘座舱"])
 
 # router.include_router(notice.router, prefix="/system/notice", tags=["system"])
 # router.include_router(alarm.router, prefix="/system/alarm", tags=["system"])

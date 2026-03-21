@@ -26,7 +26,7 @@ async def get_margin_summary(
         result = await margin_service.get_margin_summary(exchange=exchange)
         if result is None:
             return {"data": None, "message": "暂无融资融券汇总数据"}
-        return {"data": result.__dict__, "update_time": datetime.now().isoformat()}
+        return {"data": result, "update_time": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"获取融资融券汇总失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))

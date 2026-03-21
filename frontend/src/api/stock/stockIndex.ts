@@ -11,7 +11,12 @@ enum Api {
   NORTH_MONEY_REALTIME = '/stock/index/fund-flow/north-money/realtime',
   NORTH_MONEY_FLOW = '/stock/index/fund-flow/north-money/flow',
   MARKET_FLOW_TODAY = '/stock/index/fund-flow/market/flow/today',
-  MARKET_FLOW = '/stock/index/fund-flow/market/flow'
+  MARKET_FLOW = '/stock/index/fund-flow/market/flow',
+  // 龙虎榜相关
+  LONGHUBANG_LIST = '/stock/longhubang/list',
+  LONGHUBANG_DETAIL = '/stock/longhubang/detail',
+  LONGHUBANG_STATISTICS = '/stock/longhubang/statistics',
+  LONGHUBANG_TOP_BROKERS = '/stock/longhubang/broker/top'
 }
 
 export interface IndexQuoteItem {
@@ -106,6 +111,57 @@ export interface NorthMoneyFlowItem {
   total_flow: number
 }
 
+export interface LonghubangItem {
+  id: number
+  trade_date: string
+  stock_code: string
+  stock_name: string
+  full_code: string
+  market: string
+  close_price: number | null
+  change_percent: number | null
+  turnover_rate: number | null
+  total_amount: number | null
+  net_buy_amount: number | null
+  net_buy_ratio: number | null
+  reason: string | null
+  buy_amount_total: number | null
+  sell_amount_total: number | null
+}
+
+export interface LonghubangDetail {
+  id: number
+  broker_name: string
+  broker_type: string | null
+  buy_amount: number | null
+  sell_amount: number | null
+  net_amount: number | null
+}
+
+export interface LonghubangDetailResponse extends LonghubangItem {
+  buy_details: LonghubangDetail[]
+  sell_details: LonghubangDetail[]
+}
+
+export interface LonghubangStatistics {
+  trade_date: string
+  total_count: number
+  up_count: number
+  down_count: number
+  limit_up_count: number
+  limit_down_count: number
+  total_net_buy: number
+}
+
+export interface LonghubangTopBroker {
+  broker_name: string
+  broker_type: string | null
+  appear_count: number
+  total_buy: number
+  total_sell: number
+  total_net: number
+}
+
 // 指数行情接口
 export const getIndexQuotesApi = (): Promise<IResponse> => {
   return request.get({ url: Api.INDEX_QUOTES })
@@ -151,4 +207,147 @@ export const getMarketFundFlowTodayApi = (): Promise<IResponse> => {
 
 export const getMarketFundFlowApi = (days: number = 30): Promise<IResponse> => {
   return request.get({ url: Api.MARKET_FLOW, params: { days } })
+}
+
+export const getLonghubangListApi = (params: {
+  trade_date?: string
+  stock_code?: string
+  stock_name?: string
+  page?: number
+  page_size?: number
+}): Promise<IResponse> => {
+  return request.get({ url: Api.LONGHUBANG_LIST, params })
+}
+
+export const getLonghubangDetailApi = (lhbId: number): Promise<IResponse> => {
+  return request.get({ url: `${Api.LONGHUBANG_DETAIL}/${lhbId}` })
+}
+
+export const getLonghubangStatisticsApi = (tradeDate?: string): Promise<IResponse> => {
+  return request.get({ url: Api.LONGHUBANG_STATISTICS, params: { trade_date: tradeDate } })
+}
+
+export const getLonghubangTopBrokersApi = (params: {
+  trade_date?: string
+  limit?: number
+}): Promise<IResponse> => {
+  return request.get({ url: Api.LONGHUBANG_TOP_BROKERS, params })
+}
+
+export interface LimitPoolItem {
+  rank: number
+  stock_code: string
+  stock_name: string
+  close_price: number
+  change_percent: number
+  turnover_rate: number
+  continuous_days: number | null
+  open_count: number | null
+  amount: number
+  reason: string | null
+}
+
+export interface SectorHotItem {
+  board_code: string
+  board_name: string
+  change_percent: number
+  up_count: number
+  down_count: number
+  leading_stock: string | null
+  leading_stock_change: number | null
+}
+
+export interface MarketSentiment {
+  zt_count: number
+  dt_count: number
+  max_continuous: number
+  continuous_stats: Record<number, number>
+  zt_dt_ratio: number
+  sentiment_score: number
+  sentiment_level: string
+}
+
+export interface MarginSummary {
+  rzye: number
+  rqye: number
+  rzmre: number
+  rqmcl: number
+  rzche: number
+  rqchl: number
+}
+
+export const getLimitPoolApi = (): Promise<IResponse> => {
+  return request.get({ url: '/stock/dashboard/limit-pool' })
+}
+
+export const getSectorHotApi = (
+  sectorType: string = 'industry',
+  limit: number = 10
+): Promise<IResponse> => {
+  return request.get({
+    url: '/stock/dashboard/sector-hot',
+    params: { sector_type: sectorType, limit }
+  })
+}
+
+export const getMarginSummaryApi = (): Promise<IResponse> => {
+  return request.get({ url: '/stock/dashboard/margin-summary' })
+}
+
+export const getHotStocksApi = (limit: number = 10): Promise<IResponse> => {
+  return request.get({ url: '/stock/dashboard/hot-stocks', params: { limit } })
+}
+
+export const getMarketSentimentApi = (): Promise<IResponse> => {
+  return request.get({ url: '/stock/dashboard/market-sentiment' })
+}
+
+export const getAllDashboardDataApi = (): Promise<IResponse> => {
+  return request.get({ url: '/stock/dashboard/all-dashboard-data' })
+}
+
+// ETF资金流向
+export interface ETFFlowItem {
+  rank: number
+  etf_code: string
+  etf_name: string
+  net_flow: number | null
+  subscribe_amount: number | null
+  redeem_amount: number | null
+  trade_date: string
+}
+
+export const getETFFlowOverviewApi = (top: number = 10): Promise<IResponse> => {
+  return request.get({ url: '/stock/etf/overview', params: { top } })
+}
+
+export const getETFFlowRankApi = (top: number = 20): Promise<IResponse> => {
+  return request.get({ url: '/stock/etf/net-flow', params: { top } })
+}
+
+// 全球指数
+export interface GlobalIndexItem {
+  index_code: string
+  index_name: string
+  price: number | null
+  change: number | null
+  change_percent: number | null
+  update_time: string
+}
+
+export const getGlobalIndicesApi = (): Promise<IResponse> => {
+  return request.get({ url: '/stock/index/global' })
+}
+
+// 恐慌贪婪指数
+export interface FearGreedIndex {
+  index: number
+  status: string
+  status_en: string
+  components: Record<string, number>
+  update_time: string
+}
+
+export const getFearGreedIndexApi = (): Promise<IResponse> => {
+  return request.get({ url: '/stock/sentiment/fear-greed' })
 }

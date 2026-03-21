@@ -9,7 +9,7 @@ import akshare as ak
 import pandas as pd
 import requests
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from app.models.index_models import IndexQuote
 from app.core.logging import get_logger
 from app.utils.cache import cache_result
@@ -544,6 +544,47 @@ class IndexService:
                 return info.get("gm_code")
         return None
 
+    @cache_result(expire=60)
+    async def get_global_indices(self) -> List[Dict[str, Any]]:
+        """获取全球主要指数行情"""
+        logger.info("获取全球主要指数行情")
 
-# 创建服务实例
+        try:
+            df = ak.index_world_index()
+
+            if df is None or df.empty:
+                logger.warning("全球指数数据为空")
+                return []
+
+            result = []
+            for _, row in df.iterrows():
+                try:
+                    cols = list(df.columns)
+                    item = {
+                        "index_code": str(row.iloc[0]) if len(cols) > 0 else "",
+                        "index_name": str(row.iloc[1]) if len(cols) > 1 else "",
+                        "price": self._safe_float(row.iloc[2])
+                        if len(cols) > 2
+                        else None,
+                        "change": self._safe_float(row.iloc[3])
+                        if len(cols) > 3
+                        else None,
+                        "change_percent": self._safe_float(row.iloc[4])
+                        if len(cols) > 4
+                        else None,
+                        "update_time": datetime.now().isoformat(),
+                    }
+                    result.append(item)
+                except Exception as e:
+                    logger.warning(f"解析全球指数数据失败: {e}")
+                    continue
+
+            logger.info(f"获取到 {len(result)} 条全球指数数据")
+            return result
+
+        except Exception as e:
+            logger.warning(f"获取全球指数失败: {e}")
+            return []
+
+
 index_service = IndexService()

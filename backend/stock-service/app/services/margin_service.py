@@ -3,7 +3,7 @@
 # @Create Time    : 2026/3/16
 # @File           : margin_service.py
 # @IDE            : PyCharm
-# @desc           : 融资融券服务 - 融资融券数据接口
+# @desc           : 融资融券服务
 
 import akshare as ak
 import pandas as pd
@@ -31,13 +31,8 @@ def safe_float(value, default=None):
         return default
 
 
-# ========== 数据模型 ==========
-
-
 @dataclass
 class MarginSummary:
-    """融资融券汇总"""
-
     trade_date: str
     financing_balance: Optional[float]
     financing_buy_amount: Optional[float]
@@ -51,8 +46,6 @@ class MarginSummary:
 
 @dataclass
 class MarginDetail:
-    """融资融券明细"""
-
     stock_code: str
     stock_name: str
     financing_balance: Optional[float]
@@ -67,8 +60,6 @@ class MarginDetail:
 
 @dataclass
 class StockMarginInfo:
-    """个股融资融券"""
-
     stock_code: str
     stock_name: str
     financing_balance: Optional[float]
@@ -79,9 +70,6 @@ class StockMarginInfo:
     update_time: datetime = field(default_factory=datetime.now)
 
 
-# ========== 服务类 ==========
-
-
 class MarginService:
     """融资融券数据服务"""
 
@@ -89,40 +77,37 @@ class MarginService:
     @handle_akshare_exception
     async def get_margin_summary(
         self, exchange: str = "沪深京A股"
-    ) -> Optional[MarginSummary]:
-        """
-        获取融资融券汇总数据
-
-        Args:
-            exchange: 交易所类型
-        """
+    ) -> Optional[Dict[str, Any]]:
         logger.info(f"获取融资融券汇总: {exchange}")
 
         try:
-            df = ak.stock_margin_underlying_info_szse(
-                date=datetime.now().strftime("%Y%m%d")
-            )
+            sh_df = ak.stock_margin_sse()
 
-            if df.empty:
+            if sh_df is None or sh_df.empty:
+                logger.warning("沪市融资融券数据为空")
                 return None
 
-            total_financing = df["融资余额"].sum() if "融资余额" in df.columns else 0
-            total_securities = df["融券余额"].sum() if "融券余额" in df.columns else 0
+            latest = sh_df.iloc[0]
+            cols = list(sh_df.columns)
 
-            return MarginSummary(
-                trade_date=datetime.now().strftime("%Y-%m-%d"),
-                financing_balance=float(total_financing) if total_financing else None,
-                financing_buy_amount=None,
-                financing_repay_amount=None,
-                securities_balance=float(total_securities)
-                if total_securities
-                else None,
-                securities_sell_volume=None,
-                securities_repay_volume=None,
-                total_balance=float(total_financing + total_securities)
-                if (total_financing and total_securities)
-                else None,
-            )
+            trade_date = str(latest[cols[0]]) if len(cols) > 0 else None
+            rzye = safe_float(latest[cols[1]]) if len(cols) > 1 else None
+            rzmre = safe_float(latest[cols[2]]) if len(cols) > 2 else None
+            rqye = safe_float(latest[cols[3]]) if len(cols) > 3 else None
+            rqmcl = safe_float(latest[cols[4]]) if len(cols) > 4 else None
+            rzche = safe_float(latest[cols[5]]) if len(cols) > 5 else None
+            total = safe_float(latest[cols[6]]) if len(cols) > 6 else None
+
+            return {
+                "trade_date": trade_date,
+                "rzye": rzye,
+                "rzmre": rzmre,
+                "rqye": rqye,
+                "rqmcl": rqmcl,
+                "rzche": rzche,
+                "total": total,
+                "update_time": datetime.now().isoformat(),
+            }
 
         except Exception as e:
             logger.warning(f"获取融资融券汇总失败: {e}")
@@ -133,35 +118,42 @@ class MarginService:
     async def get_margin_detail(
         self, trade_date: Optional[str] = None
     ) -> List[MarginDetail]:
-        """
-        获取融资融券明细
-
-        Args:
-            trade_date: 交易日期 YYYYMMDD
-        """
         if not trade_date:
             trade_date = datetime.now().strftime("%Y%m%d")
 
         logger.info(f"获取融资融券明细: {trade_date}")
 
         try:
-            df = ak.stock_margin_detail_szse(date=trade_date)
+            df = ak.stock_margin_detail_sse()
 
-            if df.empty:
+            if df is None or df.empty:
                 return []
 
+            cols = list(df.columns)
             result = []
-            for _, row in df.iterrows():
+            for _, row in df.head(50).iterrows():
                 item = MarginDetail(
-                    stock_code=str(row.get("证券代码", "")),
-                    stock_name=str(row.get("证券简称", "")),
-                    financing_balance=safe_float(row.get("融资余额")),
-                    financing_buy_amount=safe_float(row.get("融资买入额")),
-                    financing_repay_amount=safe_float(row.get("融资偿还额")),
-                    securities_balance=safe_float(row.get("融券余额")),
-                    securities_sell_volume=safe_float(row.get("融券卖出量")),
-                    securities_repay_volume=safe_float(row.get("融券偿还量")),
-                    trade_date=trade_date,
+                    stock_code=str(row[cols[1]]) if len(cols) > 1 else "",
+                    stock_name=str(row[cols[2]]) if len(cols) > 2 else "",
+                    financing_balance=safe_float(row[cols[3]])
+                    if len(cols) > 3
+                    else None,
+                    financing_buy_amount=safe_float(row[cols[4]])
+                    if len(cols) > 4
+                    else None,
+                    financing_repay_amount=safe_float(row[cols[5]])
+                    if len(cols) > 5
+                    else None,
+                    securities_balance=safe_float(row[cols[6]])
+                    if len(cols) > 6
+                    else None,
+                    securities_sell_volume=safe_float(row[cols[7]])
+                    if len(cols) > 7
+                    else None,
+                    securities_repay_volume=safe_float(row[cols[8]])
+                    if len(cols) > 8
+                    else None,
+                    trade_date=str(row[cols[0]]) if len(cols) > 0 else trade_date,
                 )
                 result.append(item)
 
@@ -173,68 +165,45 @@ class MarginService:
 
     @cache_result(expire=300)
     @handle_akshare_exception
-    async def get_stock_margin(self, stock_code: str) -> List[StockMarginInfo]:
-        """获取个股融资融券历史"""
-        logger.info(f"获取个股融资融券: {stock_code}")
-
-        try:
-            df = ak.stock_margin_detail_szsh(symbol=stock_code)
-
-            if df.empty:
-                return []
-
-            result = []
-            for _, row in df.iterrows():
-                item = StockMarginInfo(
-                    stock_code=stock_code,
-                    stock_name=str(row.get("证券简称", "")),
-                    financing_balance=safe_float(row.get("融资余额")),
-                    financing_balance_change=safe_float(row.get("融资余额变动")),
-                    securities_balance=safe_float(row.get("融券余额")),
-                    securities_balance_change=safe_float(row.get("融券余额变动")),
-                    trade_date=str(row.get("交易日期", "")),
-                )
-                result.append(item)
-
-            return result[:30]
-
-        except Exception as e:
-            logger.warning(f"获取个股融资融券失败: {e}")
-            return []
-
-    @cache_result(expire=300)
-    @handle_akshare_exception
     async def get_margin_rank(
         self, indicator: str = "融资余额", top: int = 50
     ) -> List[Dict[str, Any]]:
         """
-        获取融资融券排名
+        获取融资融券排名，按融资余额或融券余额排序
 
-        Args:
-            indicator: 排名指标（融资余额/融券余额等）
-            top: 返回数量
+        使用 stock_margin_detail_sse 接口获取个股融资融券明细数据，
+        然后按融资余额排序返回排名
         """
         logger.info(f"获取融资融券排名: {indicator}")
 
         try:
-            df = ak.stock_margin_rank(trade_date=datetime.now().strftime("%Y%m%d"))
+            df = ak.stock_margin_detail_sse()
 
-            if df.empty:
+            if df is None or df.empty:
                 return []
 
-            if indicator in df.columns:
-                df = df.sort_values(by=indicator, ascending=False)
+            cols = list(df.columns)
+
+            # 按融资余额排序 (cols[3] 是融资余额)
+            if len(cols) > 3:
+                df = df.sort_values(by=cols[3], ascending=False)
 
             result = []
-            for idx, row in df.head(top).iterrows():
+            for idx, (_, row) in enumerate(df.head(top).iterrows()):
                 item = {
                     "rank": idx + 1,
-                    "stock_code": str(row.get("证券代码", "")),
-                    "stock_name": str(row.get("证券简称", "")),
-                    "financing_balance": safe_float(row.get("融资余额")),
-                    "financing_buy_amount": safe_float(row.get("融资买入额")),
-                    "securities_balance": safe_float(row.get("融券余额")),
-                    "securities_sell_volume": safe_float(row.get("融券卖出量")),
+                    "stock_code": str(row[cols[1]]) if len(cols) > 1 else "",
+                    "stock_name": str(row[cols[2]]) if len(cols) > 2 else "",
+                    "rzye": safe_float(row[cols[3]])
+                    if len(cols) > 3
+                    else None,  # 融资余额
+                    "rzmre": safe_float(row[cols[4]])
+                    if len(cols) > 4
+                    else None,  # 融资买入额
+                    "rqye": safe_float(row[cols[6]])
+                    if len(cols) > 6
+                    else None,  # 融券余额
+                    "data_from": "akshare",
                 }
                 result.append(item)
 
@@ -242,6 +211,44 @@ class MarginService:
 
         except Exception as e:
             logger.warning(f"获取融资融券排名失败: {e}")
+            return []
+
+    @cache_result(expire=300)
+    @handle_akshare_exception
+    async def get_stock_margin(self, stock_code: str) -> List[StockMarginInfo]:
+        """
+        获取个股融资融券历史数据
+
+        注意：stock_margin_account_info 返回的是账户历史数据，不是个股数据
+        如需获取个股历史融资融券数据，可能需要其他数据源
+        """
+        logger.info(f"获取个股融资融券: {stock_code}")
+
+        try:
+            # stock_margin_account_info 返回的是融资融券账户统计，不是个股数据
+            # 暂时返回空列表，后续可以考虑使用其他数据源
+            df = ak.stock_margin_account_info()
+
+            if df is None or df.empty:
+                return []
+
+            result = []
+            for _, row in df.head(30).iterrows():
+                item = StockMarginInfo(
+                    stock_code=stock_code,
+                    stock_name="",
+                    financing_balance=safe_float(row.get("融资余额")),
+                    financing_balance_change=None,
+                    securities_balance=safe_float(row.get("融券余额")),
+                    securities_balance_change=None,
+                    trade_date=str(row.get("日期", "")),
+                )
+                result.append(item)
+
+            return result
+
+        except Exception as e:
+            logger.warning(f"获取个股融资融券失败: {e}")
             return []
 
 

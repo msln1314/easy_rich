@@ -111,6 +111,12 @@ except ImportError:
     print("警告: 无法导入 pattern_routes 模块")
     pattern_routes = None
 
+try:
+    from app.api.endpoints import etf_routes
+except ImportError:
+    print("警告: 无法导入 etf_routes 模块")
+    etf_routes = None
+
 api_router = APIRouter()
 
 # 根据模块是否成功导入来添加路由
@@ -179,3 +185,6 @@ if pattern_routes:
     api_router.include_router(
         pattern_routes.router, prefix="/pattern", tags=["pattern"]
     )
+
+if etf_routes:
+    api_router.include_router(etf_routes.router, prefix="/etf", tags=["etf"])

@@ -13,7 +13,11 @@ from apps.module_task.task_service import (
     sync_news,
     sync_stock_daily_ranking,
     sync_stock_hot_rank_detail,
+    sync_longhubang,
+    sync_margin_summary,
+    sync_margin_detail,
 )
+from apps.admin.stock.services.selection_signal_service import sync_selection_signals
 from core.database import session_factory
 
 
@@ -67,6 +71,22 @@ async def sync_daily_ranking_from_service(db):
 
 async def sync_hot_rank_detail_from_service(db):
     result = await sync_stock_hot_rank_detail(db)
+
+
+async def sync_longhubang_from_service(db):
+    result = await sync_longhubang(db)
+
+
+async def sync_selection_signals_from_service(db):
+    result = await sync_selection_signals(db)
+
+
+async def sync_margin_summary_from_service(db):
+    result = await sync_margin_summary(db)
+
+
+async def sync_margin_detail_from_service(db):
+    result = await sync_margin_detail(db)
 
 
 async def main_day():
@@ -167,3 +187,27 @@ async def main_close():
                 print(f"每日排行同步: {result.get('message', '未知')}")
             except Exception as e:
                 print(f"每日排行同步失败: {str(e)}")
+
+            try:
+                result = await sync_longhubang_from_service(db)
+                print(f"龙虎榜同步: {result.get('message', '未知')}")
+            except Exception as e:
+                print(f"龙虎榜同步失败: {str(e)}")
+
+            try:
+                result = await sync_margin_summary_from_service(db)
+                print(f"融资融券汇总同步: {result.get('message', '未知')}")
+            except Exception as e:
+                print(f"融资融券汇总同步失败: {str(e)}")
+
+            try:
+                result = await sync_margin_detail_from_service(db)
+                print(f"融资融券明细同步: {result.get('message', '未知')}")
+            except Exception as e:
+                print(f"融资融券明细同步失败: {str(e)}")
+
+            try:
+                result = await sync_selection_signals_from_service(db)
+                print(f"选股信号生成: {result.get('message', '未知')}")
+            except Exception as e:
+                print(f"选股信号生成失败: {str(e)}")

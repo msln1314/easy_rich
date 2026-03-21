@@ -203,6 +203,9 @@
           </div>
         </div>
       </div>
+
+      <!-- 龙虎榜 -->
+      <LonghubangCard ref="longhubangRef" />
     </div>
 
     <!-- 涨跌幅排行 -->
@@ -292,6 +295,21 @@
       </div>
     </div>
 
+    <!-- 市场情绪 + 板块热度 + 涨跌停监控 + 融资融券 -->
+    <div class="analysis-section">
+      <SentimentCard ref="sentimentRef" />
+      <SectorHotCard ref="sectorHotRef" />
+      <LimitPoolCard ref="limitPoolRef" />
+      <MarginCard ref="marginRef" />
+    </div>
+
+    <!-- ETF资金流向 + 全球指数 + 恐慌贪婪指数 -->
+    <div class="extended-section">
+      <EtfFlowCard ref="etfFlowRef" />
+      <GlobalIndexCard ref="globalIndexRef" />
+      <FearGreedCard ref="fearGreedRef" />
+    </div>
+
     <!-- 底部操作栏 -->
     <div class="action-bar">
       <div class="data-source">
@@ -329,6 +347,14 @@ import type {
   NorthMoneyRealtime,
   MarketFundFlowToday
 } from '/@/api/stock/stockIndex'
+import LonghubangCard from './LonghubangCard.vue'
+import LimitPoolCard from './LimitPoolCard.vue'
+import SectorHotCard from './SectorHotCard.vue'
+import SentimentCard from './SentimentCard.vue'
+import MarginCard from './MarginCard.vue'
+import EtfFlowCard from './EtfFlowCard.vue'
+import GlobalIndexCard from './GlobalIndexCard.vue'
+import FearGreedCard from './FearGreedCard.vue'
 
 // 数据
 const loading = ref(false)
@@ -365,6 +391,14 @@ const marketFundFlow = ref<MarketFundFlowToday>({
 
 // 定时刷新
 let refreshTimer: ReturnType<typeof setInterval> | null = null
+const longhubangRef = ref<InstanceType<typeof LonghubangCard> | null>(null)
+const limitPoolRef = ref<InstanceType<typeof LimitPoolCard> | null>(null)
+const sectorHotRef = ref<InstanceType<typeof SectorHotCard> | null>(null)
+const sentimentRef = ref<InstanceType<typeof SentimentCard> | null>(null)
+const marginRef = ref<InstanceType<typeof MarginCard> | null>(null)
+const etfFlowRef = ref<InstanceType<typeof EtfFlowCard> | null>(null)
+const globalIndexRef = ref<InstanceType<typeof GlobalIndexCard> | null>(null)
+const fearGreedRef = ref<InstanceType<typeof FearGreedCard> | null>(null)
 
 // 计算涨跌比例
 const upPercentVal = computed(() => {
@@ -500,15 +534,19 @@ async function fetchData() {
       changeRanking.value = rankings.change_percent_ranking
         ? rankings.change_percent_ranking.slice(0, 10)
         : []
-      // 跌幅榜筛选负数
-      const allChange = rankings.change_percent_ranking || []
-      downRanking.value = allChange
-        .filter((item: StockRankingItem) => item.change_percent && item.change_percent < 0)
-        .sort(
-          (a: StockRankingItem, b: StockRankingItem) =>
-            (a.change_percent || 0) - (b.change_percent || 0)
-        )
-        .slice(0, 10)
+      // 跌幅榜 - 优先使用 down_ranking，否则从涨幅榜筛选负数
+      if (rankings.down_ranking && rankings.down_ranking.length > 0) {
+        downRanking.value = rankings.down_ranking.slice(0, 10)
+      } else {
+        const allChange = rankings.change_percent_ranking || []
+        downRanking.value = allChange
+          .filter((item: StockRankingItem) => item.change_percent && item.change_percent < 0)
+          .sort(
+            (a: StockRankingItem, b: StockRankingItem) =>
+              (a.change_percent || 0) - (b.change_percent || 0)
+          )
+          .slice(0, 10)
+      }
       // 换手率排行
       turnoverRanking.value = rankings.turnover_ranking
         ? rankings.turnover_ranking.slice(0, 10)
@@ -539,6 +577,30 @@ async function fetchData() {
 // 刷新数据
 async function refreshData() {
   await fetchData()
+  if (longhubangRef.value) {
+    longhubangRef.value.refresh()
+  }
+  if (limitPoolRef.value) {
+    limitPoolRef.value.refresh()
+  }
+  if (sectorHotRef.value) {
+    sectorHotRef.value.refresh()
+  }
+  if (sentimentRef.value) {
+    sentimentRef.value.refresh()
+  }
+  if (marginRef.value) {
+    marginRef.value.refresh()
+  }
+  if (etfFlowRef.value) {
+    etfFlowRef.value.refresh()
+  }
+  if (globalIndexRef.value) {
+    globalIndexRef.value.refresh()
+  }
+  if (fearGreedRef.value) {
+    fearGreedRef.value.refresh()
+  }
   ElMessage.success('数据已刷新')
 }
 
@@ -581,8 +643,8 @@ onUnmounted(() => {
 .index-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 12px;
 
   @media (max-width: 1200px) {
     grid-template-columns: repeat(2, 1fr);
@@ -595,8 +657,8 @@ onUnmounted(() => {
 
 .index-card {
   background: linear-gradient(145deg, #151c2c 0%, #1a2234 100%);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.3s ease;
 
@@ -709,13 +771,13 @@ onUnmounted(() => {
 
 // 市场统计概览
 .market-overview {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .overview-card {
   background: linear-gradient(145deg, #151c2c 0%, #1a2234 100%);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 10px;
+  padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -951,9 +1013,29 @@ onUnmounted(() => {
 // 资金流向区域
 .fund-flow-section {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// 分析区域
+.analysis-section {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin-bottom: 16px;
+
+  @media (max-width: 1400px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -962,8 +1044,8 @@ onUnmounted(() => {
 
 .fund-card {
   background: linear-gradient(145deg, #151c2c 0%, #1a2234 100%);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -1161,10 +1243,42 @@ onUnmounted(() => {
 .ranking-section {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 12px;
 
   @media (max-width: 1400px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// 分析区域
+.analysis-section {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+
+  @media (max-width: 1400px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// 扩展区域
+.extended-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+
+  @media (max-width: 1200px) {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -1176,7 +1290,7 @@ onUnmounted(() => {
 .ranking-card {
   background: linear-gradient(145deg, #151c2c 0%, #1a2234 100%);
   border-radius: 12px;
-  padding: 16px;
+  padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
