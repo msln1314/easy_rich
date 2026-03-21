@@ -24,6 +24,7 @@ from apps.admin.stock import (
     stock_market_dashboard,
 )
 from apps.admin.stock_calendar import router as stock_calendar_router
+from apps.admin.portfolio import router as portfolio_router
 
 
 # #
@@ -65,6 +66,7 @@ router.include_router(stock_market_dashboard.router, tags=["大盘座舱"])
 router.include_router(
     stock_calendar_router, prefix="/stock_calendar", tags=["投资日历"]
 )
+router.include_router(portfolio_router, prefix="/portfolio", tags=["投资组合"])
 
 # router.include_router(notice.router, prefix="/system/notice", tags=["system"])
 # router.include_router(alarm.router, prefix="/system/alarm", tags=["system"])
