@@ -23,6 +23,7 @@ from apps.admin.stock import (
     stock_longhubang,
     stock_market_dashboard,
 )
+from apps.admin.stock_calendar import router as stock_calendar_router
 
 
 # #
@@ -61,6 +62,9 @@ router.include_router(fund_flow.router, tags=["资金流向"])
 router.include_router(stock_selection.router, tags=["选股信号"])
 router.include_router(stock_longhubang.router, tags=["龙虎榜"])
 router.include_router(stock_market_dashboard.router, tags=["大盘座舱"])
+router.include_router(
+    stock_calendar_router, prefix="/stock_calendar", tags=["投资日历"]
+)
 
 # router.include_router(notice.router, prefix="/system/notice", tags=["system"])
 # router.include_router(alarm.router, prefix="/system/alarm", tags=["system"])
