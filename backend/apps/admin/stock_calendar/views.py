@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from utils.response import SuccessResponse, ErrorResponse
 from apps.admin.auth.utils.current import AllUserAuth, Auth
 from . import schemas, crud
-from .services import CalendarDataSyncService
+from .services import CalendarDataSyncService, AIAnalysisService
 
 router = APIRouter()
 
@@ -158,4 +158,44 @@ async def sync_unlocks(auth: Auth = Depends(AllUserAuth())):
 async def sync_all(auth: Auth = Depends(AllUserAuth())):
     service = CalendarDataSyncService(auth.db)
     results = await service.sync_all()
+    return SuccessResponse(results)
+
+
+@router.post("/analysis/event/{event_id}", summary="AI分析单个事件")
+async def analyze_event(event_id: int, auth: Auth = Depends(AllUserAuth())):
+    dal = crud.StockCalendarEventDal(auth.db)
+    event = await dal.get_data(event_id)
+    if not event:
+        return ErrorResponse("事件不存在")
+
+    service = AIAnalysisService(auth.db)
+    result = await service.analyze_event(event)
+    return SuccessResponse(result)
+
+
+@router.post("/analysis/stock/{stock_code}", summary="AI分析股票近期事件")
+async def analyze_stock_events(
+    stock_code: str,
+    days: int = Query(30, ge=1, le=90),
+    auth: Auth = Depends(AllUserAuth()),
+):
+    dal = crud.StockCalendarEventDal(auth.db)
+    items = await dal.get_by_stock(stock_code, days)
+
+    if not items:
+        return ErrorResponse(f"未找到股票 {stock_code} 的近期事件")
+
+    service = AIAnalysisService(auth.db)
+    results = []
+    for event in items[:5]:
+        result = await service.analyze_event(event)
+        results.append(
+            {
+                "event_id": event.id,
+                "title": event.title,
+                "event_date": str(event.event_date),
+                "analysis": result,
+            }
+        )
+
     return SuccessResponse(results)
