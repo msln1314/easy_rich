@@ -442,6 +442,161 @@ class StockServiceClient:
             logger.error(f"获取指数行情异常: {str(e)}")
             return []
 
+    async def get_stock_hot_rank(self) -> List[Dict[str, Any]]:
+        """
+        获取股票热度排名数据
+
+        Returns:
+            List[Dict[str, Any]]: 股票热度排名数据列表
+        """
+        url = f"{self.base_url}/sentiment/stock/hot-rank"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"获取股票热度排名失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data.get("data", [])
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取股票热度排名失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取股票热度排名异常: {str(e)}")
+            return []
+
+    async def get_stock_fund_flow(self, stock_code: str) -> Dict[str, Any]:
+        """
+        获取个股资金流向
+
+        Args:
+            stock_code: 股票代码
+
+        Returns:
+            Dict[str, Any]: 个股资金流向数据
+        """
+        url = f"{self.base_url}/stock/{stock_code}/fund-flow"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(
+                        f"获取股票 {stock_code} 资金流向失败，状态码: {response.status}"
+                    )
+                    return {}
+
+                data = await response.json()
+                return data.get("data", {})
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取股票 {stock_code} 资金流向失败: {str(e)}")
+            return {}
+        except Exception as e:
+            logger.error(f"获取股票 {stock_code} 资金流向异常: {str(e)}")
+            return {}
+
+    async def get_chip_distribution(self, stock_code: str) -> List[Dict[str, Any]]:
+        url = f"{self.base_url}/technical/chip-distribution?symbol={stock_code}"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(
+                        f"获取股票 {stock_code} 筹码分布失败，状态码: {response.status}"
+                    )
+                    return []
+
+                data = await response.json()
+                return data if isinstance(data, list) else []
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取股票 {stock_code} 筹码分布失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取股票 {stock_code} 筹码分布异常: {str(e)}")
+            return []
+
+    async def get_global_finance_news(self) -> List[Dict[str, Any]]:
+        url = f"{self.base_url}/news/global-finance"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"获取全球财经快讯失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data if isinstance(data, list) else []
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取全球财经快讯失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取全球财经快讯异常: {str(e)}")
+            return []
+
+    async def get_cls_telegraph(
+        self, symbol_type: str = "全部"
+    ) -> List[Dict[str, Any]]:
+        url = f"{self.base_url}/news/cls-telegraph?symbol={symbol_type}"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"获取财联社电报失败，状态码: {response.status}")
+                    return []
+
+                data = await response.json()
+                return data if isinstance(data, list) else []
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取财联社电报失败: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"获取财联社电报异常: {str(e)}")
+            return []
+
+    async def get_hot_news(self, source_id: str) -> Dict[str, Any]:
+        url = f"{self.base_url}/hot-news/{source_id}"
+
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+
+            async with self.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(
+                        f"获取热门新闻 {source_id} 失败，状态码: {response.status}"
+                    )
+                    return {}
+
+                data = await response.json()
+                return data.get("data", {})
+
+        except aiohttp.ClientError as e:
+            logger.error(f"获取热门新闻 {source_id} 失败: {str(e)}")
+            return {}
+        except Exception as e:
+            logger.error(f"获取热门新闻 {source_id} 异常: {str(e)}")
+            return {}
+
 
 async def fetch_stock_list() -> List[Dict[str, Any]]:
     """

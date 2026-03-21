@@ -15,6 +15,7 @@ from app.core.logging import get_logger
 from app.utils.cache import cache_result
 from app.services.pytdx_source import pytdx_source
 from app.services.tencent_source import tencent_source
+from app.services.sina_source import sina_source
 
 logger = get_logger(__name__)
 
@@ -187,11 +188,19 @@ class MarketService:
     @cache_result(expire=30)
     async def _fetch_stock_data(self) -> Optional[List[Dict[str, Any]]]:
         """获取股票数据"""
+        # 优先使用涨停池数据（包含换手率）
+        try:
+            stocks = await self._fetch_ranking_from_zt_pool()
+            if stocks and len(stocks) > 0:
+                logger.info(f"涨停池获取到 {len(stocks)} 条股票数据")
+                return stocks
+        except Exception as e:
+            logger.warning(f"涨停池获取股票数据失败: {e}")
+
         # 尝试 AKShare 东方财富
         try:
             df = ak.stock_zh_a_spot_em()
             if df is not None and not df.empty:
-                # 过滤 ST 股票和退市股票
                 df = df[~df["名称"].str.contains("ST|退", na=False)]
                 records = df.to_dict("records")
                 logger.info(f"AKShare 东方财富获取到 {len(records)} 条股票数据")
@@ -199,7 +208,7 @@ class MarketService:
         except Exception as e:
             logger.warning(f"AKShare 东方财富获取股票数据失败: {e}")
 
-        # 尝试腾讯财经批量获取
+        # 尝试腾讯财经批量获取（注意：不包含换手率）
         try:
             tencent_quotes = await tencent_source.get_all_quotes()
             if tencent_quotes:
@@ -223,21 +232,13 @@ class MarketService:
                             "最高": q.high,
                             "最低": q.low,
                             "昨收": q.pre_close,
+                            "换手率": None,  # 腾讯接口不提供换手率
                         }
                     )
                 logger.info(f"腾讯财经获取到 {len(records)} 条股票数据")
                 return records
         except Exception as e:
             logger.warning(f"腾讯财经获取股票数据失败: {e}")
-
-        # 尝试使用涨停池+跌停池构建排行数据
-        try:
-            stocks = await self._fetch_ranking_from_zt_pool()
-            if stocks:
-                logger.info(f"涨停池获取到 {len(stocks)} 条股票数据")
-                return stocks
-        except Exception as e:
-            logger.warning(f"涨停池获取股票数据失败: {e}")
 
         # 尝试使用 pytdx 数据源
         try:
@@ -266,37 +267,67 @@ class MarketService:
 
             stocks = []
 
-            # 处理涨停股票
+            # 涨停池列顺序：序号,代码,名称,涨跌幅,最新价,成交量,流通市值,总市值,换手率,封单金额,...
+            # 使用 iloc 按位置获取数据，避免编码问题
             if df_zt is not None and not df_zt.empty:
                 for _, row in df_zt.iterrows():
-                    stocks.append(
-                        {
-                            "代码": row.get("代码", ""),
-                            "名称": row.get("名称", ""),
-                            "最新价": row.get("最新价", 0),
-                            "涨跌幅": row.get("涨跌幅", 9.9),
-                            "涨跌额": row.get("涨跌额", 0),
-                            "成交量": row.get("成交量", 0),
-                            "成交额": row.get("成交额", 0),
-                            "换手率": row.get("换手率", 0),
-                        }
-                    )
+                    try:
+                        stocks.append(
+                            {
+                                "代码": str(row.iloc[1]) if len(row) > 1 else "",
+                                "名称": str(row.iloc[2]) if len(row) > 2 else "",
+                                "最新价": float(row.iloc[4])
+                                if len(row) > 4 and pd.notna(row.iloc[4])
+                                else 0,
+                                "涨跌幅": float(row.iloc[3])
+                                if len(row) > 3 and pd.notna(row.iloc[3])
+                                else 9.9,
+                                "涨跌额": 0,
+                                "成交量": float(row.iloc[5])
+                                if len(row) > 5 and pd.notna(row.iloc[5])
+                                else 0,
+                                "成交额": float(row.iloc[9])
+                                if len(row) > 9 and pd.notna(row.iloc[9])
+                                else 0,
+                                "换手率": float(row.iloc[8])
+                                if len(row) > 8 and pd.notna(row.iloc[8])
+                                else 0,
+                            }
+                        )
+                    except Exception as e:
+                        logger.warning(f"解析涨停数据失败: {e}")
+                        continue
 
-            # 处理跌停股票
+            # 跌停池列顺序：序号,代码,名称,涨跌幅,最新价,成交量,流通市值,总市值,动态市盈率,换手率,封单金额,...
+            # 换手率在位置 [9]
             if df_dt is not None and not df_dt.empty:
                 for _, row in df_dt.iterrows():
-                    stocks.append(
-                        {
-                            "代码": row.get("代码", ""),
-                            "名称": row.get("名称", ""),
-                            "最新价": row.get("最新价", 0),
-                            "涨跌幅": row.get("涨跌幅", -9.9),
-                            "涨跌额": row.get("涨跌额", 0),
-                            "成交量": row.get("成交量", 0),
-                            "成交额": row.get("成交额", 0),
-                            "换手率": row.get("换手率", 0),
-                        }
-                    )
+                    try:
+                        stocks.append(
+                            {
+                                "代码": str(row.iloc[1]) if len(row) > 1 else "",
+                                "名称": str(row.iloc[2]) if len(row) > 2 else "",
+                                "最新价": float(row.iloc[4])
+                                if len(row) > 4 and pd.notna(row.iloc[4])
+                                else 0,
+                                "涨跌幅": float(row.iloc[3])
+                                if len(row) > 3 and pd.notna(row.iloc[3])
+                                else -9.9,
+                                "涨跌额": 0,
+                                "成交量": float(row.iloc[5])
+                                if len(row) > 5 and pd.notna(row.iloc[5])
+                                else 0,
+                                "成交额": float(row.iloc[10])
+                                if len(row) > 10 and pd.notna(row.iloc[10])
+                                else 0,
+                                "换手率": float(row.iloc[9])
+                                if len(row) > 9 and pd.notna(row.iloc[9])
+                                else 0,
+                            }
+                        )
+                    except Exception as e:
+                        logger.warning(f"解析跌停数据失败: {e}")
+                        continue
 
             return stocks if stocks else None
 
@@ -314,10 +345,54 @@ class MarketService:
 
     async def get_down_ranking(self, limit: int = 20) -> List[Dict[str, Any]]:
         """获取跌幅排行"""
+        # 优先使用新浪数据源获取全市场数据
+        try:
+            sina_quotes = await sina_source.get_down_ranking(limit=limit)
+            if sina_quotes and len(sina_quotes) >= limit:
+                logger.info(f"新浪数据源获取跌幅榜 {len(sina_quotes)} 条")
+                return self._format_ranking(sina_quotes[:limit])
+        except Exception as e:
+            logger.warning(f"新浪数据源获取跌幅榜失败: {e}")
+
+        # 备用：涨停池 + 腾讯数据
         stocks = await self._get_stock_data()
-        # 筛选跌幅为负的股票
         down_stocks = [s for s in stocks if (s.get("涨跌幅", 0) or 0) < 0]
         sorted_stocks = sorted(down_stocks, key=lambda x: x.get("涨跌幅", 0) or 0)
+
+        if len(sorted_stocks) < limit:
+            try:
+                tencent_quotes = await tencent_source.get_all_quotes()
+                if tencent_quotes:
+                    all_stocks = []
+                    for q in tencent_quotes:
+                        if q.change_percent is not None and q.change_percent < 0:
+                            code = q.stock_code
+                            if code.startswith("sh"):
+                                code = code[2:]
+                            elif code.startswith("sz"):
+                                code = code[2:]
+                            all_stocks.append(
+                                {
+                                    "代码": code,
+                                    "名称": q.stock_name,
+                                    "最新价": q.price,
+                                    "涨跌幅": q.change_percent,
+                                    "涨跌额": q.change,
+                                    "成交量": q.volume,
+                                    "成交额": q.amount,
+                                    "换手率": None,
+                                }
+                            )
+                    all_stocks.sort(key=lambda x: x.get("涨跌幅", 0) or 0)
+                    existing_codes = {s.get("代码") for s in sorted_stocks}
+                    for s in all_stocks:
+                        if s.get("代码") not in existing_codes:
+                            sorted_stocks.append(s)
+                    sorted_stocks.sort(key=lambda x: x.get("涨跌幅", 0) or 0)
+                    logger.info(f"跌幅榜补充腾讯数据，共 {len(sorted_stocks)} 条")
+            except Exception as e:
+                logger.warning(f"补充跌幅榜数据失败: {e}")
+
         return self._format_ranking(sorted_stocks[:limit])
 
     async def get_turnover_ranking(self, limit: int = 20) -> List[Dict[str, Any]]:

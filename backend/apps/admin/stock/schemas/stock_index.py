@@ -78,7 +78,9 @@ class MarketSummaryOut(BaseModel):
     """市场汇总数据输出"""
 
     # 指数数据
-    indices: list[StockIndexQuoteOut] = Field(default_factory=list, description="主要指数")
+    indices: list[StockIndexQuoteOut] = Field(
+        default_factory=list, description="主要指数"
+    )
 
     # 涨跌统计
     total_stocks: int = Field(0, description="股票总数")
@@ -115,10 +117,11 @@ class StockRankingItemOut(BaseModel):
 
 
 class RealtimeRankingsOut(BaseModel):
-    """实时排行输出"""
-
     change_percent_ranking: list[StockRankingItemOut] = Field(
         default_factory=list, description="涨跌幅排行"
+    )
+    down_ranking: list[StockRankingItemOut] = Field(
+        default_factory=list, description="跌幅排行"
     )
     turnover_ranking: list[StockRankingItemOut] = Field(
         default_factory=list, description="换手率排行"

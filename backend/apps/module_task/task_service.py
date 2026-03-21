@@ -1,12 +1,21 @@
 import traceback
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete, func
 from apps.admin.stock.models import (
     StockBasicInfo,
     StockRealtime,
     StockBoardIndustry,
     StockBoardConcept,
+    StockIndex,
+    StockFundFlow,
+    StockHotRank,
+    StockNorthMoney,
+    StockNorthMoneyRealtime,
+    StockChipDistribution,
+    StockDailyRanking,
+    StockHotRankDetail,
+    News,
 )
 from apps.module_task.stock_service_client import StockServiceClient
 from utils.stock import StockUtils
@@ -71,7 +80,9 @@ async def sync_stock_base_info(db: AsyncSession) -> dict:
                     "open_price": stock.get("open"),
                     "high_price": stock.get("high"),
                     "low_price": stock.get("low"),
-                    "close_price": stock.get("price") - stock.get("change_amount") if stock.get("price") and stock.get("change_amount") else None,
+                    "close_price": stock.get("price") - stock.get("change_amount")
+                    if stock.get("price") and stock.get("change_amount")
+                    else None,
                     "volume": stock.get("volume"),
                     "amount": stock.get("amount"),
                     "turnover_rate": stock.get("turnover_rate"),
@@ -104,13 +115,821 @@ async def sync_stock_base_info(db: AsyncSession) -> dict:
                 continue
 
         await db.commit()
-        message = f"成功同步：新增 {added_count} 条，更新 {updated_count} 条股票基础信息"
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条股票基础信息"
+        )
         print(message)
         return {"is_success": True, "message": message}
 
     except Exception as e:
         await db.rollback()
         print(f"同步股票基础信息失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_stock_chip_distribution(db: AsyncSession, limit: int = 100) -> dict:
+    """
+    同步股票筹码分布数据
+    从 Stock Service 获取热门股票的筹码分布数据
+    """
+    try:
+        print("开始从 Stock Service 同步股票筹码分布数据...")
+
+        async with StockServiceClient() as client:
+            stock_list = await client.get_all_stock_list()
+
+        if not stock_list:
+            return {"is_success": False, "message": "未获取到股票列表"}
+
+        current_date = date.today()
+        current_time = datetime.now()
+
+        added_count = 0
+        updated_count = 0
+        error_count = 0
+
+        for stock in stock_list[:limit]:
+            try:
+                stock_code = stock.get("code", "")
+                if not stock_code:
+                    continue
+
+                full_code = StockUtils.get_full_code(stock_code)
+
+                async with StockServiceClient() as client:
+                    chip_data = await client.get_chip_distribution(stock_code)
+
+                if not chip_data:
+                    continue
+
+                for chip in chip_data:
+                    try:
+                        profit_ratio = chip.get("profit_ratio")
+                        if profit_ratio is None:
+                            continue
+
+                        chip_record = {
+                            "stock_code": stock_code,
+                            "full_code": full_code,
+                            "stock_name": stock.get("name"),
+                            "trade_date": current_date,
+                            "profit_ratio": profit_ratio,
+                            "avg_cost": chip.get("avg_cost", 0),
+                            "cost_90_low": chip.get("cost_90pct_low", 0),
+                            "cost_90_high": chip.get("cost_90pct_high", 0),
+                            "concentration_90": chip.get("concentration_90", 0),
+                            "cost_70_low": chip.get("cost_70pct_low", 0),
+                            "cost_70_high": chip.get("cost_70pct_high", 0),
+                            "concentration_70": chip.get("concentration_70", 0),
+                            "data_time": current_time,
+                            "data_from": "stock_service",
+                        }
+
+                        existing_sql = select(StockChipDistribution).where(
+                            StockChipDistribution.stock_code == stock_code,
+                            StockChipDistribution.trade_date == current_date,
+                        )
+                        result = await db.execute(existing_sql)
+                        existing = result.scalar_one_or_none()
+
+                        if existing:
+                            del chip_record["stock_code"]
+                            del chip_record["trade_date"]
+                            update_stmt = (
+                                update(StockChipDistribution)
+                                .where(StockChipDistribution.id == existing.id)
+                                .values(**chip_record)
+                            )
+                            await db.execute(update_stmt)
+                            updated_count += 1
+                        else:
+                            new_chip = StockChipDistribution(**chip_record)
+                            db.add(new_chip)
+                            added_count += 1
+
+                    except Exception as e:
+                        print(f"处理筹码数据失败: {str(e)}")
+                        continue
+
+            except Exception as e:
+                error_count += 1
+                if error_count <= 5:
+                    print(f"处理股票 {stock_code} 筹码分布失败: {str(e)}")
+                continue
+
+        await db.commit()
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条筹码分布数据"
+        )
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步筹码分布数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_news(db: AsyncSession) -> dict:
+    """
+    同步新闻资讯数据
+    从 Stock Service 获取全球财经快讯和财联社电报数据
+    """
+    try:
+        print("开始从 Stock Service 同步新闻资讯数据...")
+
+        current_time = datetime.now()
+        added_count = 0
+        updated_count = 0
+
+        async with StockServiceClient() as client:
+            global_news = await client.get_global_finance_news()
+            cls_news = await client.get_cls_telegraph("全部")
+
+        all_news = []
+
+        for item in global_news:
+            all_news.append(
+                {
+                    "source": "global_finance",
+                    "data": item,
+                }
+            )
+
+        for item in cls_news:
+            all_news.append(
+                {
+                    "source": "cls_telegraph",
+                    "data": item,
+                }
+            )
+
+        for news_item in all_news:
+            try:
+                source = news_item.get("source", "")
+                data = news_item.get("data", {})
+
+                title = data.get("title") or data.get("content", "")[:250]
+                if not title:
+                    continue
+
+                content = data.get("content") or data.get("digest", "") or title
+
+                existing_sql = select(News).where(News.name == title)
+                result = await db.execute(existing_sql)
+                existing = result.scalar_one_or_none()
+
+                news_data = {
+                    "name": title,
+                    "content": content,
+                    "data_from": source,
+                    "agent": "stock_service",
+                    "is_send": 0,
+                    "priority": 2 if data.get("level") == "重要" else 3,
+                    "date_at": current_time,
+                    "url": data.get("url"),
+                    "tag": data.get("tag") or data.get("keywords"),
+                    "category": data.get("column") or "财经",
+                }
+
+                if existing:
+                    del news_data["name"]
+                    update_stmt = (
+                        update(News).where(News.id == existing.id).values(**news_data)
+                    )
+                    await db.execute(update_stmt)
+                    updated_count += 1
+                else:
+                    new_news = News(**news_data)
+                    db.add(new_news)
+                    added_count += 1
+
+            except Exception as e:
+                print(f"处理新闻数据失败: {str(e)}")
+                continue
+
+        await db.commit()
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条新闻资讯数据"
+        )
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步新闻资讯数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_stock_daily_ranking(db: AsyncSession) -> dict:
+    """
+    同步每日排行历史数据
+    从 Stock Service 获取股票列表，计算各类排行并存储
+    """
+    try:
+        print("开始同步每日排行历史数据...")
+
+        async with StockServiceClient() as client:
+            stock_list = await client.get_all_stock_list()
+
+        if not stock_list:
+            return {"is_success": False, "message": "未获取到股票列表"}
+
+        current_date = date.today()
+        current_time = datetime.now()
+
+        ranking_types = ["change_percent", "turnover_rate", "volume", "amount"]
+
+        sorted_stocks = {
+            "change_percent": sorted(
+                [s for s in stock_list if s.get("change_percent") is not None],
+                key=lambda x: x.get("change_percent", 0),
+                reverse=True,
+            ),
+            "turnover_rate": sorted(
+                [s for s in stock_list if s.get("turnover_rate") is not None],
+                key=lambda x: x.get("turnover_rate", 0),
+                reverse=True,
+            ),
+            "volume": sorted(
+                [s for s in stock_list if s.get("volume") is not None],
+                key=lambda x: x.get("volume", 0),
+                reverse=True,
+            ),
+            "amount": sorted(
+                [s for s in stock_list if s.get("amount") is not None],
+                key=lambda x: x.get("amount", 0),
+                reverse=True,
+            ),
+        }
+
+        added_count = 0
+        updated_count = 0
+
+        for ranking_type in ranking_types:
+            for rank, stock in enumerate(sorted_stocks[ranking_type][:100], 1):
+                try:
+                    stock_code = stock.get("code", "")
+                    if not stock_code:
+                        continue
+
+                    full_code = StockUtils.get_full_code(stock_code)
+
+                    ranking_value = {
+                        "change_percent": stock.get("change_percent"),
+                        "turnover_rate": stock.get("turnover_rate"),
+                        "volume": stock.get("volume"),
+                        "amount": stock.get("amount"),
+                    }.get(ranking_type)
+
+                    ranking_data = {
+                        "stock_code": stock_code,
+                        "stock_name": stock.get("name"),
+                        "full_code": full_code,
+                        "ranking_type": ranking_type,
+                        "rank": rank,
+                        "ranking_value": ranking_value,
+                        "current_price": stock.get("price"),
+                        "change_percent": stock.get("change_percent"),
+                        "change_amount": stock.get("change_amount"),
+                        "volume": stock.get("volume"),
+                        "amount": stock.get("amount"),
+                        "turnover_rate": stock.get("turnover_rate"),
+                        "total_market_cap": stock.get("market_cap"),
+                        "circulating_market_cap": stock.get("circulating_market_cap"),
+                        "data_date": current_date,
+                        "data_source": "stock_service",
+                        "market": "SH" if stock_code.startswith("6") else "SZ",
+                    }
+
+                    existing_sql = select(StockDailyRanking).where(
+                        StockDailyRanking.stock_code == stock_code,
+                        StockDailyRanking.data_date == current_date,
+                        StockDailyRanking.ranking_type == ranking_type,
+                    )
+                    result = await db.execute(existing_sql)
+                    existing = result.scalar_one_or_none()
+
+                    if existing:
+                        del ranking_data["stock_code"]
+                        del ranking_data["data_date"]
+                        del ranking_data["ranking_type"]
+                        update_stmt = (
+                            update(StockDailyRanking)
+                            .where(StockDailyRanking.id == existing.id)
+                            .values(**ranking_data)
+                        )
+                        await db.execute(update_stmt)
+                        updated_count += 1
+                    else:
+                        new_ranking = StockDailyRanking(**ranking_data)
+                        db.add(new_ranking)
+                        added_count += 1
+
+                except Exception as e:
+                    print(f"处理排行数据失败: {str(e)}")
+                    continue
+
+        await db.commit()
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条每日排行数据"
+        )
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步每日排行数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_stock_hot_rank_detail(db: AsyncSession) -> dict:
+    """
+    同步股票热度详情历史数据
+    从 Stock Service 获取热度排名数据并存储详细历史
+    """
+    try:
+        print("开始从 Stock Service 同步股票热度详情历史数据...")
+
+        async with StockServiceClient() as client:
+            hot_ranks = await client.get_stock_hot_rank()
+
+        if not hot_ranks:
+            return {"is_success": False, "message": "未获取到股票热度排名数据"}
+
+        current_date = date.today()
+        current_time = datetime.now()
+
+        added_count = 0
+        updated_count = 0
+
+        for rank_data in hot_ranks:
+            try:
+                stock_code = rank_data.get("stock_code", "")
+                if not stock_code:
+                    continue
+
+                full_code = StockUtils.get_full_code(stock_code)
+
+                detail_data = {
+                    "stock_code": stock_code,
+                    "stock_name": rank_data.get("stock_name"),
+                    "full_code": full_code,
+                    "rank": rank_data.get("rank", 0),
+                    "rank_change": rank_data.get("rank_change"),
+                    "hot_value": rank_data.get("hot_value"),
+                    "current_price": rank_data.get("price"),
+                    "change_percent": rank_data.get("change_percent"),
+                    "change_amount": rank_data.get("change"),
+                    "volume": rank_data.get("volume"),
+                    "amount": rank_data.get("amount"),
+                    "turnover_rate": rank_data.get("turnover_rate"),
+                    "data_date": current_date,
+                    "data_time": current_time,
+                    "data_from": "stock_service",
+                }
+
+                existing_sql = select(StockHotRankDetail).where(
+                    StockHotRankDetail.stock_code == stock_code,
+                    StockHotRankDetail.data_date == current_date,
+                )
+                result = await db.execute(existing_sql)
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    del detail_data["stock_code"]
+                    del detail_data["data_date"]
+                    update_stmt = (
+                        update(StockHotRankDetail)
+                        .where(StockHotRankDetail.id == existing.id)
+                        .values(**detail_data)
+                    )
+                    await db.execute(update_stmt)
+                    updated_count += 1
+                else:
+                    new_detail = StockHotRankDetail(**detail_data)
+                    db.add(new_detail)
+                    added_count += 1
+
+            except Exception as e:
+                print(f"处理股票 {stock_code} 热度详情失败: {str(e)}")
+                continue
+
+        await db.commit()
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条热度详情数据"
+        )
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步热度详情数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_stock_index(db: AsyncSession) -> dict:
+    """
+    同步大盘指数数据
+    从 Stock Service 获取上证指数、深证成指、创业板指、科创50等主要指数数据
+    """
+    try:
+        print("开始从 Stock Service 同步大盘指数数据...")
+
+        async with StockServiceClient() as client:
+            index_quotes = await client.get_index_quotes()
+
+        if not index_quotes:
+            return {"is_success": False, "message": "未获取到大盘指数数据"}
+
+        current_date = date.today()
+        current_time = datetime.now()
+
+        updated_count = 0
+        added_count = 0
+
+        for quote in index_quotes:
+            try:
+                index_code = quote.get("code", "")
+                if not index_code:
+                    continue
+
+                index_data = {
+                    "index_code": index_code,
+                    "index_name": quote.get("name"),
+                    "open_price": quote.get("open"),
+                    "high_price": quote.get("high"),
+                    "low_price": quote.get("low"),
+                    "close_price": quote.get("price"),
+                    "pre_close": quote.get("pre_close"),
+                    "change_percent": quote.get("change_percent"),
+                    "change_amount": quote.get("change"),
+                    "volume": quote.get("volume"),
+                    "amount": quote.get("amount"),
+                    "amplitude": quote.get("amplitude"),
+                    "data_date": current_date,
+                    "data_time": current_time,
+                    "data_source": "stock_service",
+                }
+
+                existing_sql = select(StockIndex).where(
+                    StockIndex.index_code == index_code,
+                    StockIndex.data_date == current_date,
+                )
+                result = await db.execute(existing_sql)
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    del index_data["index_code"]
+                    del index_data["data_date"]
+                    update_stmt = (
+                        update(StockIndex)
+                        .where(StockIndex.id == existing.id)
+                        .values(**index_data)
+                    )
+                    await db.execute(update_stmt)
+                    updated_count += 1
+                else:
+                    new_index = StockIndex(**index_data)
+                    db.add(new_index)
+                    added_count += 1
+
+            except Exception as e:
+                print(f"处理指数 {index_code} 数据失败: {str(e)}")
+                traceback.print_exc()
+                continue
+
+        await db.commit()
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条大盘指数数据"
+        )
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步大盘指数数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_stock_fund_flow(db: AsyncSession) -> dict:
+    """
+    同步个股资金流向数据
+    从 Stock Service 获取个股资金流向数据
+    注：此接口需要逐只股票调用，为提高效率，只获取股票列表中的前500只
+    """
+    try:
+        print("开始从 Stock Service 同步个股资金流向数据...")
+
+        async with StockServiceClient() as client:
+            stock_list = await client.get_all_stock_list()
+
+        if not stock_list:
+            return {"is_success": False, "message": "未获取到股票列表"}
+
+        current_date = date.today()
+        current_time = datetime.now()
+
+        existing_sql = select(StockFundFlow.stock_code).where(
+            StockFundFlow.trade_date == current_date
+        )
+        result = await db.execute(existing_sql)
+        existing_codes = set(result.scalars().all())
+
+        added_count = 0
+        updated_count = 0
+        error_count = 0
+
+        for stock in stock_list[:500]:
+            try:
+                stock_code = stock.get("code", "")
+                if not stock_code:
+                    continue
+
+                async with StockServiceClient() as client:
+                    fund_flow = await client.get_stock_fund_flow(stock_code)
+
+                if not fund_flow or not fund_flow.get("main_net_inflow"):
+                    continue
+
+                full_code = StockUtils.get_full_code(stock_code)
+
+                fund_data = {
+                    "stock_code": stock_code,
+                    "stock_name": stock.get("name"),
+                    "full_code": full_code,
+                    "trade_date": current_date,
+                    "main_net_inflow": fund_flow.get("main_net_inflow", 0),
+                    "main_net_inflow_percent": fund_flow.get(
+                        "main_net_inflow_ratio", 0
+                    ),
+                    "super_large_net_inflow": fund_flow.get("super_net_inflow", 0),
+                    "large_net_inflow": fund_flow.get("big_net_inflow", 0),
+                    "medium_net_inflow": fund_flow.get("medium_net_inflow", 0),
+                    "small_net_inflow": fund_flow.get("small_net_inflow", 0),
+                    "data_time": current_time,
+                    "data_from": "stock_service",
+                }
+
+                if stock_code in existing_codes:
+                    del fund_data["stock_code"]
+                    del fund_data["trade_date"]
+                    update_stmt = (
+                        update(StockFundFlow)
+                        .where(StockFundFlow.stock_code == stock_code)
+                        .where(StockFundFlow.trade_date == current_date)
+                        .values(**fund_data)
+                    )
+                    await db.execute(update_stmt)
+                    updated_count += 1
+                else:
+                    new_fund_flow = StockFundFlow(**fund_data)
+                    db.add(new_fund_flow)
+                    added_count += 1
+
+            except Exception as e:
+                error_count += 1
+                if error_count <= 5:
+                    print(f"处理股票 {stock_code} 资金流向失败: {str(e)}")
+                continue
+
+        await db.commit()
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条个股资金流向数据"
+        )
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步个股资金流向数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_stock_hot_rank(db: AsyncSession) -> dict:
+    """
+    同步股票热度排名数据
+    从 Stock Service 获取股票人气榜排名数据
+    """
+    try:
+        print("开始从 Stock Service 同步股票热度排名数据...")
+
+        async with StockServiceClient() as client:
+            hot_ranks = await client.get_stock_hot_rank()
+
+        if not hot_ranks:
+            return {"is_success": False, "message": "未获取到股票热度排名数据"}
+
+        current_date = date.today()
+        current_time = datetime.now()
+
+        existing_sql = select(StockHotRank.stock_code).where(
+            StockHotRank.data_date == current_date
+        )
+        result = await db.execute(existing_sql)
+        existing_codes = set(result.scalars().all())
+
+        added_count = 0
+        updated_count = 0
+
+        for rank_data in hot_ranks:
+            try:
+                stock_code = rank_data.get("stock_code", "")
+                if not stock_code:
+                    continue
+
+                full_code = StockUtils.get_full_code(stock_code)
+
+                hot_rank_data = {
+                    "stock_code": stock_code,
+                    "stock_name": rank_data.get("stock_name"),
+                    "full_code": full_code,
+                    "rank": rank_data.get("rank", 0),
+                    "rank_change": rank_data.get("rank_change"),
+                    "current_price": rank_data.get("price"),
+                    "change_amount": rank_data.get("change"),
+                    "change_percent": rank_data.get("change_percent"),
+                    "market": "SH" if stock_code.startswith("6") else "SZ",
+                    "data_date": current_date,
+                    "data_time": current_time,
+                    "data_from": "stock_service",
+                }
+
+                if stock_code in existing_codes:
+                    del hot_rank_data["stock_code"]
+                    del hot_rank_data["data_date"]
+                    update_stmt = (
+                        update(StockHotRank)
+                        .where(StockHotRank.stock_code == stock_code)
+                        .where(StockHotRank.data_date == current_date)
+                        .values(**hot_rank_data)
+                    )
+                    await db.execute(update_stmt)
+                    updated_count += 1
+                else:
+                    new_hot_rank = StockHotRank(**hot_rank_data)
+                    db.add(new_hot_rank)
+                    added_count += 1
+
+            except Exception as e:
+                print(f"处理股票 {stock_code} 热度排名失败: {str(e)}")
+                traceback.print_exc()
+                continue
+
+        await db.commit()
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条股票热度排名数据"
+        )
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步股票热度排名数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_north_money(db: AsyncSession) -> dict:
+    """
+    同步北向资金历史流向数据
+    从 Stock Service 获取北向资金历史数据
+    """
+    try:
+        print("开始从 Stock Service 同步北向资金历史流向数据...")
+
+        async with StockServiceClient() as client:
+            north_money_list = await client.get_north_money_flow(days=30)
+
+        if not north_money_list:
+            return {"is_success": False, "message": "未获取到北向资金数据"}
+
+        current_time = datetime.now()
+
+        added_count = 0
+        updated_count = 0
+
+        for item in north_money_list:
+            try:
+                date_str = item.get("date", "")
+                if not date_str:
+                    continue
+
+                if isinstance(date_str, str):
+                    if len(date_str) == 10:
+                        trade_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                    else:
+                        trade_date = datetime.strptime(date_str, "%Y%m%d").date()
+                else:
+                    trade_date = date_str
+
+                north_data = {
+                    "trade_date": trade_date,
+                    "sh_buy_amount": None,
+                    "sh_sell_amount": None,
+                    "sh_net_amount": item.get("sh_hk_flow", 0) * 100000000,
+                    "sz_buy_amount": None,
+                    "sz_sell_amount": None,
+                    "sz_net_amount": item.get("sz_hk_flow", 0) * 100000000,
+                    "total_buy_amount": None,
+                    "total_sell_amount": None,
+                    "total_net_amount": item.get("total_flow", 0) * 100000000,
+                    "data_time": current_time,
+                    "data_from": "stock_service",
+                }
+
+                existing_sql = select(StockNorthMoney).where(
+                    StockNorthMoney.trade_date == trade_date
+                )
+                result = await db.execute(existing_sql)
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    del north_data["trade_date"]
+                    update_stmt = (
+                        update(StockNorthMoney)
+                        .where(StockNorthMoney.id == existing.id)
+                        .values(**north_data)
+                    )
+                    await db.execute(update_stmt)
+                    updated_count += 1
+                else:
+                    new_north_money = StockNorthMoney(**north_data)
+                    db.add(new_north_money)
+                    added_count += 1
+
+            except Exception as e:
+                print(f"处理北向资金数据 {date_str} 失败: {str(e)}")
+                traceback.print_exc()
+                continue
+
+        await db.commit()
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条北向资金历史数据"
+        )
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步北向资金历史数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_north_money_realtime(db: AsyncSession) -> dict:
+    """
+    同步实时北向资金数据
+    从 Stock Service 获取当日实时北向资金数据
+    """
+    try:
+        print("开始从 Stock Service 同步实时北向资金数据...")
+
+        async with StockServiceClient() as client:
+            realtime_data = await client.get_realtime_north_money()
+
+        if not realtime_data:
+            return {"is_success": False, "message": "未获取到实时北向资金数据"}
+
+        current_date = date.today()
+        current_time = datetime.now()
+
+        delete_stmt = delete(StockNorthMoneyRealtime).where(
+            StockNorthMoneyRealtime.data_date == current_date
+        )
+        await db.execute(delete_stmt)
+
+        realtime_record = StockNorthMoneyRealtime(
+            data_date=current_date,
+            sh_buy_amount=None,
+            sh_sell_amount=None,
+            sh_net_amount=realtime_data.get("sh_hk_flow", 0) * 100000000,
+            sz_buy_amount=None,
+            sz_sell_amount=None,
+            sz_net_amount=realtime_data.get("sz_hk_flow", 0) * 100000000,
+            total_buy_amount=None,
+            total_sell_amount=None,
+            total_net_amount=realtime_data.get("total_flow", 0) * 100000000,
+            data_time=current_time,
+            data_from="stock_service",
+        )
+        db.add(realtime_record)
+
+        await db.commit()
+        message = "成功同步实时北向资金数据"
+        print(message)
+        return {"is_success": True, "message": message}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步实时北向资金数据失败: {str(e)}")
         traceback.print_exc()
         raise e
 
@@ -222,7 +1041,9 @@ async def sync_realtime_data(db: AsyncSession) -> dict:
         current_time = datetime.now()
 
         # 获取数据库中当天已有的实时数据
-        sql = select(StockRealtime.stock_code).where(StockRealtime.trade_date == current_date)
+        sql = select(StockRealtime.stock_code).where(
+            StockRealtime.trade_date == current_date
+        )
         result = await db.execute(sql)
         existing_codes = set(result.scalars().all())
 
@@ -298,7 +1119,9 @@ async def sync_realtime_data(db: AsyncSession) -> dict:
                 continue
 
         await db.commit()
-        message = f"成功同步：新增 {added_count} 条，更新 {updated_count} 条实时行情数据"
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条实时行情数据"
+        )
         print(message)
         return {"is_success": True, "message": message}
 
@@ -410,9 +1233,7 @@ async def sync_board_industry_from_akshare(db: AsyncSession) -> dict:
         raise e
 
 
-async def get_board_concept_by_date(
-    db: AsyncSession, current_date: datetime
-) -> list:
+async def get_board_concept_by_date(db: AsyncSession, current_date: datetime) -> list:
     """
     获取指定日期的概念板块名称列表
     """
@@ -423,9 +1244,7 @@ async def get_board_concept_by_date(
     return [i for i in queryset.all() if i]
 
 
-async def get_board_industry_by_date(
-    db: AsyncSession, current_date: datetime
-) -> list:
+async def get_board_industry_by_date(db: AsyncSession, current_date: datetime) -> list:
     """
     获取指定日期的行业板块名称列表
     """
@@ -524,9 +1343,7 @@ async def sync_board_concept_from_akshare(db: AsyncSession) -> dict:
         raise e
 
 
-async def batch_board_concept_add(
-    db: AsyncSession, board_models: list
-) -> None:
+async def batch_board_concept_add(db: AsyncSession, board_models: list) -> None:
     """
     批量添加概念板块数据
     """
@@ -540,9 +1357,7 @@ async def batch_board_concept_add(
         raise e
 
 
-async def batch_board_concept_update(
-    db: AsyncSession, board_data: list
-) -> None:
+async def batch_board_concept_update(db: AsyncSession, board_data: list) -> None:
     """
     批量更新概念板块数据
     """
@@ -612,7 +1427,9 @@ async def sync_realtime_from_stock_service(db: AsyncSession) -> dict:
                     "open_price": stock.get("open") or 0.0,
                     "high_price": stock.get("high") or 0.0,
                     "low_price": stock.get("low") or 0.0,
-                    "previous_close": stock.get("price") - stock.get("change_amount") if stock.get("price") and stock.get("change_amount") else 0.0,
+                    "previous_close": stock.get("price") - stock.get("change_amount")
+                    if stock.get("price") and stock.get("change_amount")
+                    else 0.0,
                     "change_amount": stock.get("change_amount") or 0.0,
                     "change_percent": stock.get("change_percent") or 0.0,
                     "volume": stock.get("volume") or 0.0,
@@ -651,7 +1468,9 @@ async def sync_realtime_from_stock_service(db: AsyncSession) -> dict:
                 continue
 
         await db.commit()
-        message = f"成功同步：新增 {added_count} 条，更新 {updated_count} 条实时行情数据"
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条实时行情数据"
+        )
         print(message)
         return {"is_success": True, "message": message}
 

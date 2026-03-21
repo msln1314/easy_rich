@@ -20,7 +20,13 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     
     # AKShare设置
-    AKSHARE_TIMEOUT: float = 60.0  # AKShare接口超时时间(秒)
+    AKSHARE_TIMEOUT: float = 30.0  # AKShare接口超时时间(秒)
+    
+    # AKShare 代理补丁设置
+    AKSHARE_AUTH_URL: str = "http://101.201.173.125:47001/api/akshare-auth"  # 云端授权服务URL
+    AKSHARE_AUTH_TOKEN: str = ""  # 授权TOKEN
+    AKSHARE_PROXY_POOL_URL: str = "http://122.51.65.65:5010"  # 代理池URL
+    AKSHARE_PATCH_MODE: str = "auto"  # 补丁模式: auto/cloud/proxy_pool/direct
     
     # Tushare Pro设置
     TUSHARE_TOKEN: Optional[str] = 'd5e45d595d5b114751220fb0b53f6eb2345901cf36cb85e8a646852d'  # Tushare Pro API token

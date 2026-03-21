@@ -62,7 +62,7 @@ async def get_index_quote(auth: Auth = Depends(OpenAuth())):
                     models.StockIndex.index_code == item["index_code"],
                     models.StockIndex.data_date == today,
                 ),
-                v_return_none=True
+                v_return_none=True,
             )
 
             if existing:
@@ -125,7 +125,9 @@ async def get_index_history(
         if history_data:
             items = [
                 {
-                    "date": h.data_date.strftime("%Y-%m-%d") if hasattr(h.data_date, 'strftime') else str(h.data_date),
+                    "date": h.data_date.strftime("%Y-%m-%d")
+                    if hasattr(h.data_date, "strftime")
+                    else str(h.data_date),
                     "open": h.open_price,
                     "high": h.high_price,
                     "low": h.low_price,
@@ -227,6 +229,7 @@ async def get_realtime_rankings(
 
         result = schemas.RealtimeRankingsOut(
             change_percent_ranking=to_items(rankings.get("change_percent_ranking", [])),
+            down_ranking=to_items(rankings.get("down_ranking", [])),
             turnover_ranking=to_items(rankings.get("turnover_ranking", [])),
             volume_ranking=to_items(rankings.get("volume_ranking", [])),
             amount_ranking=to_items(rankings.get("amount_ranking", [])),
@@ -246,10 +249,12 @@ async def get_fund_flow(
 ):
     """获取市场资金流向数据"""
     try:
-        return SuccessResponse({
-            "message": "资金流向功能开发中",
-            "period": period,
-        })
+        return SuccessResponse(
+            {
+                "message": "资金流向功能开发中",
+                "period": period,
+            }
+        )
 
     except Exception as e:
         logger.error(f"获取资金流向失败: {str(e)}")

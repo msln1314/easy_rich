@@ -176,11 +176,11 @@ class TencentFinanceSource:
 
     async def get_index_quote(self, index_code: str) -> Optional[TencentQuote]:
         """获取指数行情"""
-        # 指数代码映射
         index_map = {
             "000001": "sh000001",  # 上证指数
             "399001": "sz399001",  # 深证成指
             "399006": "sz399006",  # 创业板指
+            "000688": "sh000688",  # 科创50
             "000016": "sh000016",  # 上证50
             "000300": "sh000300",  # 沪深300
             "000905": "sh000905",  # 中证500
