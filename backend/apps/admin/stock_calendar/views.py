@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from utils.response import SuccessResponse, ErrorResponse
 from apps.admin.auth.utils.current import AllUserAuth, Auth
 from . import schemas, crud
+from .services import CalendarDataSyncService
 
 router = APIRouter()
 
@@ -124,3 +125,37 @@ async def delete_reminder(reminder_id: int, auth: Auth = Depends(AllUserAuth()))
     dal = crud.StockEventReminderDal(auth.db)
     await dal.delete_datas([reminder_id], v_soft=False)
     return SuccessResponse("删除成功")
+
+
+@router.post("/sync/earnings", summary="同步财报日历")
+async def sync_earnings(auth: Auth = Depends(AllUserAuth())):
+    service = CalendarDataSyncService(auth.db)
+    count = await service.sync_earnings_calendar()
+    return SuccessResponse(
+        {"message": f"同步成功，新增 {count} 条记录", "count": count}
+    )
+
+
+@router.post("/sync/dividends", summary="同步分红除权")
+async def sync_dividends(auth: Auth = Depends(AllUserAuth())):
+    service = CalendarDataSyncService(auth.db)
+    count = await service.sync_dividend_calendar()
+    return SuccessResponse(
+        {"message": f"同步成功，新增 {count} 条记录", "count": count}
+    )
+
+
+@router.post("/sync/unlocks", summary="同步解禁日")
+async def sync_unlocks(auth: Auth = Depends(AllUserAuth())):
+    service = CalendarDataSyncService(auth.db)
+    count = await service.sync_unlock_calendar()
+    return SuccessResponse(
+        {"message": f"同步成功，新增 {count} 条记录", "count": count}
+    )
+
+
+@router.post("/sync/all", summary="全量同步")
+async def sync_all(auth: Auth = Depends(AllUserAuth())):
+    service = CalendarDataSyncService(auth.db)
+    results = await service.sync_all()
+    return SuccessResponse(results)
