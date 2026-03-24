@@ -20,12 +20,73 @@ except ImportError:
 __version__ = "0.2.13"
 
 DEFAULT_AUTH_URL = "http://101.201.173.125:47001/api/akshare-auth"
+REDIS_DISABLED_KEY = "akshare:patch:disabled"
+REDIS_DISABLED_TTL = 86400  # 24 hours
 
 _original_request = requests.Session.request
 _auth_session = requests.Session()
+_redis_client = None
 
 
-def test_proxy(proxy: Optional[str] = None, test_url: str = "http://www.example.com", timeout: int = 10) -> bool:
+def _get_redis():
+    """Get Redis client lazily"""
+    global _redis_client
+    if _redis_client is not None:
+        return _redis_client
+    try:
+        import redis
+        from app.core.config import settings
+
+        if settings.REDIS_ENABLED:
+            _redis_client = redis.Redis(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                db=settings.REDIS_DB,
+                password=settings.REDIS_PASSWORD,
+                decode_responses=True,
+            )
+            return _redis_client
+    except Exception as e:
+        print(f"[akshare补丁] Redis连接失败: {e}")
+    return None
+
+
+def is_patch_disabled() -> bool:
+    """Check if patch is disabled in Redis (quota exhausted)"""
+    r = _get_redis()
+    if not r:
+        return False
+    try:
+        return r.get(REDIS_DISABLED_KEY) == "true"
+    except Exception:
+        return False
+
+
+def set_patch_disabled(disabled: bool = True):
+    """Set patch disabled status in Redis with 24h TTL"""
+    r = _get_redis()
+    if not r:
+        return
+    try:
+        if disabled:
+            r.setex(REDIS_DISABLED_KEY, REDIS_DISABLED_TTL, "true")
+            print(f"[akshare补丁] 已禁用云端授权 (24小时)")
+        else:
+            r.delete(REDIS_DISABLED_KEY)
+    except Exception as e:
+        print(f"[akshare补丁] Redis写入失败: {e}")
+
+
+def clear_patch_disabled():
+    """Clear patch disabled status"""
+    set_patch_disabled(False)
+
+
+def test_proxy(
+    proxy: Optional[str] = None,
+    test_url: str = "http://www.example.com",
+    timeout: int = 10,
+) -> bool:
     """
     测试代理是否可用（通过代理访问测试网站）
 
@@ -48,10 +109,12 @@ def test_proxy(proxy: Optional[str] = None, test_url: str = "http://www.example.
             timeout=timeout,
             headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
+            },
         )
         if resp.status_code == 200:
-            print(f"[代理测试] ✓ 成功! status={resp.status_code}, 长度={len(resp.text)}")
+            print(
+                f"[代理测试] ✓ 成功! status={resp.status_code}, 长度={len(resp.text)}"
+            )
             return True
         else:
             print(f"[代理测试] ✗ 失败! status={resp.status_code}")
@@ -61,7 +124,9 @@ def test_proxy(proxy: Optional[str] = None, test_url: str = "http://www.example.
         return False
 
 
-def fetch_eastmoney_cookie(proxy: Optional[str] = None, timeout: int = 10) -> Dict[str, str]:
+def fetch_eastmoney_cookie(
+    proxy: Optional[str] = None, timeout: int = 10
+) -> Dict[str, str]:
     """
     访问东财首页获取 Cookie（nid18 等关键字段）
 
@@ -84,13 +149,17 @@ def fetch_eastmoney_cookie(proxy: Optional[str] = None, timeout: int = 10) -> Di
 
     try:
         session = requests.Session()
-        resp = session.get(url, headers=headers, proxies=proxies, timeout=timeout, allow_redirects=True)
+        resp = session.get(
+            url, headers=headers, proxies=proxies, timeout=timeout, allow_redirects=True
+        )
         resp.raise_for_status()
 
         # 从响应 Cookie 中提取关键字段
         cookies = session.cookies.get_dict()
         nid18 = cookies.get("nid18", "")
-        nid18_create_time = cookies.get("nid18_create_time", str(int(time.time() * 1000)))
+        nid18_create_time = cookies.get(
+            "nid18_create_time", str(int(time.time() * 1000))
+        )
 
         if not nid18:
             # 尝试从响应头 Set-Cookie 中解析
@@ -99,7 +168,9 @@ def fetch_eastmoney_cookie(proxy: Optional[str] = None, timeout: int = 10) -> Di
                 if "nid18=" in part and not part.startswith("nid18_create_time"):
                     nid18 = part.split("=")[1] if "=" in part else ""
                 if "nid18_create_time=" in part:
-                    nid18_create_time = part.split("=")[1] if "=" in part else nid18_create_time
+                    nid18_create_time = (
+                        part.split("=")[1] if "=" in part else nid18_create_time
+                    )
 
         result = {
             "ua": headers["User-Agent"],
@@ -108,7 +179,9 @@ def fetch_eastmoney_cookie(proxy: Optional[str] = None, timeout: int = 10) -> Di
             "proxy": proxy or "",
             "all_cookies": cookies,
         }
-        print(f"[Cookie获取] 成功: nid18={result['nid18'][:16]}..., proxy={proxy or '直连'}")
+        print(
+            f"[Cookie获取] 成功: nid18={result['nid18'][:16]}..., proxy={proxy or '直连'}"
+        )
         return result
 
     except Exception as e:
@@ -120,6 +193,7 @@ def fetch_eastmoney_cookie(proxy: Optional[str] = None, timeout: int = 10) -> Di
             "proxy": proxy or "",
             "all_cookies": {},
         }
+
 
 # 东财接口域名列表
 EASTMONEY_DOMAINS = [
@@ -253,10 +327,7 @@ class ProxyPool:
 
 
 def get_auth_config_with_cache(
-    auth_url: str, 
-    auth_token: str = "", 
-    version: str = __version__,
-    ttl: int = 20
+    auth_url: str, auth_token: str = "", version: str = __version__, ttl: int = 20
 ) -> Optional[dict]:
     """
     从远程授权服务器获取授权配置（带缓存）
@@ -282,20 +353,55 @@ def get_auth_config_with_cache(
         try:
             params = {"token": auth_token, "version": version}
             resp = _auth_session.get(auth_url, params=params, timeout=10)
-            data = resp.json()
+
+            # 检查响应状态和内容
+            if resp.status_code != 200:
+                print(f"[akshare补丁] 授权接口返回非200: status={resp.status_code}")
+                return _cache.data
+
+            text = resp.text.strip()
+            if not text:
+                print(f"[akshare补丁] 授权接口返回空响应")
+                return _cache.data
+
+            # 尝试解析 JSON
+            try:
+                data = resp.json()
+            except Exception as json_err:
+                print(f"[akshare补丁] 授权接口返回非JSON: {text[:200]}")
+                return _cache.data
+
             if data.get("ua"):
                 _cache.data = data
                 _cache.expire_at = now + ttl * 60
-                print(f"[akshare补丁] 授权成功: proxy={data.get('proxy', '直连')[:50]}...")
+                clear_patch_disabled()
+                print(
+                    f"[akshare补丁] 授权成功: proxy={data.get('proxy', '直连')[:50]}..."
+                )
                 return data
-            print(f"[akshare补丁] 授权失败: {data.get('error_msg')}")
+
+            error_msg = data.get("error_msg", "")
+            print(f"[akshare补丁] 授权失败: {error_msg}")
+
+            # 检测积分用完或TOKEN无效，设置禁用标记
+            if (
+                "积分" in error_msg
+                or "用完" in error_msg
+                or "TOKEN 无效" in error_msg
+                or "积分不足" in error_msg
+            ):
+                set_patch_disabled(True)
+                print(f"[akshare补丁] 检测到授权问题，禁用云端授权24小时")
+
         except Exception as e:
             print(f"[akshare补丁] 请求授权接口异常: {e}")
 
         return _cache.data
 
 
-def _build_patched_request(get_auth_res_fn, retry: int, timeout: int = 30, min_interval: float = 0.5):
+def _build_patched_request(
+    get_auth_res_fn, retry: int, timeout: int = 30, min_interval: float = 0.5
+):
     """
     构建 patched_request 方法的工厂函数
 
@@ -356,7 +462,9 @@ def _build_patched_request(get_auth_res_fn, retry: int, timeout: int = 30, min_i
                         rc = data.get("rc", 0) if isinstance(data, dict) else 0
                         if rc in (10002, 10003, -100):
                             wait = 1.0 + random.uniform(0, 0.5)
-                            print(f"[akshare补丁] 检测到封禁 rc={rc}，退避 {wait:.1f}s 后重试 {attempt + 1}/{retry}")
+                            print(
+                                f"[akshare补丁] 检测到封禁 rc={rc}，退避 {wait:.1f}s 后重试 {attempt + 1}/{retry}"
+                            )
                             time.sleep(wait)
                             with _cache.lock:
                                 _cache.expire_at = 0
@@ -367,13 +475,17 @@ def _build_patched_request(get_auth_res_fn, retry: int, timeout: int = 30, min_i
 
                 # 响应异常，随机退避后重试
                 wait = 0.1 + random.uniform(0, 0.3)
-                print(f"[akshare补丁] 响应异常 status={resp.status_code}，退避 {wait:.1f}s 后重试 {attempt + 1}/{retry}")
+                print(
+                    f"[akshare补丁] 响应异常 status={resp.status_code}，退避 {wait:.1f}s 后重试 {attempt + 1}/{retry}"
+                )
                 with _cache.lock:
                     _cache.expire_at = 0
                 time.sleep(wait)
             except Exception as e:
                 wait = 0.1 + random.uniform(0, 0.3)
-                print(f"[akshare补丁] 请求异常，退避 {wait:.1f}s 后重试 {attempt + 1}/{retry}: {e}")
+                print(
+                    f"[akshare补丁] 请求异常，退避 {wait:.1f}s 后重试 {attempt + 1}/{retry}: {e}"
+                )
                 with _cache.lock:
                     _cache.expire_at = 0
                 time.sleep(wait)
@@ -391,7 +503,7 @@ def install_patch(
     version: str = __version__,
     retry: int = 3,
     timeout: int = 30,
-    min_interval: float = 0.5
+    min_interval: float = 0.5,
 ):
     """
     安装 akshare 代理补丁（云端模式，通过远程授权服务器获取代理配置）
@@ -404,13 +516,14 @@ def install_patch(
         timeout: 请求超时时间（秒）
         min_interval: 两次请求最小间隔（秒）
     """
+
     def get_auth_res():
         return get_auth_config_with_cache(auth_url, auth_token, version)
 
-    requests.Session.request = _build_patched_request(get_auth_res, retry, timeout, min_interval)
+    requests.Session.request = _build_patched_request(
+        get_auth_res, retry, timeout, min_interval
+    )
     print(f"[akshare补丁] 已安装（云端模式），授权服务: {auth_url}")
-
-
 
 
 def install_patch_default(
@@ -418,7 +531,7 @@ def install_patch_default(
     version: str = __version__,
     retry: int = 3,
     timeout: int = 30,
-    min_interval: float = 0.5
+    min_interval: float = 0.5,
 ):
     """
     使用默认公共授权服务安装补丁
@@ -430,7 +543,9 @@ def install_patch_default(
         timeout: 请求超时时间（秒）
         min_interval: 两次请求最小间隔（秒）
     """
-    return install_patch(DEFAULT_AUTH_URL, auth_token, version, retry, timeout, min_interval)
+    return install_patch(
+        DEFAULT_AUTH_URL, auth_token, version, retry, timeout, min_interval
+    )
 
 
 def install_patch_from_url(
@@ -439,7 +554,7 @@ def install_patch_from_url(
     version: str = __version__,
     retry: int = 3,
     timeout: int = 30,
-    min_interval: float = 0.5
+    min_interval: float = 0.5,
 ):
     """
     从指定 URL 获取授权配置并安装补丁
@@ -455,14 +570,13 @@ def install_patch_from_url(
     return install_patch(auth_url, auth_token, version, retry, timeout, min_interval)
 
 
-
 def install_patch_with_redis_pool(
     ua: str = None,
     nid18: str = None,
     nid18_create_time: str = None,
     retry: int = 3,
     timeout: int = 30,
-    min_interval: float = 0.2
+    min_interval: float = 0.2,
 ):
     """
     Install patch with Redis-backed proxy pool manager.
@@ -471,44 +585,44 @@ def install_patch_with_redis_pool(
     if get_proxy_pool_manager is None:
         print("[akshare补丁] Redis代理池不可用，使用直连模式")
         return install_patch_auto(timeout=timeout, min_interval=min_interval)
-    
+
     manager = get_proxy_pool_manager()
     status = manager.get_pool_status()
-    
+
     if status["available"] < status["min_proxies"]:
         print(f"[akshare补丁] 代理池不足({status['available']})，正在获取...")
         manager.refresh_proxies(validate=False)
-    
+
     if ua is None:
         auth_res = fetch_eastmoney_cookie(timeout=10)
         ua = auth_res["ua"]
         nid18 = auth_res["nid18"]
         nid18_create_time = auth_res["nid18_create_time"]
-    
+
     _rate_limiter.set_interval(min_interval)
-    
+
     def patched_request(self, method, url, **kwargs):
         is_target = any(d in (url or "") for d in EASTMONEY_DOMAINS)
         if not is_target:
             return _original_request(self, method, url, **kwargs)
-        
+
         if min_interval > 0:
             _rate_limiter.acquire()
-        
+
         for attempt in range(retry):
             proxy = manager.next_proxy(mark_failed=(attempt > 0))
-            
+
             if not proxy:
                 print("[akshare补丁] 无可用代理，直连")
                 return _original_request(self, method, url, **kwargs)
-            
+
             headers = dict(kwargs.get("headers") or {})
             headers["User-Agent"] = ua
             headers["Cookie"] = f"nid18={nid18}; nid18_create_time={nid18_create_time}"
             kwargs["headers"] = headers
             kwargs["proxies"] = {"http": proxy, "https": proxy}
             kwargs["timeout"] = timeout
-            
+
             try:
                 resp = _original_request(self, method, url, **kwargs)
                 if resp.ok and resp.content:
@@ -526,12 +640,15 @@ def install_patch_with_redis_pool(
             except Exception as e:
                 print(f"[akshare补丁] 请求异常，切换代理: {str(e)[:50]}")
                 manager.next_proxy(mark_failed=True)
-        
+
         print("[akshare补丁] 重试耗尽，直连")
         return _original_request(self, method, url, **kwargs)
-    
+
     requests.Session.request = patched_request
-    print(f"[akshare补丁] 已安装（Redis代理池模式），可用代理: {manager.get_pool_status()['available']}")
+    print(
+        f"[akshare补丁] 已安装（Redis代理池模式），可用代理: {manager.get_pool_status()['available']}"
+    )
+
 
 def install_patch_local(
     ua: str,
@@ -573,11 +690,17 @@ def install_patch_local(
     def get_auth_res():
         return static_auth_res
 
-    requests.Session.request = _build_patched_request(get_auth_res, retry, timeout, min_interval)
+    requests.Session.request = _build_patched_request(
+        get_auth_res, retry, timeout, min_interval
+    )
     if proxy:
-        print(f"[akshare补丁] 已安装（本地模式），代理: {proxy}，超时: {timeout}s，限流间隔: {min_interval}s")
+        print(
+            f"[akshare补丁] 已安装（本地模式），代理: {proxy}，超时: {timeout}s，限流间隔: {min_interval}s"
+        )
     else:
-        print(f"[akshare补丁] 已安装（本地模式），直连（不使用代理），超时: {timeout}s，限流间隔: {min_interval}s")
+        print(
+            f"[akshare补丁] 已安装（本地模式），直连（不使用代理），超时: {timeout}s，限流间隔: {min_interval}s"
+        )
 
 
 def install_patch_with_pool(
@@ -662,7 +785,9 @@ def install_patch_with_pool(
                         rc = data.get("rc", 0) if isinstance(data, dict) else 0
                         if rc in (10002, 10003, -100):
                             wait = 1.0 + random.uniform(0, 0.5)
-                            print(f"[akshare补丁] 封禁 rc={rc}，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}")
+                            print(
+                                f"[akshare补丁] 封禁 rc={rc}，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}"
+                            )
                             pool.next_proxy(mark_failed=True)
                             time.sleep(wait)
                             continue
@@ -671,12 +796,16 @@ def install_patch_with_pool(
                     return resp
 
                 wait = 0.1 + random.uniform(0, 0.3)
-                print(f"[akshare补丁] 响应异常 status={resp.status_code}，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}")
+                print(
+                    f"[akshare补丁] 响应异常 status={resp.status_code}，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}"
+                )
                 pool.next_proxy(mark_failed=True)
                 time.sleep(wait)
             except Exception as e:
                 wait = 0.1 + random.uniform(0, 0.3)
-                print(f"[akshare补丁] 请求异常，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}: {e}")
+                print(
+                    f"[akshare补丁] 请求异常，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}: {e}"
+                )
                 pool.next_proxy(mark_failed=True)
                 time.sleep(wait)
 
@@ -684,7 +813,9 @@ def install_patch_with_pool(
         return _original_request(self, method, url, **kwargs)
 
     requests.Session.request = patched_request
-    print(f"[akshare补丁] 已安装（代理池模式），代理池: {pool_url}，超时: {timeout}s，限流间隔: {min_interval}s")
+    print(
+        f"[akshare补丁] 已安装（代理池模式），代理池: {pool_url}，超时: {timeout}s，限流间隔: {min_interval}s"
+    )
 
 
 def install_patch_auto(
@@ -761,7 +892,9 @@ def install_patch_auto(
                             rc = data.get("rc", 0) if isinstance(data, dict) else 0
                             if rc in (10002, 10003, -100):
                                 wait = 1.0 + random.uniform(0, 0.5)
-                                print(f"[akshare补丁] 封禁 rc={rc}，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}")
+                                print(
+                                    f"[akshare补丁] 封禁 rc={rc}，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}"
+                                )
                                 pool.next_proxy(mark_failed=True)
                                 time.sleep(wait)
                                 continue
@@ -770,12 +903,16 @@ def install_patch_auto(
                         return resp
 
                     wait = 0.1 + random.uniform(0, 0.3)
-                    print(f"[akshare补丁] 响应异常，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}")
+                    print(
+                        f"[akshare补丁] 响应异常，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}"
+                    )
                     pool.next_proxy(mark_failed=True)
                     time.sleep(wait)
                 except Exception as e:
                     wait = 0.1 + random.uniform(0, 0.3)
-                    print(f"[akshare补丁] 请求异常，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}: {e}")
+                    print(
+                        f"[akshare补丁] 请求异常，换代理并退避 {wait:.1f}s，重试 {attempt + 1}/{retry}: {e}"
+                    )
                     pool.next_proxy(mark_failed=True)
                     time.sleep(wait)
 
@@ -783,16 +920,22 @@ def install_patch_auto(
             return _original_request(self, method, url, **kwargs)
 
         requests.Session.request = patched_request
-        print(f"[akshare补丁] 已安装（自动Cookie+代理池模式），代理池: {pool_url}，超时: {timeout}s")
+        print(
+            f"[akshare补丁] 已安装（自动Cookie+代理池模式），代理池: {pool_url}，超时: {timeout}s"
+        )
 
     else:
         # 固定代理或直连模式
         def get_auth_res():
             return auth_res
 
-        requests.Session.request = _build_patched_request(get_auth_res, retry, timeout, min_interval)
+        requests.Session.request = _build_patched_request(
+            get_auth_res, retry, timeout, min_interval
+        )
         if proxy:
-            print(f"[akshare补丁] 已安装（自动Cookie+固定代理模式），代理: {proxy}，超时: {timeout}s")
+            print(
+                f"[akshare补丁] 已安装（自动Cookie+固定代理模式），代理: {proxy}，超时: {timeout}s"
+            )
         else:
             print(f"[akshare补丁] 已安装（自动Cookie+直连模式），超时: {timeout}s")
 

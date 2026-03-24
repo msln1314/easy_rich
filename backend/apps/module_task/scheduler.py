@@ -16,6 +16,7 @@ from apps.module_task.task_service import (
     sync_longhubang,
     sync_margin_summary,
     sync_margin_detail,
+    sync_stock_daily_kline,
 )
 from apps.admin.stock.services.selection_signal_service import sync_selection_signals
 from core.database import session_factory
@@ -87,6 +88,10 @@ async def sync_margin_summary_from_service(db):
 
 async def sync_margin_detail_from_service(db):
     result = await sync_margin_detail(db)
+
+
+async def sync_daily_kline_from_service(db, stock_code: str = None):
+    result = await sync_stock_daily_kline(db, stock_code)
 
 
 async def main_day():
@@ -211,3 +216,16 @@ async def main_close():
                 print(f"选股信号生成: {result.get('message', '未知')}")
             except Exception as e:
                 print(f"选股信号生成失败: {str(e)}")
+
+
+async def main_kline_sync(stock_code: str = None):
+    async with session_factory() as session:
+        async with session.begin():
+            print("开始同步日K线数据...")
+            db = session
+
+            try:
+                result = await sync_daily_kline_from_service(db, stock_code)
+                print(f"日K线同步: {result.get('message', '未知')}")
+            except Exception as e:
+                print(f"日K线同步失败: {str(e)}")

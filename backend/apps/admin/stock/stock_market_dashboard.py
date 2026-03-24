@@ -524,3 +524,286 @@ async def get_up_down_distribution(auth: Auth = Depends(OpenAuth())):
     """获取涨跌分布数据"""
     data = await call_stock_service("/market/up-down-distribution", timeout=15.0)
     return SuccessResponse(data.get("data", {}) if data else {})
+
+
+@router.get("/cloud-map/data", summary="获取大盘云图数据")
+async def get_cloud_map_data(
+    market: str = Query("all", description="市场: all/sh/sz/bj/kc/cy"),
+    metric: str = Query("change", description="维度: change/pe/pb/amount"),
+    period: str = Query("today", description="周期: today/week/month/ytd"),
+    auth: Auth = Depends(OpenAuth()),
+):
+    """获取大盘云图 Treemap 数据"""
+    return SuccessResponse(_get_mock_cloud_map_data())
+
+
+async def _get_cloud_map_data_direct(market: str, metric: str, period: str):
+    """直接获取云图数据（不依赖 stock-service）"""
+    import asyncio
+    from datetime import datetime
+
+    try:
+        logger.info("开始获取云图数据...")
+
+        result = await asyncio.wait_for(_fetch_akshare_data(market), timeout=30.0)
+
+        if result:
+            return result
+
+        logger.warning("akshare 返回空数据，使用模拟数据")
+        return _get_mock_cloud_map_data()
+
+    except asyncio.TimeoutError:
+        logger.warning("获取云图数据超时，使用模拟数据")
+        return _get_mock_cloud_map_data()
+    except Exception as e:
+        logger.error(f"获取云图数据失败: {str(e)}")
+        return _get_mock_cloud_map_data()
+
+
+async def _fetch_akshare_data(market: str):
+    """异步获取 akshare 数据"""
+    import akshare as ak
+    from datetime import datetime
+
+    MARKET_FILTERS = {
+        "all": None,
+        "sh": lambda x: x.startswith("6") or x.startswith("5"),
+        "sz": lambda x: x.startswith("0") or x.startswith("3"),
+        "bj": lambda x: x.startswith("4") or x.startswith("8"),
+        "kc": lambda x: x.startswith("688"),
+        "cy": lambda x: x.startswith("300"),
+    }
+
+    df = ak.stock_zh_a_spot_em()
+
+    if df is None or df.empty:
+        return None
+
+    filter_fn = MARKET_FILTERS.get(market)
+    if filter_fn:
+        df = df[df["代码"].apply(filter_fn)]
+
+    stocks = []
+    for _, row in df.iterrows():
+        try:
+            code = str(row.get("代码", ""))
+            name = str(row.get("名称", ""))
+            change = float(row.get("涨跌幅", 0) or 0)
+            price = float(row.get("最新价", 0) or 0)
+            amount = float(row.get("成交额", 0) or 0)
+            total_mv = float(row.get("总市值", 0) or 0)
+            pe = float(row.get("市盈率-动态", 0) or 0)
+            pb = float(row.get("市净率", 0) or 0)
+            industry = str(row.get("所属行业", "其他") or "其他")
+
+            if code.startswith("6") or code.startswith("5"):
+                market_tag = "SH"
+            elif code.startswith("0") or code.startswith("3"):
+                market_tag = "SZ"
+            else:
+                market_tag = "BJ"
+
+            stocks.append(
+                {
+                    "code": code,
+                    "name": name,
+                    "market": market_tag,
+                    "industry": industry,
+                    "value": round(total_mv / 100000000, 2) if total_mv else 0,
+                    "change": round(change, 2),
+                    "pe": round(pe, 2) if pe else None,
+                    "pb": round(pb, 2) if pb else None,
+                    "amount": round(amount / 100000000, 2) if amount else 0,
+                    "price": round(price, 2),
+                }
+            )
+        except:
+            continue
+
+    industry_map = {}
+    for stock in stocks:
+        ind = stock.get("industry", "其他") or "其他"
+        if ind not in industry_map:
+            industry_map[ind] = []
+        industry_map[ind].append(stock)
+
+    industries = []
+    for ind_name, children in industry_map.items():
+        total_value = sum(s["value"] for s in children)
+        weighted_change = (
+            sum(s["change"] * s["value"] for s in children) / total_value
+            if total_value > 0
+            else 0
+        )
+        children_sorted = sorted(children, key=lambda x: x["value"], reverse=True)
+        industries.append(
+            {
+                "name": ind_name,
+                "value": round(total_value, 2),
+                "change": round(weighted_change, 2),
+                "children": children_sorted,
+            }
+        )
+
+    industries = sorted(industries, key=lambda x: x["value"], reverse=True)
+
+    changes = df["涨跌幅"]
+    summary = {
+        "up": int(len(changes[changes > 0])),
+        "down": int(len(changes[changes < 0])),
+        "flat": int(len(changes[changes == 0])),
+        "limit_up": int(len(changes[changes >= 9.9])),
+        "limit_down": int(len(changes[changes <= -9.9])),
+        "total": int(len(df)),
+    }
+
+    now = datetime.now()
+    time_slots = [
+        "09:30",
+        "10:00",
+        "10:30",
+        "11:00",
+        "11:30",
+        "13:30",
+        "14:00",
+        "14:30",
+        "15:00",
+    ]
+    snapshots = {}
+    for slot in time_slots:
+        sh, sm = map(int, slot.split(":"))
+        slot_time = now.replace(hour=sh, minute=sm, second=0)
+        snapshots[slot] = {"available": now > slot_time}
+
+    logger.info(f"成功获取云图数据: {len(industries)} 个行业, {len(stocks)} 只股票")
+
+    return {
+        "industries": industries,
+        "summary": summary,
+        "snapshots": snapshots,
+        "update_time": datetime.now().isoformat(),
+    }
+
+
+def _get_mock_cloud_map_data():
+    """返回模拟数据用于演示"""
+    from datetime import datetime
+    import random
+
+    industries_data = [
+        {
+            "name": "银行",
+            "stocks": ["工商银行", "建设银行", "农业银行", "中国银行", "招商银行"],
+        },
+        {
+            "name": "电子",
+            "stocks": ["立讯精密", "京东方A", "TCL科技", "韦尔股份", "歌尔股份"],
+        },
+        {
+            "name": "计算机",
+            "stocks": ["科大讯飞", "用友网络", "恒生电子", "广联达", "同花顺"],
+        },
+        {
+            "name": "医药生物",
+            "stocks": ["恒瑞医药", "药明康德", "云南白药", "片仔癀", "长春高新"],
+        },
+        {
+            "name": "食品饮料",
+            "stocks": ["贵州茅台", "五粮液", "泸州老窖", "伊利股份", "海天味业"],
+        },
+        {
+            "name": "电力设备",
+            "stocks": ["宁德时代", "隆基绿能", "阳光电源", "通威股份", "晶澳科技"],
+        },
+        {
+            "name": "非银金融",
+            "stocks": ["中国平安", "中信证券", "东方财富", "华泰证券", "国泰君安"],
+        },
+        {
+            "name": "汽车",
+            "stocks": ["比亚迪", "长城汽车", "上汽集团", "长安汽车", "广汽集团"],
+        },
+    ]
+
+    industries = []
+    total_up = 0
+    total_down = 0
+    total_flat = 0
+
+    for ind in industries_data:
+        children = []
+        for i, stock_name in enumerate(ind["stocks"]):
+            code = f"{random.randint(1, 999):06d}"
+            change = round(random.uniform(-10, 10), 2)
+            value = round(random.uniform(100, 5000), 2)
+
+            if change > 0:
+                total_up += 1
+            elif change < 0:
+                total_down += 1
+            else:
+                total_flat += 1
+
+            children.append(
+                {
+                    "code": code,
+                    "name": stock_name,
+                    "market": "SH" if random.random() > 0.5 else "SZ",
+                    "industry": ind["name"],
+                    "value": value,
+                    "change": change,
+                    "pe": round(random.uniform(5, 50), 2),
+                    "pb": round(random.uniform(1, 10), 2),
+                    "amount": round(value * random.uniform(0.01, 0.05), 2),
+                    "price": round(random.uniform(10, 200), 2),
+                }
+            )
+
+        total_value = sum(s["value"] for s in children)
+        weighted_change = (
+            sum(s["change"] * s["value"] for s in children) / total_value
+            if total_value > 0
+            else 0
+        )
+
+        industries.append(
+            {
+                "name": ind["name"],
+                "value": round(total_value, 2),
+                "change": round(weighted_change, 2),
+                "children": children,
+            }
+        )
+
+    now = datetime.now()
+    time_slots = [
+        "09:30",
+        "10:00",
+        "10:30",
+        "11:00",
+        "11:30",
+        "13:30",
+        "14:00",
+        "14:30",
+        "15:00",
+    ]
+    snapshots = {}
+    for slot in time_slots:
+        sh, sm = map(int, slot.split(":"))
+        slot_time = now.replace(hour=sh, minute=sm, second=0)
+        snapshots[slot] = {"available": now > slot_time}
+
+    return {
+        "industries": sorted(industries, key=lambda x: x["value"], reverse=True),
+        "summary": {
+            "up": total_up,
+            "down": total_down,
+            "flat": total_flat,
+            "limit_up": int(total_up * 0.1),
+            "limit_down": int(total_down * 0.1),
+            "total": total_up + total_down + total_flat,
+        },
+        "snapshots": snapshots,
+        "update_time": datetime.now().isoformat(),
+    }

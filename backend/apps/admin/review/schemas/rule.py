@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional, List, Any
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from core.data_types import DatetimeStr
 
 
@@ -35,11 +35,23 @@ class RuleOut(BaseModel):
     name: str
     description: Optional[str] = None
     severity: Optional[str] = None
-    check_timing: Optional[list] = None
-    check_condition: Optional[dict] = None
+    check_timing: Optional[Any] = None
+    check_condition: Optional[Any] = None
     is_active: int
     created_at: DatetimeStr
     updated_at: DatetimeStr
+
+    @field_validator("check_timing", "check_condition", mode="before")
+    @classmethod
+    def parse_json_field(cls, v):
+        if isinstance(v, str):
+            import json
+
+            try:
+                return json.loads(v)
+            except:
+                return v
+        return v
 
 
 class ViolationOut(BaseModel):

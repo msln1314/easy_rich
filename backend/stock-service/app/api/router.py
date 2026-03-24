@@ -114,6 +114,24 @@ except ImportError:
     print("警告: 无法导入 etf_routes 模块")
     etf_routes = None
 
+try:
+    from app.api.endpoints import cloud_map_routes
+except ImportError:
+    print("警告: 无法导入 cloud_map_routes 模块")
+    cloud_map_routes = None
+
+try:
+    from app.api.endpoints import stock_aggregate_routes
+except ImportError:
+    print("警告: 无法导入 stock_aggregate_routes 模块")
+    stock_aggregate_routes = None
+
+try:
+    from app.api.endpoints import baostock_routes
+except ImportError:
+    print("警告: 无法导入 baostock_routes 模块")
+    baostock_routes = None
+
 api_router = APIRouter()
 
 if stock_routes:
@@ -174,3 +192,15 @@ if pattern_routes:
     )
 if etf_routes:
     api_router.include_router(etf_routes.router, prefix="/etf", tags=["etf"])
+if cloud_map_routes:
+    api_router.include_router(
+        cloud_map_routes.router, prefix="/cloud-map", tags=["cloud-map"]
+    )
+if stock_aggregate_routes:
+    api_router.include_router(
+        stock_aggregate_routes.router, prefix="/aggregate", tags=["aggregate"]
+    )
+if baostock_routes:
+    api_router.include_router(
+        baostock_routes.router, prefix="/baostock", tags=["baostock"]
+    )

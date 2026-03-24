@@ -22,9 +22,12 @@ from apps.admin.stock import (
     stock_selection,
     stock_longhubang,
     stock_market_dashboard,
+    stock_kline,
 )
 from apps.admin.stock_calendar import router as stock_calendar_router
 from apps.admin.portfolio import router as portfolio_router
+from apps.admin.review import router as review_router
+from apps.admin.fund import router as fund_router
 
 
 # #
@@ -63,10 +66,13 @@ router.include_router(fund_flow.router, tags=["资金流向"])
 router.include_router(stock_selection.router, tags=["选股信号"])
 router.include_router(stock_longhubang.router, tags=["龙虎榜"])
 router.include_router(stock_market_dashboard.router, tags=["大盘座舱"])
+router.include_router(stock_kline.router, tags=["日K线"])
 router.include_router(
     stock_calendar_router, prefix="/stock_calendar", tags=["投资日历"]
 )
 router.include_router(portfolio_router, prefix="/portfolio", tags=["投资组合"])
+router.include_router(review_router, prefix="/review", tags=["复盘功能"])
+router.include_router(fund_router, prefix="/fund", tags=["基金分析"])
 
 # router.include_router(notice.router, prefix="/system/notice", tags=["system"])
 # router.include_router(alarm.router, prefix="/system/alarm", tags=["system"])

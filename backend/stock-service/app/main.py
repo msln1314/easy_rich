@@ -15,6 +15,7 @@ def load_akshare_patch():
         install_patch_with_redis_pool,
         install_patch_auto,
         fetch_eastmoney_cookie,
+        is_patch_disabled,
     )
 
     patch_mode = settings.AKSHARE_PATCH_MODE
@@ -30,17 +31,23 @@ def load_akshare_patch():
 
     # Try cloud auth first (for auto and cloud modes)
     if patch_mode in ("cloud", "auto"):
-        try:
-            print("[Stock Service] 尝试云端授权...")
-            install_patch_default(auth_token=auth_token, timeout=10, min_interval=0.2)
-            print("[Stock Service] 云端授权成功")
-            return
-        except Exception as e:
-            error_msg = str(e)
-            if "积分" in error_msg or "用完" in error_msg:
-                print(f"[Stock Service] 云端积分用完: {error_msg[:50]}")
-            else:
-                print(f"[Stock Service] 云端授权失败: {error_msg[:50]}")
+        # Check if cloud auth is disabled in Redis
+        if is_patch_disabled():
+            print("[Stock Service] 云端授权已被禁用 (积分用完)，跳过云端授权")
+        else:
+            try:
+                print("[Stock Service] 尝试云端授权...")
+                install_patch_default(
+                    auth_token=auth_token, timeout=10, min_interval=0.2
+                )
+                print("[Stock Service] 云端授权成功")
+                return
+            except Exception as e:
+                error_msg = str(e)
+                if "积分" in error_msg or "用完" in error_msg:
+                    print(f"[Stock Service] 云端积分用完: {error_msg[:50]}")
+                else:
+                    print(f"[Stock Service] 云端授权失败: {error_msg[:50]}")
 
             if patch_mode == "cloud":
                 print("[Stock Service] 切换直连模式")

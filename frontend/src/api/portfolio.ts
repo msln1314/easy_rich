@@ -1,91 +1,92 @@
-import request from '@/utils/request'
+import request from '@/config/axios'
 
-const API_PREFIX = '/portfolio'
+const API_PREFIX = '/stock/portfolio'
 
 export function getPortfolioList() {
-  return request.get(API_PREFIX)
+  return request.get({ url: API_PREFIX })
 }
 
 export function getPortfolioDetail(portfolioId: number) {
-  return request.get(`${API_PREFIX}/${portfolioId}`)
+  return request.get({ url: `${API_PREFIX}/${portfolioId}` })
 }
 
 export function createPortfolio(data: any) {
-  return request.post(API_PREFIX, data)
+  return request.post({ url: API_PREFIX, data })
 }
 
 export function updatePortfolio(portfolioId: number, data: any) {
-  return request.put(`${API_PREFIX}/${portfolioId}`, data)
+  return request.put({ url: `${API_PREFIX}/${portfolioId}`, data })
 }
 
 export function deletePortfolio(portfolioId: number) {
-  return request.delete(`${API_PREFIX}/${portfolioId}`)
+  return request.delete({ url: `${API_PREFIX}/${portfolioId}` })
 }
 
 export function setDefaultPortfolio(portfolioId: number) {
-  return request.put(`${API_PREFIX}/${portfolioId}/default`)
+  return request.put({ url: `${API_PREFIX}/${portfolioId}/default` })
 }
 
 export function getPositionList(portfolioId: number) {
-  return request.get(`${API_PREFIX}/position/${portfolioId}`)
+  return request.get({ url: `${API_PREFIX}/position/${portfolioId}` })
 }
 
 export function addPosition(portfolioId: number, data: any) {
-  return request.post(`${API_PREFIX}/position/${portfolioId}`, data)
+  return request.post({ url: `${API_PREFIX}/position/${portfolioId}`, data })
 }
 
 export function deletePosition(portfolioId: number, stockCode: string) {
-  return request.delete(`${API_PREFIX}/position/${portfolioId}/${stockCode}`)
+  return request.delete({ url: `${API_PREFIX}/position/${portfolioId}/${stockCode}` })
 }
 
 export function getTradeList(portfolioId: number) {
-  return request.get(`${API_PREFIX}/trade/${portfolioId}`)
+  return request.get({ url: `${API_PREFIX}/trade/${portfolioId}` })
 }
 
 export function recordBuy(portfolioId: number, data: any) {
-  return request.post(`${API_PREFIX}/trade/${portfolioId}/buy`, data)
+  return request.post({ url: `${API_PREFIX}/trade/${portfolioId}/buy`, data })
 }
 
 export function recordSell(portfolioId: number, data: any) {
-  return request.post(`${API_PREFIX}/trade/${portfolioId}/sell`, data)
+  return request.post({ url: `${API_PREFIX}/trade/${portfolioId}/sell`, data })
 }
 
 export function getPerformance(portfolioId: number) {
-  return request.get(`${API_PREFIX}/analysis/${portfolioId}/performance`)
+  return request.get({ url: `${API_PREFIX}/analysis/${portfolioId}/performance` })
 }
 
 export function getPositionAnalysis(portfolioId: number) {
-  return request.get(`${API_PREFIX}/analysis/${portfolioId}/positions`)
+  return request.get({ url: `${API_PREFIX}/analysis/${portfolioId}/positions` })
 }
 
 export function getTradeStatistics(portfolioId: number, days = 30) {
-  return request.get(`${API_PREFIX}/analysis/${portfolioId}/trades`, { params: { days } })
+  return request.get({ url: `${API_PREFIX}/analysis/${portfolioId}/trades`, params: { days } })
 }
 
 export function getProfitAttribution(portfolioId: number) {
-  return request.get(`${API_PREFIX}/analysis/${portfolioId}/attribution`)
+  return request.get({ url: `${API_PREFIX}/analysis/${portfolioId}/attribution` })
 }
 
 export function createSnapshot(portfolioId: number, snapshotDate?: string) {
-  return request.post(`${API_PREFIX}/analysis/${portfolioId}/snapshot`, null, {
-    params: snapshotDate ? { snapshot_date: snapshotDate } : {}
+  return request.post({
+    url: `${API_PREFIX}/analysis/${portfolioId}/snapshot`,
+    data: snapshotDate ? { snapshot_date: snapshotDate } : {}
   })
 }
 
 export function getRiskAlerts(portfolioId: number) {
-  return request.get(`${API_PREFIX}/risk/${portfolioId}/alerts`)
+  return request.get({ url: `${API_PREFIX}/risk/${portfolioId}/alerts` })
 }
 
 export function checkRisk(portfolioId: number) {
-  return request.post(`${API_PREFIX}/risk/${portfolioId}/check`)
+  return request.post({ url: `${API_PREFIX}/risk/${portfolioId}/check` })
 }
 
 export function checkDrawdown(portfolioId: number) {
-  return request.get(`${API_PREFIX}/risk/${portfolioId}/drawdown`)
+  return request.get({ url: `${API_PREFIX}/risk/${portfolioId}/drawdown` })
 }
 
 export function checkRebalance(portfolioId: number) {
-  return request.get(`${API_PREFIX}/risk/${portfolioId}/rebalance`)
+  return request.get({ url: `${API_PREFIX}/risk/${portfolioId}/rebalance` })
 }
 
 export function preTradeCheck(
@@ -94,13 +95,15 @@ export function preTradeCheck(
   tradeType: string,
   amount: number
 ) {
-  return request.post(`${API_PREFIX}/risk/${portfolioId}/pre_check`, null, {
-    params: { stock_code: stockCode, trade_type: tradeType, amount }
+  return request.post({
+    url: `${API_PREFIX}/risk/${portfolioId}/pre_check`,
+    data: { stock_code: stockCode, trade_type: tradeType, amount }
   })
 }
 
 export function handleAlert(alertId: number, handleNote?: string) {
-  return request.put(`${API_PREFIX}/risk/alert/${alertId}/handle`, null, {
-    params: handleNote ? { handle_note: handleNote } : {}
+  return request.put({
+    url: `${API_PREFIX}/risk/alert/${alertId}/handle`,
+    data: handleNote ? { handle_note: handleNote } : {}
   })
 }

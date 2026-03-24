@@ -1,6 +1,6 @@
-import request from '@/utils/request'
+import request from '@/config/axios'
 
-const API_PREFIX = '/stock_calendar'
+const API_PREFIX = '/stock/stock_calendar'
 
 export function getEventList(params: {
   start_date?: string
@@ -11,27 +11,28 @@ export function getEventList(params: {
   page?: number
   page_size?: number
 }) {
-  return request.get(`${API_PREFIX}/events`, { params })
+  return request.get({ url: `${API_PREFIX}/events`, params })
 }
 
 export function getEventDetail(eventId: number) {
-  return request.get(`${API_PREFIX}/events/${eventId}`)
+  return request.get({ url: `${API_PREFIX}/events/${eventId}` })
 }
 
 export function getEventsByStock(stockCode: string, days = 90) {
-  return request.get(`${API_PREFIX}/events/by_stock/${stockCode}`, { params: { days } })
+  return request.get({ url: `${API_PREFIX}/events/by_stock/${stockCode}`, params: { days } })
 }
 
 export function getEventsByDate(date: string) {
-  return request.get(`${API_PREFIX}/events/by_date/${date}`)
+  return request.get({ url: `${API_PREFIX}/events/by_date/${date}` })
 }
 
 export function createEvent(data: any) {
-  return request.post(`${API_PREFIX}/events`, data)
+  return request.post({ url: `${API_PREFIX}/events`, data })
 }
 
 export function getReminderList(userId: number, isActive?: number) {
-  return request.get(`${API_PREFIX}/reminders`, {
+  return request.get({
+    url: `${API_PREFIX}/reminders`,
     params: { user_id: userId, is_active: isActive }
   })
 }
@@ -44,13 +45,13 @@ export function createReminder(data: {
   remind_time?: string
   remind_type?: string
 }) {
-  return request.post(`${API_PREFIX}/reminders`, data)
+  return request.post({ url: `${API_PREFIX}/reminders`, data })
 }
 
 export function updateReminder(reminderId: number, data: any) {
-  return request.put(`${API_PREFIX}/reminders/${reminderId}`, data)
+  return request.put({ url: `${API_PREFIX}/reminders/${reminderId}`, data })
 }
 
 export function deleteReminder(reminderId: number) {
-  return request.delete(`${API_PREFIX}/reminders/${reminderId}`)
+  return request.delete({ url: `${API_PREFIX}/reminders/${reminderId}` })
 }

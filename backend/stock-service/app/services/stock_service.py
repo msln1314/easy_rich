@@ -23,6 +23,7 @@ from app.core.logging import get_logger
 from app.utils.cache import cache_result
 from app.services.gm_service import gm_service
 from app.services.tencent_source import tencent_source  # 腾讯财经 - 成功率高
+from app.services.baostock_source import baostock_source  # 证券宝 - 免费稳定
 
 logger = get_logger(__name__)
 
@@ -460,23 +461,77 @@ class StockService:
             return result
 
         except Exception as e:
-            logger.warning(f"AKShare 获取个股历史行情失败: {str(e)}，尝试使用 GM 服务")
+            logger.warning(f"AKShare 获取个股历史行情失败: {str(e)}，尝试使用证券宝")
 
-            if not gm_service.is_available():
-                logger.error("GM 服务不可用")
-                raise ValueError(
-                    f"无法获取股票 {stock_code} 的历史行情，AKShare 和 GM 均失败"
-                )
+            # 尝试证券宝
+            if baostock_source.is_available():
+                try:
+                    return await self._get_stock_history_from_baostock(
+                        stock_code, period, start_date, end_date
+                    )
+                except Exception as bs_error:
+                    logger.warning(f"证券宝获取个股历史行情失败: {str(bs_error)}")
 
-            try:
-                return await self._get_stock_history_from_gm(
-                    stock_code, period, start_date, end_date
+            # 尝试掘金量化
+            if gm_service.is_available():
+                try:
+                    return await self._get_stock_history_from_gm(
+                        stock_code, period, start_date, end_date
+                    )
+                except Exception as gm_error:
+                    logger.error(f"GM 获取个股历史行情失败: {str(gm_error)}")
+
+            raise ValueError(f"无法获取股票 {stock_code} 的历史行情，所有数据源均失败")
+
+    async def _get_stock_history_from_baostock(
+        self,
+        stock_code: str,
+        period: str = "daily",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[StockHistory]:
+        """从证券宝获取个股历史行情"""
+        logger.info(f"使用证券宝获取个股历史行情: {stock_code}, 周期: {period}")
+
+        try:
+            period_map = {"daily": "d", "weekly": "w", "monthly": "m"}
+            bs_period = period_map.get(period, "d")
+
+            klines = await baostock_source.get_history_kline_async(
+                stock_code=stock_code,
+                start_date=start_date or "",
+                end_date=end_date or "",
+                period=bs_period,
+                adjust="2",
+            )
+
+            if not klines:
+                logger.warning(f"证券宝未找到股票 {stock_code} 的历史行情数据")
+                raise ValueError(f"未找到股票 {stock_code} 的历史行情数据")
+
+            result = []
+            for kline in klines:
+                history = StockHistory(
+                    stock_code=stock_code,
+                    trade_date=kline.trade_date,
+                    open=kline.open,
+                    close=kline.close,
+                    high=kline.high,
+                    low=kline.low,
+                    volume=int(kline.volume) if kline.volume else 0,
+                    amount=kline.amount,
+                    amplitude=kline.amplitude,
+                    change_percent=kline.change_percent,
+                    change_amount=kline.change_amount,
+                    turnover=kline.turnover,
                 )
-            except Exception as gm_error:
-                logger.error(f"GM 获取个股历史行情失败: {str(gm_error)}")
-                raise ValueError(
-                    f"无法获取股票 {stock_code} 的历史行情，AKShare 失败: {str(e)}，GM 失败: {str(gm_error)}"
-                )
+                result.append(history)
+
+            return result
+
+        except Exception as e:
+            logger.error(f"证券宝获取个股历史行情失败: {str(e)}")
+            raise
 
     async def _get_stock_history_from_gm(
         self,

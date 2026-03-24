@@ -49,6 +49,7 @@
     "pinia-plugin-persist": "1.0.0",
     "qrcode": "1.5.3",
     "qs": "6.11.2",
+    "tdesign-vue-next": "^1.18.5",
     "url": "0.11.1",
     "vue": "3.3.4",
     "vue-countup-v3": "^1.4.1",

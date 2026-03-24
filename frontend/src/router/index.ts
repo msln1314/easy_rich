@@ -160,6 +160,96 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           title: '热门头条',
           noCache: true
         }
+      },
+      {
+        path: 'review',
+        component: () => import('@/views/Vadmin/Stock/Review/Review.vue'),
+        name: 'ReviewWorkbench',
+        meta: {
+          title: '复盘工作台',
+          noCache: true
+        }
+      },
+      {
+        path: 'experience',
+        component: () => import('@/views/Vadmin/Stock/Review/Experience.vue'),
+        name: 'ExperienceLibrary',
+        meta: {
+          title: '心得经验库',
+          noCache: true
+        }
+      },
+      {
+        path: 'rules',
+        component: () => import('@/views/Vadmin/Stock/Review/Rules.vue'),
+        name: 'RiskRules',
+        meta: {
+          title: '雷区基线',
+          noCache: true
+        }
+      },
+      {
+        path: 'calendar',
+        component: () => import('@/views/Vadmin/Stock/InvestCalendar/InvestCalendar.vue'),
+        name: 'InvestCalendar',
+        meta: {
+          title: '财经日历',
+          noCache: true
+        }
+      },
+      {
+        path: 'cloud-map',
+        component: () => import('@/views/Vadmin/Stock/MarketCloudMap/MarketCloudMap.vue'),
+        name: 'MarketCloudMap',
+        meta: {
+          title: '大盘云图',
+          noCache: true
+        }
+      },
+      {
+        path: 'mainforce',
+        component: () => import('@/views/Vadmin/Stock/Fund/MainForce.vue'),
+        name: 'MainForceAnalysis',
+        meta: {
+          title: '主力分析',
+          noCache: true
+        }
+      },
+      {
+        path: 'screener',
+        component: () => import('@/views/Vadmin/Stock/Screener/Screener.vue'),
+        name: 'StockScreener',
+        meta: {
+          title: '智能选股',
+          noCache: true
+        }
+      },
+      {
+        path: 'selection-signal',
+        component: () => import('@/views/Vadmin/Stock/SelectionSignal/SelectionSignal.vue'),
+        name: 'SelectionSignal',
+        meta: {
+          title: '选股信号',
+          noCache: true
+        }
+      },
+      {
+        path: 'pattern',
+        component: () => import('@/views/Vadmin/Stock/Pattern/Pattern.vue'),
+        name: 'PatternRecognition',
+        meta: {
+          title: '形态识别',
+          noCache: true
+        }
+      },
+      {
+        path: 'aggregate',
+        component: () => import('@/views/Vadmin/Stock/Aggregate/Aggregate.vue'),
+        name: 'StockAggregate',
+        meta: {
+          title: '股票全景',
+          noCache: true
+        }
       }
     ]
   }

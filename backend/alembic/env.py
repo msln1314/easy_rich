@@ -39,6 +39,10 @@ from apps.admin.log.models import *
 from apps.admin.help.models import *
 from apps.admin.resource.models import *
 from apps.admin.iot.models import *
+from apps.admin.stock.models import *
+from apps.admin.portfolio.models import *
+from apps.admin.review.models import *
+
 # 修改配置中的参数
 target_metadata = Base.metadata
 
@@ -54,7 +58,7 @@ def run_migrations_offline():
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,  # 是否检查字段类型，字段长度
-        compare_server_default=True  # 是否比较在数据库中的默认值
+        compare_server_default=True,  # 是否比较在数据库中的默认值
     )
 
     with context.begin_transaction():
@@ -76,7 +80,7 @@ def run_migrations_online():
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,  # 是否检查字段类型，字段长度
-            compare_server_default=True  # 是否比较在数据库中的默认值
+            compare_server_default=True,  # 是否比较在数据库中的默认值
         )
 
         with context.begin_transaction():

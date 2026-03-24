@@ -139,7 +139,7 @@ async function loadEvents() {
       is_watchlist: showWatchlistOnly.value ? 1 : undefined,
       event_type: selectedEventType.value || undefined,
       page: 1,
-      page_size: 500
+      page_size: 100
     })
 
     events.value = data.data || []

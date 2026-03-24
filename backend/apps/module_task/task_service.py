@@ -14,6 +14,7 @@ from apps.admin.stock.models import (
     StockNorthMoneyRealtime,
     StockChipDistribution,
     StockDailyRanking,
+    StockDaily,
     StockHotRankDetail,
     News,
     StockLonghubang,
@@ -1692,7 +1693,7 @@ async def sync_margin_summary(db: AsyncSession) -> dict:
 
         current_time = datetime.now()
         trade_date_str = margin_data.get("trade_date", "")
-        
+
         if trade_date_str:
             if len(trade_date_str) == 8:
                 trade_date = datetime.strptime(trade_date_str, "%Y%m%d").date()
@@ -1773,7 +1774,11 @@ async def sync_margin_detail(db: AsyncSession) -> dict:
 
         for detail in detail_list:
             try:
-                stock_code = detail.stock_code if hasattr(detail, 'stock_code') else detail.get("stock_code", "")
+                stock_code = (
+                    detail.stock_code
+                    if hasattr(detail, "stock_code")
+                    else detail.get("stock_code", "")
+                )
                 if not stock_code:
                     continue
 
@@ -1782,14 +1787,28 @@ async def sync_margin_detail(db: AsyncSession) -> dict:
                 detail_data = {
                     "trade_date": current_date,
                     "stock_code": stock_code,
-                    "stock_name": detail.stock_name if hasattr(detail, 'stock_name') else detail.get("stock_name"),
+                    "stock_name": detail.stock_name
+                    if hasattr(detail, "stock_name")
+                    else detail.get("stock_name"),
                     "full_code": full_code,
-                    "rzye": detail.financing_balance if hasattr(detail, 'financing_balance') else detail.get("financing_balance"),
-                    "rzmre": detail.financing_buy_amount if hasattr(detail, 'financing_buy_amount') else detail.get("financing_buy_amount"),
-                    "rzche": detail.financing_repay_amount if hasattr(detail, 'financing_repay_amount') else detail.get("financing_repay_amount"),
-                    "rqye": detail.securities_balance if hasattr(detail, 'securities_balance') else detail.get("securities_balance"),
-                    "rqmcl": detail.securities_sell_volume if hasattr(detail, 'securities_sell_volume') else detail.get("securities_sell_volume"),
-                    "rqchl": detail.securities_repay_volume if hasattr(detail, 'securities_repay_volume') else detail.get("securities_repay_volume"),
+                    "rzye": detail.financing_balance
+                    if hasattr(detail, "financing_balance")
+                    else detail.get("financing_balance"),
+                    "rzmre": detail.financing_buy_amount
+                    if hasattr(detail, "financing_buy_amount")
+                    else detail.get("financing_buy_amount"),
+                    "rzche": detail.financing_repay_amount
+                    if hasattr(detail, "financing_repay_amount")
+                    else detail.get("financing_repay_amount"),
+                    "rqye": detail.securities_balance
+                    if hasattr(detail, "securities_balance")
+                    else detail.get("securities_balance"),
+                    "rqmcl": detail.securities_sell_volume
+                    if hasattr(detail, "securities_sell_volume")
+                    else detail.get("securities_sell_volume"),
+                    "rqchl": detail.securities_repay_volume
+                    if hasattr(detail, "securities_repay_volume")
+                    else detail.get("securities_repay_volume"),
                     "data_time": current_time,
                     "data_from": "stock_service",
                 }
@@ -1815,12 +1834,196 @@ async def sync_margin_detail(db: AsyncSession) -> dict:
                 continue
 
         await db.commit()
-        message = f"成功同步：新增 {added_count} 条，更新 {updated_count} 条融资融券明细数据"
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条融资融券明细数据"
+        )
         print(message)
         return {"is_success": True, "message": message}
 
     except Exception as e:
         await db.rollback()
         print(f"同步融资融券明细数据失败: {str(e)}")
+        traceback.print_exc()
+        raise e
+
+
+async def sync_stock_daily_kline(
+    db: AsyncSession, stock_code: str = None, days: int = 750
+) -> dict:
+    """
+    同步股票日K线数据
+    智能增量同步：检查最后记录日期，只补充缺失部分
+    新股票获取最近3年数据（约750个交易日）
+
+    Args:
+        db: 数据库会话
+        stock_code: 指定股票代码，为None时同步全部股票
+        days: 新股票获取的历史天数，默认750天（约3年）
+
+    Returns:
+        dict: 同步结果
+    """
+    try:
+        print("开始同步股票日K线数据...")
+
+        # 获取股票列表
+        if stock_code:
+            stock_list = [{"code": stock_code}]
+        else:
+            async with StockServiceClient() as client:
+                stock_list = await client.get_all_stock_list()
+
+        if not stock_list:
+            return {"is_success": False, "message": "未获取到股票列表"}
+
+        current_date = date.today()
+        current_time = datetime.now()
+
+        # 计算默认开始日期（3年前）
+        default_start_date = (current_date - timedelta(days=days)).strftime("%Y%m%d")
+        default_end_date = current_date.strftime("%Y%m%d")
+
+        added_count = 0
+        updated_count = 0
+        error_count = 0
+        skipped_count = 0
+
+        total_stocks = len(stock_list)
+        print(f"共需处理 {total_stocks} 只股票")
+
+        for idx, stock in enumerate(stock_list, 1):
+            try:
+                code = stock.get("code", "")
+                if not code:
+                    continue
+
+                # 进度显示
+                if idx % 100 == 0:
+                    print(
+                        f"处理进度: {idx}/{total_stocks}, 已新增: {added_count}, 已更新: {updated_count}"
+                    )
+
+                # 查询该股票最后一条K线记录的日期
+                last_record_sql = select(func.max(StockDaily.trade_date)).where(
+                    StockDaily.stock_code == code
+                )
+                result = await db.execute(last_record_sql)
+                last_date = result.scalar()
+
+                # 确定同步的日期范围
+                if last_date:
+                    # 从最后日期的下一天开始
+                    start_date = (last_date + timedelta(days=1)).strftime("%Y%m%d")
+                    if start_date >= default_end_date:
+                        skipped_count += 1
+                        continue
+                else:
+                    # 新股票，获取最近3年数据
+                    start_date = default_start_date
+
+                # 调用 stock_service_client 获取历史K线数据
+                async with StockServiceClient() as client:
+                    history_data = await client.get_stock_history(
+                        stock_code=code,
+                        period="daily",
+                        start_date=start_date,
+                        end_date=default_end_date,
+                    )
+
+                if not history_data:
+                    continue
+
+                # 批量处理数据
+                for item in history_data:
+                    try:
+                        trade_date_str = item.get("trade_date", "")
+                        if not trade_date_str:
+                            continue
+
+                        # 处理日期格式
+                        if isinstance(trade_date_str, str):
+                            if len(trade_date_str) == 10:
+                                trade_date = datetime.strptime(
+                                    trade_date_str, "%Y-%m-%d"
+                                ).date()
+                            else:
+                                trade_date = datetime.strptime(
+                                    trade_date_str, "%Y%m%d"
+                                ).date()
+                        else:
+                            trade_date = trade_date_str
+
+                        # 构建K线数据
+                        kline_data = {
+                            "stock_code": code,
+                            "stock_name": stock.get("name"),
+                            "full_code": StockUtils.get_full_code(code),
+                            "trade_date": trade_date,
+                            "open_price": item.get("open"),
+                            "high_price": item.get("high"),
+                            "low_price": item.get("low"),
+                            "close_price": item.get("close"),
+                            "volume": item.get("volume"),
+                            "amount": item.get("amount"),
+                            "amplitude": item.get("amplitude"),
+                            "change_percent": item.get("change_percent"),
+                            "change_amount": item.get("change_amount"),
+                            "turnover_rate": item.get("turnover"),
+                            "data_source": "stock_service",
+                        }
+
+                        # 检查是否已存在
+                        existing_sql = select(StockDaily).where(
+                            StockDaily.stock_code == code,
+                            StockDaily.trade_date == trade_date,
+                        )
+                        result = await db.execute(existing_sql)
+                        existing = result.scalar_one_or_none()
+
+                        if existing:
+                            del kline_data["stock_code"]
+                            del kline_data["trade_date"]
+                            update_stmt = (
+                                update(StockDaily)
+                                .where(StockDaily.id == existing.id)
+                                .values(**kline_data)
+                            )
+                            await db.execute(update_stmt)
+                            updated_count += 1
+                        else:
+                            new_kline = StockDaily(**kline_data)
+                            db.add(new_kline)
+                            added_count += 1
+
+                    except Exception as e:
+                        print(f"处理K线数据 {code} {trade_date_str} 失败: {str(e)}")
+                        continue
+
+                # 每100只股票提交一次
+                if idx % 100 == 0:
+                    await db.commit()
+
+            except Exception as e:
+                error_count += 1
+                if error_count <= 5:
+                    print(f"处理股票 {code} K线数据失败: {str(e)}")
+                continue
+
+        await db.commit()
+        message = (
+            f"成功同步：新增 {added_count} 条，更新 {updated_count} 条K线数据，"
+            f"跳过 {skipped_count} 只已是最新，失败 {error_count} 只"
+        )
+        print(message)
+        return {
+            "is_success": True,
+            "message": message,
+            "added": added_count,
+            "updated": updated_count,
+        }
+
+    except Exception as e:
+        await db.rollback()
+        print(f"同步K线数据失败: {str(e)}")
         traceback.print_exc()
         raise e

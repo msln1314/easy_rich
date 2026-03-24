@@ -48,7 +48,8 @@
       "Bash(python -c \"from app.api.endpoints import market_routes; print\\(''market_routes loaded successfully''\\)\")",
       "Bash(curl -s http://localhost:8008/api/v1/openapi.json)",
       "Bash(python -c \"import sys, json; data = json.load\\(sys.stdin\\); paths = list\\(data.get\\(''''paths'''', {}\\).keys\\(\\)\\); print\\(''''\\\\n''''.join\\(sorted\\(paths\\)[:30]\\)\\)\")",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

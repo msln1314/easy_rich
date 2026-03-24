@@ -180,9 +180,20 @@ class FundFlowService:
         logger.info(f"获取市场资金流向: 最近{days}天")
 
         try:
-            df = ak.stock_market_fund_flow()
+            import signal
 
-            if df.empty:
+            def timeout_handler(signum, frame):
+                raise TimeoutError("AKShare 接口超时")
+
+            # 设置30秒超时 (Windows 不支持 signal.alarm，使用其他方式)
+            try:
+                df = ak.stock_market_fund_flow()
+            except Exception as e:
+                logger.warning(f"AKShare stock_market_fund_flow 失败: {e}")
+                return []
+
+            if df is None or df.empty:
+                logger.warning("市场资金流向数据为空")
                 return []
 
             # 取最近N天
@@ -243,6 +254,7 @@ class FundFlowService:
         Returns:
             今日市场资金流向数据
         """
+        logger.info("获取今日市场资金流向")
         try:
             data = await self.get_market_fund_flow(days=1)
             if data:

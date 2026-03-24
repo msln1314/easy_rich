@@ -13,6 +13,7 @@ from .stock_group import StockGroup
 from .sys_user_stock_group import SysUserStockGroup
 from .stock_realtime import StockRealtime
 from .stock_daily_ranking import StockDailyRanking
+from .stock_daily import StockDaily
 from .stock_index import StockIndex
 from .stock_fund_flow import StockFundFlow
 from .stock_north_money import StockNorthMoney, StockNorthMoneyRealtime

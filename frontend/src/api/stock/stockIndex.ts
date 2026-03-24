@@ -408,3 +408,51 @@ export interface UpDownDistribution {
 export const getUpDownDistributionApi = (): Promise<IResponse> => {
   return request.get({ url: '/stock/dashboard/up-down-distribution' })
 }
+
+// 大盘云图
+export interface CloudMapStock {
+  code: string
+  name: string
+  market: string
+  industry: string
+  value: number
+  change: number
+  pe: number | null
+  pb: number | null
+  amount: number
+  price: number
+}
+
+export interface CloudMapIndustry {
+  name: string
+  value: number
+  change: number
+  children: CloudMapStock[]
+}
+
+export interface CloudMapSummary {
+  up: number
+  down: number
+  flat: number
+  limit_up: number
+  limit_down: number
+  total: number
+}
+
+export interface CloudMapData {
+  industries: CloudMapIndustry[]
+  summary: CloudMapSummary
+  snapshots: Record<string, { available: boolean }>
+  update_time: string
+}
+
+export const getCloudMapDataApi = (
+  market: string = 'all',
+  metric: string = 'change',
+  period: string = 'today'
+): Promise<IResponse> => {
+  return request.get({
+    url: '/stock/dashboard/cloud-map/data',
+    params: { market, metric, period }
+  })
+}

@@ -12,6 +12,7 @@ from apps.admin.auth.utils.current import AllUserAuth, Auth
 from .params import PredictionParams
 from .schemas import PredictionOut, PredictionError
 from services.prediction_service import PredictionService  # pyright: ignore[reportDeprecated]
+
 router = APIRouter()
 
 ###########################################################
@@ -21,6 +22,7 @@ router = APIRouter()
 
 # 全局预测服务实例（单例模式，避免重复加载模型）
 _prediction_service: PredictionService | None = None
+
 
 def get_prediction_service() -> PredictionService:
     """依赖注入：提供预测服务实例（单例模式）"""
@@ -34,7 +36,7 @@ def get_prediction_service() -> PredictionService:
 async def predict_stock_price(
     request: PredictionParams,
     service: PredictionService = Depends(get_prediction_service),
-    auth: Auth = Depends(AllUserAuth())
+    auth: Auth = Depends(AllUserAuth()),
 ):
     """
     使用 Kronos 时间序列模型预测股票价格
@@ -45,7 +47,9 @@ async def predict_stock_price(
 
     try:
         # 获取历史数据
-        historical_data = await service._get_historical_data(request.stock_code, request.historical_days)
+        historical_data = await service._get_historical_data(
+            request.stock_code, request.historical_days
+        )
         # 执行预测
         result = await service.predict_stock_price(request, historical_data)
 
@@ -56,7 +60,7 @@ async def predict_stock_price(
     except ValueError as e:
         return ErrorResponse(f"参数错误: {str(e)}")
     except Exception as e:
-        print(e)
-        return ErrorResponse("预测服务内部错误")
+        import traceback
 
-
+        traceback.print_exc()
+        return ErrorResponse(f"预测服务内部错误: {str(e)}")
