@@ -132,6 +132,19 @@ except ImportError:
     print("警告: 无法导入 baostock_routes 模块")
     baostock_routes = None
 
+# AI 分析路由
+try:
+    from app.api.endpoints import ai_chat_routes
+except ImportError:
+    print("警告: 无法导入 ai_chat_routes 模块")
+    ai_chat_routes = None
+
+try:
+    from app.api.endpoints import ai_agent_routes
+except ImportError:
+    print("警告: 无法导入 ai_agent_routes 模块")
+    ai_agent_routes = None
+
 api_router = APIRouter()
 
 if stock_routes:
@@ -203,4 +216,14 @@ if stock_aggregate_routes:
 if baostock_routes:
     api_router.include_router(
         baostock_routes.router, prefix="/baostock", tags=["baostock"]
+    )
+
+# AI 分析路由
+if ai_chat_routes:
+    api_router.include_router(
+        ai_chat_routes.router, prefix="/ai", tags=["ai-chat"]
+    )
+if ai_agent_routes:
+    api_router.include_router(
+        ai_agent_routes.router, prefix="/ai/agents", tags=["ai-agents"]
     )
