@@ -397,6 +397,7 @@ class FactorCalculator:
             'ATR': talib.ATR,
             'ADX': talib.ADX,
             'BBANDS': talib.BBANDS,
+            'OBV': talib.OBV,
         }
 
     def calculate(self, df: pd.DataFrame, code: str) -> pd.Series:
@@ -439,6 +440,46 @@ class FactorCalculator:
     def _every(self, condition, n: int) -> pd.Series:
         """连续N日满足条件"""
         return condition.rolling(n, min_periods=1).apply(lambda x: x.all())
+
+    def _ema(self, series, n: int) -> pd.Series:
+        """指数移动平均"""
+        return series.ewm(span=n, adjust=False).mean()
+
+    def _exist(self, condition, n: int) -> pd.Series:
+        """N日内存在满足条件"""
+        return condition.rolling(n, min_periods=1).apply(lambda x: x.any())
+```
+
+### 辅助工具
+
+```python
+import signal
+from contextlib import contextmanager
+
+@contextmanager
+def timeout(seconds: int):
+    """超时上下文管理器"""
+    def timeout_handler(signum, frame):
+        raise TimeoutError(f"执行超时（{seconds}秒）")
+    original_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, original_handler)
+
+# safe_numpy 和 safe_pandas 是受限版本
+# 只暴露安全的函数，禁止危险操作
+safe_numpy = type('SafeNumpy', (), {
+    'log': np.log, 'sqrt': np.sqrt, 'abs': np.abs,
+    'mean': np.mean, 'std': np.std, 'sum': np.sum,
+    'min': np.min, 'max': np.max,
+})()
+
+safe_pandas = type('SafePandas', (), {
+    'Series': pd.Series, 'DataFrame': pd.DataFrame,
+})()
 ```
 
 ---
@@ -599,6 +640,26 @@ MINING_CONFIG_SCHEMA = {
         'max_length': 20,  # 最多20个基础因子
     },
 }
+
+# 日期范围验证
+def validate_date_range(config: dict) -> tuple[bool, str]:
+    """验证日期范围是否有效"""
+    start_date = config.get('start_date')
+    end_date = config.get('end_date')
+
+    if not start_date or not end_date:
+        return False, "开始日期和结束日期不能为空"
+
+    if end_date <= start_date:
+        return False, "结束日期必须大于开始日期"
+
+    # 限制最大日期范围为5年
+    max_range_days = 365 * 5
+    if (end_date - start_date).days > max_range_days:
+        return False, f"日期范围不能超过{max_range_days // 365}年"
+
+    return True, ""
+```
 ```
 
 ---
