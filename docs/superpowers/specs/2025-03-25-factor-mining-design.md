@@ -390,6 +390,10 @@ class FactorCalculator:
             'CROSS': self._cross,  # 金叉
             'EVERY': self._every,  # 连续满足
             'EXIST': self._exist,  # 存在满足
+            'COUNT': self._count,  # N日内满足条件次数
+            'SUM': self._sum,      # N日总和
+            'AVE': self._ave,      # N日平均值
+            'STD': self._std,      # N日标准差
         }
         self.talib_funcs = {
             'RSI': talib.RSI,
@@ -453,24 +457,16 @@ class FactorCalculator:
 ### 辅助工具
 
 ```python
-import threading
-from contextlib import contextmanager
-
-@contextmanager
-def timeout(seconds: int):
-    """超时上下文管理器（跨平台兼容）"""
-    timer = threading.Timer(seconds, lambda: None)
-    timer.start()
-    try:
-        yield
-    finally:
-        timer.cancel()
-        if timer.is_alive():
-            raise TimeoutError(f"执行超时（{seconds}秒）")
-
-# 注意：更精确的超时控制可使用 multiprocessing 或 func_timeout 库
+# 推荐使用 func_timeout 库实现真正的超时控制
 # pip install func-timeout
-# from func_timeout import func_timeout
+from func_timeout import func_timeout, FunctionTimedOut
+
+def calculate_with_timeout(df: pd.DataFrame, code: str, timeout_seconds: int = 30) -> pd.Series:
+    """带超时保护的因子计算"""
+    try:
+        return func_timeout(timeout_seconds, calculate, args=(df, code))
+    except FunctionTimedOut:
+        raise TimeoutError(f"因子计算超时（{timeout_seconds}秒）")
 
 # safe_numpy 和 safe_pandas 是受限版本
 # 只暴露安全的函数，禁止危险操作
@@ -683,7 +679,6 @@ def validate_date_range(config: dict) -> tuple[bool, str]:
         return False, f"日期范围不能超过{max_range_days // 365}年"
 
     return True, ""
-```
 ```
 
 ---
