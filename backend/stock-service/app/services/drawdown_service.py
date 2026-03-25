@@ -21,8 +21,16 @@ logger = get_logger(__name__)
 class DrawdownService:
     """回撤分析服务"""
 
-    def __init__(self):
-        pass
+    # 回撤阈值
+    DRAWDOWN_THRESHOLD = 5.0  # 最小回撤识别阈值(%)
+    DRAWDOWN_LEVELS = [5, 10, 20, 30]  # 回撤级别统计
+
+    # 均线周期
+    MA_SHORT = 20
+    MA_LONG = 60
+
+    # 信号强度阈值
+    SIGNAL_STRENGTH_THRESHOLD = 50
 
     async def analyze_drawdown(
         self,
@@ -313,7 +321,7 @@ class DrawdownService:
 
             return df.to_dict("records")
         except Exception as e:
-            logger.error(f"获取K线数据失败: {e}")
+            logger.warning(f"获取K线数据失败 (stock_code={stock_code}, start={start_date}, end={end_date}): {e}", exc_info=True)
             return []
 
     def _find_drawdown_points(
