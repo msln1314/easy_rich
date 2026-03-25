@@ -404,22 +404,24 @@ class FactorCalculator:
             'OBV': talib.OBV,
         }
 
-    def calculate(self, df: pd.DataFrame, code: str) -> pd.Series:
-        """计算因子值"""
-        # 1. 创建安全命名空间
-        namespace = create_safe_namespace(df)
+    def calculate(self, df: pd.DataFrame, code: str, timeout_seconds: int = 30) -> pd.Series:
+        """计算因子值（带超时保护）"""
+        from func_timeout import func_timeout, FunctionTimedOut
 
-        # 2. 添加麦语言函数
-        namespace.update(self.mylanguage_funcs)
+        def _eval():
+            # 1. 创建安全命名空间
+            namespace = create_safe_namespace(df)
+            # 2. 添加麦语言函数
+            namespace.update(self.mylanguage_funcs)
+            # 3. 添加TALib函数（已封装）
+            namespace.update(self.talib_funcs)
+            # 4. 在沙箱中执行
+            return eval(code, {'__builtins__': {}}, namespace)
 
-        # 3. 添加TALib函数（已封装）
-        namespace.update(self.talib_funcs)
-
-        # 4. 在沙箱中执行
-        with timeout(MAX_EXECUTION_TIME):
-            result = eval(code, {'__builtins__': {}}, namespace)
-
-        return result
+        try:
+            return func_timeout(timeout_seconds, _eval)
+        except FunctionTimedOut:
+            raise TimeoutError(f"因子计算超时（{timeout_seconds}秒）")
 
     def _ref(self, series, n: int) -> pd.Series:
         """引用N日前值"""
