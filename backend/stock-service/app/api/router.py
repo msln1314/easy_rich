@@ -132,6 +132,12 @@ except ImportError:
     print("警告: 无法导入 baostock_routes 模块")
     baostock_routes = None
 
+try:
+    from app.api.endpoints import drawdown_routes
+except ImportError:
+    print("警告: 无法导入 drawdown_routes 模块")
+    drawdown_routes = None
+
 # AI 分析路由
 try:
     from app.api.endpoints import ai_chat_routes
@@ -223,6 +229,10 @@ if stock_aggregate_routes:
 if baostock_routes:
     api_router.include_router(
         baostock_routes.router, prefix="/baostock", tags=["baostock"]
+    )
+if drawdown_routes:
+    api_router.include_router(
+        drawdown_routes.router, prefix="/drawdown", tags=["drawdown"]
     )
 
 # AI 分析路由
