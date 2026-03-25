@@ -136,9 +136,10 @@ class DailyReviewResponse(BaseModel):
 class AgentOpinion:
     """Agent观点"""
     agent_name: str
-    signal: Signal
-    confidence: float
-    reasoning: str
+    agent_type: str = ""
+    signal: Signal = Signal.HOLD
+    confidence: float = 0.5
+    reasoning: str = ""
     supporting_data: Dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
 
