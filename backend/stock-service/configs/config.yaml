@@ -1,0 +1,45 @@
+# AI服务主配置文件
+# 三层配置优先级: 环境变量 > .env > YAML
+
+# 默认Provider和模型
+default_provider: "openai"
+default_model: "gpt-4"
+
+# LLM Provider配置
+llm_providers:
+  providers:
+    openai:
+      name: "OpenAI"
+      api_key_env: "OPENAI_API_KEY"
+      api_base: "https://api.openai.com/v1"
+      default: true
+
+    deepseek:
+      name: "DeepSeek"
+      api_key_env: "DEEPSEEK_API_KEY"
+      api_base: "https://api.deepseek.com/v1"
+
+    aliyun:
+      name: "阿里云通义千问"
+      api_key_env: "ALIYUN_API_KEY"
+      api_base: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+    zhipu:
+      name: "智谱AI"
+      api_key_env: "ZHIPU_API_KEY"
+      api_base: "https://open.bigmodel.cn/api/paas/v4"
+
+    baidu:
+      name: "百度文心一言"
+      api_key_env: "BAIDU_API_KEY"
+      api_base: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat"
+
+    tencent:
+      name: "腾讯混元"
+      api_key_env: "TENCENT_API_KEY"
+      api_base: "https://api.hunyuan.cloud.tencent.com/v1"
+
+    local:
+      name: "本地模型"
+      api_key_env: "LOCAL_API_KEY"
+      api_base: "http://localhost:11434/v1"

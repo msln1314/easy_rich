@@ -1,0 +1,131 @@
+# Agent配置文件
+# 每个Agent可以独立配置模型和回退Provider
+
+agents:
+  # 技术分析Agent - 使用快速响应模型
+  technical_agent:
+    name: "技术分析师"
+    primary_model:
+      provider: "openai"
+      model_id: "gpt-4o"
+      provider_models:
+        deepseek: "deepseek-chat"
+        aliyun: "qwen-max"
+        zhipu: "glm-4"
+      max_tokens: 4000
+      temperature: 0.7
+    fallback_providers: ["deepseek", "aliyun"]
+    max_steps: 6
+    system_prompt_template: |
+      你是一位资深技术分析师，拥有20年A股技术分析经验。
+      请基于提供的数据进行技术面分析。
+
+  # 基本面分析Agent - 使用深度分析模型
+  fundamental_agent:
+    name: "基本面分析师"
+    primary_model:
+      provider: "openai"
+      model_id: "gpt-4-turbo"
+      provider_models:
+        deepseek: "deepseek-reasoner"
+        aliyun: "qwen-max-longcontext"
+      max_tokens: 6000
+      temperature: 0.5
+    fallback_providers: ["deepseek"]
+    max_steps: 8
+    system_prompt_template: |
+      你是一位资深基本面分析师，擅长公司财务分析和估值判断。
+
+  # 新闻分析Agent
+  news_agent:
+    name: "新闻分析师"
+    primary_model:
+      provider: "openai"
+      model_id: "gpt-4o"
+      provider_models:
+        deepseek: "deepseek-chat"
+        aliyun: "qwen-max"
+      max_tokens: 4000
+      temperature: 0.6
+    fallback_providers: ["deepseek", "aliyun"]
+    max_steps: 4
+
+  # 风险评估Agent
+  risk_agent:
+    name: "风险评估师"
+    primary_model:
+      provider: "openai"
+      model_id: "gpt-4"
+      provider_models:
+        deepseek: "deepseek-chat"
+      max_tokens: 3000
+      temperature: 0.3
+    fallback_providers: ["deepseek"]
+    max_steps: 4
+
+  # 决策Agent - 使用最强模型
+  decision_agent:
+    name: "投资决策师"
+    primary_model:
+      provider: "openai"
+      model_id: "gpt-4"
+      provider_models:
+        deepseek: "deepseek-chat"
+        aliyun: "qwen-max"
+      max_tokens: 5000
+      temperature: 0.5
+    fallback_providers: ["deepseek", "aliyun"]
+    max_steps: 6
+
+  # 多头研究员 - 辩论Agent
+  bull_researcher:
+    name: "多头研究员"
+    primary_model:
+      provider: "openai"
+      model_id: "gpt-4o"
+      provider_models:
+        deepseek: "deepseek-chat"
+      max_tokens: 3000
+      temperature: 0.8
+    fallback_providers: ["deepseek"]
+    max_steps: 4
+
+  # 空头研究员 - 辩论Agent
+  bear_researcher:
+    name: "空头研究员"
+    primary_model:
+      provider: "openai"
+      model_id: "gpt-4o"
+      provider_models:
+        deepseek: "deepseek-chat"
+      max_tokens: 3000
+      temperature: 0.8
+    fallback_providers: ["deepseek"]
+    max_steps: 4
+
+  # 辩论法官
+  debate_judge:
+    name: "辩论法官"
+    primary_model:
+      provider: "openai"
+      model_id: "gpt-4"
+      provider_models:
+        deepseek: "deepseek-chat"
+      max_tokens: 4000
+      temperature: 0.3
+    fallback_providers: ["deepseek"]
+    max_steps: 2
+
+  # AI对话助手
+  chat_assistant:
+    name: "AI对话助手"
+    primary_model:
+      provider: "openai"
+      model_id: "gpt-4o"
+      provider_models:
+        deepseek: "deepseek-chat"
+        aliyun: "qwen-turbo"
+      max_tokens: 4000
+      temperature: 0.7
+    fallback_providers: ["deepseek", "aliyun"]
+    max_steps: 10

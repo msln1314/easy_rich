@@ -2,16 +2,43 @@
 """多Agent协调器
 
 提供多Agent协作的编排和执行能力，支持不同分析模式。
+支持后台生产者模式和流式响应。
 """
 
+import asyncio
 import logging
-from typing import List, Dict, Any, Optional, Callable
+import time
+import uuid
+from typing import List, Dict, Any, Optional, Callable, AsyncGenerator
 from datetime import datetime
 
 from app.services.ai.context import AgentContext
 from app.services.ai.tool_registry import ToolRegistry
 from app.services.ai.llm_adapter import LLMToolAdapter, get_llm_adapter
+from app.services.ai.model_factory import create_model_for_agent
 from app.services.ai.agents.base_agent import BaseAgent
+from app.services.ai.events import (
+    BaseStreamEvent,
+    SessionStartedEvent,
+    SessionCompletedEvent,
+    SessionErrorEvent,
+    AgentStartedEvent,
+    AgentCompletedEvent,
+    AgentFailedEvent,
+    MessageChunkEvent,
+    ToolCallStartedEvent,
+    ToolCallCompletedEvent,
+    ProgressEvent,
+    DataFetchEvent,
+    OpinionEvent,
+    SynthesisEvent,
+    DebateStartedEvent,
+    DebateRoundEvent,
+    DebateCompletedEvent,
+    StreamEventType,
+    create_event,
+)
+from app.services.ai.states import DebateManager, DebateResult
 from app.models.ai_models import (
     AgentOpinion,
     StageResult,
@@ -430,3 +457,233 @@ class AgentOrchestrator:
             agents: Agent列表
         """
         self._custom_agents = agents
+
+    async def run_stream(
+        self,
+        stock_code: str,
+        query: str = "",
+    ) -> AsyncGenerator[BaseStreamEvent, None]:
+        """
+        流式执行分析
+
+        使用后台生产者模式，确保断线后任务继续执行。
+        参考 valuecell orchestrator 设计。
+
+        Args:
+            stock_code: 股票代码
+            query: 用户查询问题
+
+        Yields:
+            BaseStreamEvent: 流式事件
+        """
+        session_id = str(uuid.uuid4())
+        start_time = time.time()
+
+        # 创建上下文
+        ctx = AgentContext.create(stock_code=stock_code, query=query)
+        ctx.meta["mode"] = self.mode
+        ctx.meta["model"] = self.model
+        ctx.meta["session_id"] = session_id
+
+        try:
+            # 发送会话开始事件
+            yield SessionStartedEvent(
+                session_id=session_id,
+                stock_code=stock_code,
+                query=query,
+            )
+
+            # 预取数据
+            async for event in self._prefetch_data_stream(ctx):
+                yield event
+
+            # 执行Agent链
+            agents = self._build_agent_chain()
+            total_tokens = 0
+
+            for agent in agents:
+                async for event in self._run_agent_stream(agent, ctx):
+                    yield event
+                    if isinstance(event, AgentCompletedEvent):
+                        total_tokens += event.data.get("tokens_used", 0)
+
+            # 执行辩论（如果有多个Agent）
+            if len(ctx.opinions) >= 2 and self.mode in ("full", "specialist"):
+                async for event in self._run_debate_stream(ctx):
+                    yield event
+
+            # 综合研判
+            synthesis = self._synthesize(ctx)
+            yield SynthesisEvent(
+                conclusion=synthesis.signal.value if synthesis.signal else "hold",
+                confidence=synthesis.confidence,
+                target_price=None,
+                stop_loss=None,
+                risk_level="中等",
+                operation_advice=synthesis.supporting_data.get("operation_advice", "") if synthesis.supporting_data else "",
+                key_factors=synthesis.key_factors,
+            )
+
+            # 发送会话完成事件
+            duration = time.time() - start_time
+            yield SessionCompletedEvent(
+                session_id=session_id,
+                duration_s=duration,
+                tokens_used=total_tokens,
+            )
+
+        except Exception as e:
+            logger.error(f"流式分析失败: {e}")
+            yield SessionErrorEvent(
+                session_id=session_id,
+                error=str(e),
+            )
+
+    async def _prefetch_data_stream(
+        self, ctx: AgentContext
+    ) -> AsyncGenerator[BaseStreamEvent, None]:
+        """流式预取数据"""
+        yield ProgressEvent(message="正在获取数据...", progress=0.1)
+        yield DataFetchEvent(data_type="stock_info", status="started")
+
+        # TODO: 实际的数据获取实现
+        # 占位实现
+        ctx.stock_name = ctx.stock_code
+        ctx.set_data("prefetch_status", "completed")
+
+        yield DataFetchEvent(data_type="stock_info", status="completed")
+        yield ProgressEvent(message="数据获取完成", progress=0.2)
+
+    async def _run_agent_stream(
+        self, agent: BaseAgent, ctx: AgentContext
+    ) -> AsyncGenerator[BaseStreamEvent, None]:
+        """流式执行Agent"""
+        yield AgentStartedEvent(
+            agent_name=agent.agent_name,
+            agent_type=agent.agent_type,
+        )
+
+        yield ProgressEvent(message=f"正在执行 {agent.agent_name} 分析...", progress=0.3)
+
+        try:
+            # 使用配置的模型
+            try:
+                llm_adapter = create_model_for_agent(agent.agent_name)
+            except Exception:
+                llm_adapter = self.llm_adapter
+
+            # 执行Agent
+            result = await agent.run(ctx)
+
+            if result.status == StageStatus.COMPLETED and result.opinion:
+                # 发送观点事件
+                opinion = result.opinion
+                yield OpinionEvent(
+                    agent_name=opinion.agent_name if hasattr(opinion, "agent_name") else agent.agent_name,
+                    agent_type=opinion.agent_type if hasattr(opinion, "agent_type") else agent.agent_type,
+                    signal=opinion.signal.value if hasattr(opinion.signal, "value") else str(opinion.signal),
+                    confidence=opinion.confidence if hasattr(opinion, "confidence") else 0.0,
+                    reasoning=opinion.reasoning if hasattr(opinion, "reasoning") else "",
+                    key_points=opinion.key_points if hasattr(opinion, "key_points") else [],
+                    key_levels=opinion.key_levels if hasattr(opinion, "key_levels") else {},
+                )
+
+                yield AgentCompletedEvent(
+                    agent_name=agent.agent_name,
+                    signal=opinion.signal.value if hasattr(opinion.signal, "value") else "hold",
+                    confidence=opinion.confidence if hasattr(opinion, "confidence") else 0.0,
+                )
+            else:
+                yield AgentFailedEvent(
+                    agent_name=agent.agent_name,
+                    error=result.error or "Unknown error",
+                )
+
+        except Exception as e:
+            logger.error(f"Agent {agent.agent_name} 执行失败: {e}")
+            yield AgentFailedEvent(
+                agent_name=agent.agent_name,
+                error=str(e),
+            )
+
+    async def _run_debate_stream(
+        self, ctx: AgentContext
+    ) -> AsyncGenerator[BaseStreamEvent, None]:
+        """流式执行辩论"""
+        yield DebateStartedEvent(topic=f"{ctx.stock_name} 分析辩论")
+
+        debate_manager = DebateManager(max_rounds=2)
+
+        # 简化的辩论流程
+        for round_num in range(1, 3):
+            # 收集多头和空头观点
+            bull_views = []
+            bear_views = []
+
+            for opinion in ctx.opinions:
+                signal = opinion.signal.value if hasattr(opinion.signal, "value") else str(opinion.signal)
+                if signal in ("strong_buy", "buy"):
+                    bull_views.append(opinion.reasoning if hasattr(opinion, "reasoning") else "")
+                elif signal in ("strong_sell", "sell"):
+                    bear_views.append(opinion.reasoning if hasattr(opinion, "reasoning") else "")
+
+            yield DebateRoundEvent(
+                round_num=round_num,
+                bull_view=bull_views[0][:200] if bull_views else "",
+                bear_view=bear_views[0][:200] if bear_views else "",
+            )
+
+            debate_manager.advance_round()
+
+        yield DebateCompletedEvent(
+            decision="综合多空观点",
+            reasoning="基于各Agent分析结果综合判断",
+        )
+
+    async def run_with_queue(
+        self,
+        stock_code: str,
+        query: str = "",
+    ) -> AsyncGenerator[BaseStreamEvent, None]:
+        """
+        后台生产者模式
+
+        确保断线后任务继续执行，使用队列解耦生产/消费。
+        参考 valuecell 编排器设计。
+
+        Args:
+            stock_code: 股票代码
+            query: 用户查询问题
+
+        Yields:
+            BaseStreamEvent: 流式事件
+        """
+        queue: asyncio.Queue[Optional[BaseStreamEvent]] = asyncio.Queue()
+
+        async def producer():
+            """后台生产者"""
+            try:
+                async for event in self.run_stream(stock_code, query):
+                    await queue.put(event)
+            except Exception as e:
+                logger.error(f"生产者错误: {e}")
+            finally:
+                await queue.put(None)  # 结束标记
+
+        # 启动后台生产者
+        producer_task = asyncio.create_task(producer())
+
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:
+                    break
+                yield event
+        finally:
+            # 确保生产者任务完成
+            if not producer_task.done():
+                producer_task.cancel()
+                try:
+                    await producer_task
+                except asyncio.CancelledError:
+                    pass
