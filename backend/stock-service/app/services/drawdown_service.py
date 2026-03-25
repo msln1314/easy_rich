@@ -410,10 +410,7 @@ class DrawdownService:
                 "max_drawdown_duration": 0,
                 "avg_drawdown": 0,
                 "avg_recovery_days": 0,
-                "drawdown_5p_count": 0,
-                "drawdown_10p_count": 0,
-                "drawdown_20p_count": 0,
-                "drawdown_30p_count": 0,
+                **{f"drawdown_{level}p_count": 0 for level in self.DRAWDOWN_LEVELS},
             }
 
         drawdowns = [p.drawdown_percent for p in points]
@@ -425,10 +422,7 @@ class DrawdownService:
             "max_drawdown_duration": max(durations),
             "avg_drawdown": round(np.mean(drawdowns), 2),
             "avg_recovery_days": round(np.mean(recoveries), 1) if recoveries else 0,
-            "drawdown_5p_count": sum(1 for d in drawdowns if d >= 5),
-            "drawdown_10p_count": sum(1 for d in drawdowns if d >= 10),
-            "drawdown_20p_count": sum(1 for d in drawdowns if d >= 20),
-            "drawdown_30p_count": sum(1 for d in drawdowns if d >= 30),
+            **{f"drawdown_{level}p_count": sum(1 for d in drawdowns if d >= level) for level in self.DRAWDOWN_LEVELS},
         }
 
     def _calculate_support_levels(
