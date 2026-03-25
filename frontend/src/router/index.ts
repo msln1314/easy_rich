@@ -278,6 +278,12 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           title: '大模型配置',
           noCache: true
         }
+      },
+      {
+        path: 'drawdown',
+        component: () => import('@/views/Vadmin/Stock/Drawdown/Drawdown.vue'),
+        name: 'DrawdownAnalysis',
+        meta: { title: '回撤分析', noCache: true }
       }
     ]
   }
