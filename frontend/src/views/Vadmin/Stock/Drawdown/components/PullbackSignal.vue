@@ -1,7 +1,7 @@
 <!-- frontend/src/views/Vadmin/Stock/Drawdown/components/PullbackSignal.vue -->
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { ElCard, ElProgress, ElTag, ElEmpty } from 'element-plus'
+import { ElMessage, ElCard, ElProgress, ElTag, ElEmpty } from 'element-plus'
 import { getPullbackSignals, type PullbackSignal } from '@/api/stock/drawdown'
 
 const props = defineProps<{
@@ -21,6 +21,7 @@ const loadSignals = async () => {
     }
   } catch (error) {
     console.error(error)
+    ElMessage.error('获取买点信号失败')
   } finally {
     loading.value = false
   }

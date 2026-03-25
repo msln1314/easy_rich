@@ -1,7 +1,7 @@
 <!-- frontend/src/views/Vadmin/Stock/Drawdown/components/PositionMonitor.vue -->
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ElCard, ElForm, ElFormItem, ElInputNumber, ElDatePicker, ElButton, ElRow, ElCol, ElTag, ElAlert } from 'element-plus'
+import { ElMessage, ElCard, ElForm, ElFormItem, ElInputNumber, ElDatePicker, ElButton, ElRow, ElCol, ElTag, ElAlert } from 'element-plus'
 import { monitorPosition, type PositionMonitor as PositionMonitorType } from '@/api/stock/drawdown'
 
 const props = defineProps<{
@@ -33,6 +33,7 @@ const handleMonitor = async () => {
     }
   } catch (error) {
     console.error(error)
+    ElMessage.error('持仓监控失败')
   } finally {
     loading.value = false
   }

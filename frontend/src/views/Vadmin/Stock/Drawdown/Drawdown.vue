@@ -4,6 +4,8 @@ import { ref } from 'vue'
 import { ElMessage, ElCard, ElInput, ElButton, ElSelect, ElOption, ElRow, ElCol } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { ContentWrap } from '@/components/ContentWrap'
+import { analyzeDrawdown } from '@/api/stock/drawdown'
+import type { DrawdownAnalysisResult } from '@/api/stock/drawdown'
 import DrawdownAnalysis from './components/DrawdownAnalysis.vue'
 import PullbackSignal from './components/PullbackSignal.vue'
 import PositionMonitor from './components/PositionMonitor.vue'
@@ -26,7 +28,7 @@ const timeRangeOptions = [
 ]
 
 // 分析结果
-const analysisResult = ref<any>(null)
+const analysisResult = ref<DrawdownAnalysisResult | null>(null)
 
 // 执行分析
 const handleAnalyze = async () => {
@@ -37,7 +39,6 @@ const handleAnalyze = async () => {
 
   loading.value = true
   try {
-    const { analyzeDrawdown } = await import('@/api/stock/drawdown')
     const res = await analyzeDrawdown({
       stock_code: stockCode.value
     })
