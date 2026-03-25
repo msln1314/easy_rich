@@ -453,21 +453,24 @@ class FactorCalculator:
 ### 辅助工具
 
 ```python
-import signal
+import threading
 from contextlib import contextmanager
 
 @contextmanager
 def timeout(seconds: int):
-    """超时上下文管理器"""
-    def timeout_handler(signum, frame):
-        raise TimeoutError(f"执行超时（{seconds}秒）")
-    original_handler = signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(seconds)
+    """超时上下文管理器（跨平台兼容）"""
+    timer = threading.Timer(seconds, lambda: None)
+    timer.start()
     try:
         yield
     finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, original_handler)
+        timer.cancel()
+        if timer.is_alive():
+            raise TimeoutError(f"执行超时（{seconds}秒）")
+
+# 注意：更精确的超时控制可使用 multiprocessing 或 func_timeout 库
+# pip install func-timeout
+# from func_timeout import func_timeout
 
 # safe_numpy 和 safe_pandas 是受限版本
 # 只暴露安全的函数，禁止危险操作
@@ -480,6 +483,27 @@ safe_numpy = type('SafeNumpy', (), {
 safe_pandas = type('SafePandas', (), {
     'Series': pd.Series, 'DataFrame': pd.DataFrame,
 })()
+```
+
+### 麦语言函数补充
+
+```python
+# 补充 mylanguage_funcs 中缺失的函数
+def _count(self, condition, n: int) -> pd.Series:
+    """N日内满足条件的次数"""
+    return condition.rolling(n, min_periods=1).sum()
+
+def _sum(self, series, n: int) -> pd.Series:
+    """N日总和"""
+    return series.rolling(n, min_periods=1).sum()
+
+def _ave(self, series, n: int) -> pd.Series:
+    """N日平均值"""
+    return series.rolling(n, min_periods=1).mean()
+
+def _std(self, series, n: int) -> pd.Series:
+    """N日标准差"""
+    return series.rolling(n, min_periods=1).std()
 ```
 
 ---
