@@ -140,6 +140,10 @@ class DrawdownService:
         strength += support_score
 
         # 2. 历史回撤规律 (30%)
+        # Note: Simplified heuristic using drawdown thresholds.
+        # Spec requires: current pullback near historical average (+15) and
+        # historical rebound probability > 60% (+15), but would require
+        # additional historical data analysis to implement precisely.
         history_score = 0
         if current_drawdown > 10:
             history_score = 15
@@ -155,11 +159,21 @@ class DrawdownService:
         if len(volumes) >= 5:
             avg_volume = np.mean(volumes[-10:-5]) if len(volumes) >= 10 else np.mean(volumes[:-5])
             recent_volume = np.mean(volumes[-5:])
-            if avg_volume > 0 and recent_volume < avg_volume * 0.7:  # 缩量
-                volume_score = 20
+
+            # Price trend for divergence detection
+            avg_price = np.mean(closes[-10:-5]) if len(closes) >= 10 else np.mean(closes[:-5])
+            recent_price = np.mean(closes[-5:])
+            price_stabilizing = abs(recent_price - avg_price) / avg_price * 100 < 2
+
+            if avg_volume > 0 and recent_volume < avg_volume * 0.7:  # 缩量回调 (+10)
+                volume_score = 10
                 reasoning_parts.append("缩量回调")
-            elif avg_volume > 0 and recent_volume > avg_volume * 1.2:  # 放量企稳
-                volume_score = 15
+                # Divergence detection: volume decreasing while price stabilizing (+10)
+                if price_stabilizing:
+                    volume_score += 10
+                    reasoning_parts.append("量价背离迹象")
+            elif avg_volume > 0 and recent_volume > avg_volume * 1.2:  # 放量企稳 (+10)
+                volume_score = 10
                 reasoning_parts.append("放量迹象")
 
         strength += volume_score
