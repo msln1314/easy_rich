@@ -269,6 +269,15 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           title: 'AI分析师工作台',
           noCache: true
         }
+      },
+      {
+        path: 'llm-config',
+        component: () => import('@/views/Vadmin/Stock/AI/LLMConfig/LLMConfig.vue'),
+        name: 'LLMConfig',
+        meta: {
+          title: '大模型配置',
+          noCache: true
+        }
       }
     ]
   }

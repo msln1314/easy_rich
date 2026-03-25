@@ -145,6 +145,13 @@ except ImportError:
     print("警告: 无法导入 ai_agent_routes 模块")
     ai_agent_routes = None
 
+# LLM 配置路由
+try:
+    from app.api.endpoints import llm_config_routes
+except ImportError:
+    print("警告: 无法导入 llm_config_routes 模块")
+    llm_config_routes = None
+
 api_router = APIRouter()
 
 if stock_routes:
@@ -226,4 +233,10 @@ if ai_chat_routes:
 if ai_agent_routes:
     api_router.include_router(
         ai_agent_routes.router, prefix="/ai/agents", tags=["ai-agents"]
+    )
+
+# LLM 配置路由
+if llm_config_routes:
+    api_router.include_router(
+        llm_config_routes.router, prefix="/llm-config", tags=["llm-config"]
     )
