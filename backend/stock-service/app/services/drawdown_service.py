@@ -112,8 +112,8 @@ class DrawdownService:
         volumes = [float(k.get("volume") or k.get("成交量") or 0) for k in klines]
 
         # 计算技术指标
-        ma20 = np.mean(closes[-20:])
-        ma60 = np.mean(closes[-min(60, len(closes)):]) if len(closes) >= 60 else None
+        ma20 = np.mean(closes[-self.MA_SHORT:])
+        ma60 = np.mean(closes[-min(self.MA_LONG, len(closes)):]) if len(closes) >= self.MA_LONG else None
         current_price = closes[-1]
 
         # 计算当前回撤
@@ -187,7 +187,7 @@ class DrawdownService:
         strength += volume_score
 
         # 生成信号
-        if strength >= 50 and nearest_support:
+        if strength >= self.SIGNAL_STRENGTH_THRESHOLD and nearest_support:
             stop_loss = nearest_support * 0.95  # 止损位为支撑位下方5%
             signals.append(PullbackSignal(
                 signal_date=date.today(),
@@ -356,7 +356,7 @@ class DrawdownService:
                     if prices[j] > peak_price:
                         peak_price = prices[j]
                         peak_idx = j
-                    elif prices[j] < peak_price * 0.95:  # 回撤超过5%
+                    elif prices[j] < peak_price * (1 - self.DRAWDOWN_THRESHOLD / 100):  # 回撤超过阈值
                         break
 
                 if peak_idx == i:
@@ -377,7 +377,7 @@ class DrawdownService:
                 # 计算回撤幅度
                 drawdown = (peak_price - trough_price) / peak_price * 100
 
-                if drawdown >= 5:
+                if drawdown >= self.DRAWDOWN_THRESHOLD:
                     # 搜索恢复点
                     recovery_idx = None
                     for j in range(trough_idx + 1, n):
@@ -440,21 +440,21 @@ class DrawdownService:
         supports = []
 
         # MA20
-        if len(closes) >= 20:
-            supports.append(np.mean(closes[-20:]))
+        if len(closes) >= self.MA_SHORT:
+            supports.append(np.mean(closes[-self.MA_SHORT:]))
 
         # MA60
-        if len(closes) >= 60:
-            supports.append(np.mean(closes[-60:]))
+        if len(closes) >= self.MA_LONG:
+            supports.append(np.mean(closes[-self.MA_LONG:]))
 
         # 前低点（最近30天最低价）
         if len(closes) >= 30:
             supports.append(min(closes[-30:]))
 
         # 布林带下轨
-        if len(closes) >= 20:
-            ma = np.mean(closes[-20:])
-            std = np.std(closes[-20:])
+        if len(closes) >= self.MA_SHORT:
+            ma = np.mean(closes[-self.MA_SHORT:])
+            std = np.std(closes[-self.MA_SHORT:])
             supports.append(ma - 2 * std)
 
         return sorted(set(round(s, 2) for s in supports))
