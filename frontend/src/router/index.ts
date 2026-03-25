@@ -250,6 +250,25 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           title: '股票全景',
           noCache: true
         }
+      },
+      // AI 分析模块
+      {
+        path: 'ai-chat',
+        component: () => import('@/views/Vadmin/Stock/AI/Chat/Chat.vue'),
+        name: 'AIChat',
+        meta: {
+          title: 'AI对话助手',
+          noCache: true
+        }
+      },
+      {
+        path: 'ai-workbench',
+        component: () => import('@/views/Vadmin/Stock/AI/Workbench/Workbench.vue'),
+        name: 'AIWorkbench',
+        meta: {
+          title: 'AI分析师工作台',
+          noCache: true
+        }
       }
     ]
   }
