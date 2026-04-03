@@ -298,6 +298,22 @@ class Settings(BaseSettings):
     # Stock Service（股票数据服务）配置
     STOCK_SERVICE_URL: str = 'http://localhost:8008'  # Stock Service 基础URL
 
+    # ================================================= #
+    # ******************* 邮件配置 ********************* #
+    # ================================================= #
+    SMTP_HOST: str = 'smtp.example.com'
+    SMTP_PORT: int = 465
+    SMTP_USER: str = ''
+    SMTP_PASSWORD: str = ''
+    SMTP_FROM: str = ''
+
+    # ================================================= #
+    # ******************* 微信推送配置 ***************** #
+    # ================================================= #
+    # 支持 Server酱/WxPusher 等第三方服务
+    WECHAT_PUSH_TYPE: str = 'serverchan'  # serverchan / wxpusher / custom
+    WECHAT_PUSH_URL: str = ''  # 自定义推送 URL (可选)
+
     # """
     # 其他项目配置
     # """

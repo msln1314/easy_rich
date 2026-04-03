@@ -15,6 +15,7 @@ from apps.admin.analysis.views import app as analysis_router
 from apps.admin.help.views import app as help_router
 from apps.admin.resource.views import app as resource_router
 from apps.admin.stock.api import router as stock_router
+from apps.admin.notification.views import router as notification_router
 # 引入应用中的路由
 urlpatterns = [
     {"ApiRouter": auth_router, "prefix": "/auth", "tags": ["系统认证"]},
@@ -26,6 +27,7 @@ urlpatterns = [
     {"ApiRouter": help_router, "prefix": "/help", "tags": ["帮助中心管理"]},
     {"ApiRouter": resource_router, "prefix": "/resource", "tags": ["资源管理"]},
     {"ApiRouter": stock_router, "prefix": "/stock", "tags": ["股票管理"]},
+    {"ApiRouter": notification_router, "prefix": "/notification", "tags": ["通知管理"]},
 ]
 api_router = APIRouter()
 for url in urlpatterns:
