@@ -250,6 +250,24 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           title: '股票全景',
           noCache: true
         }
+      },
+      {
+        path: 'qmt-trade',
+        component: () => import('@/views/Vadmin/Stock/QMT/Trade/Trade.vue'),
+        name: 'QMTTrade',
+        meta: {
+          title: '交易面板',
+          noCache: true
+        }
+      },
+      {
+        path: 'qmt-position',
+        component: () => import('@/views/Vadmin/Stock/QMT/Position/Position.vue'),
+        name: 'QMTPosition',
+        meta: {
+          title: '持仓管理',
+          noCache: true
+        }
       }
     ]
   }
