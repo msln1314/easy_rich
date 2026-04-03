@@ -251,7 +251,7 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           noCache: true
         }
       },
-      // AI 分析模块
+// AI 分析模块
       {
         path: 'ai-chat',
         component: () => import('@/views/Vadmin/Stock/AI/Chat/Chat.vue'),
@@ -284,6 +284,25 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         component: () => import('@/views/Vadmin/Stock/Drawdown/Drawdown.vue'),
         name: 'DrawdownAnalysis',
         meta: { title: '回撤分析', noCache: true }
+      },
+      // QMT 交易模块
+      {
+        path: 'qmt-trade',
+        component: () => import('@/views/Vadmin/Stock/QMT/Trade/Trade.vue'),
+        name: 'QMTTrade',
+        meta: {
+          title: '交易面板',
+          noCache: true
+        }
+      },
+      {
+        path: 'qmt-position',
+        component: () => import('@/views/Vadmin/Stock/QMT/Position/Position.vue'),
+        name: 'QMTPosition',
+        meta: {
+          title: '持仓管理',
+          noCache: true
+        }
       }
     ]
   }
