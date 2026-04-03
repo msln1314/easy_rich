@@ -1,4 +1,4 @@
-import { defHttp } from '/@/utils/http/axios'
+import request from '@/config/axios'
 
 enum Api {
   SELECTION_SIGNALS = '/stock/selection',
@@ -75,7 +75,7 @@ export interface SignalStatistics {
 
 // 获取选股信号列表
 export function getSelectionSignals(params: SelectionSignalParams) {
-  return defHttp.get({
+  return request.get({
     url: Api.SELECTION_SIGNALS,
     params
   })
@@ -87,7 +87,7 @@ export function getBuySignals(params: {
   min_score?: number
   limit?: number
 }) {
-  return defHttp.get({
+  return request.get({
     url: Api.BUY_SIGNALS,
     params
   })
@@ -95,7 +95,7 @@ export function getBuySignals(params: {
 
 // 多因子筛选
 export function multiFactorFilter(params: MultiFactorParams) {
-  return defHttp.get({
+  return request.get({
     url: Api.MULTI_FILTER,
     params
   })
@@ -103,7 +103,7 @@ export function multiFactorFilter(params: MultiFactorParams) {
 
 // 获取单只股票信号详情
 export function getStockSignalDetail(stockCode: string, signalDate?: string) {
-  return defHttp.get({
+  return request.get({
     url: `${Api.SELECTION_SIGNALS}/${stockCode}`,
     params: { signal_date: signalDate }
   })
@@ -111,7 +111,7 @@ export function getStockSignalDetail(stockCode: string, signalDate?: string) {
 
 // 获取信号统计
 export function getSignalStatistics(signalDate?: string) {
-  return defHttp.get({
+  return request.get({
     url: Api.STATISTICS,
     params: { signal_date: signalDate }
   })
@@ -119,7 +119,7 @@ export function getSignalStatistics(signalDate?: string) {
 
 // 手动同步信号
 export function syncSignals(limit: number = 500) {
-  return defHttp.post({
+  return request.post({
     url: Api.SYNC,
     data: { limit }
   })

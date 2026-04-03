@@ -71,12 +71,7 @@ const handleValue2Change = (value2: number) => {
       placeholder="选择条件"
       style="width: 120px"
     >
-      <ElOption
-        v-for="op in operators"
-        :key="op.value"
-        :label="op.label"
-        :value="op.value"
-      />
+      <ElOption v-for="op in operators" :key="op.value" :label="op.label" :value="op.value" />
     </ElSelect>
 
     <ElInputNumber

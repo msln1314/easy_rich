@@ -18,7 +18,12 @@ const formatValue = (value: any, suffix: string = '') => {
       <template #header>
         <span class="card-title">财务指标</span>
       </template>
-      <ElTable :data="data.financial?.data || []" stripe size="small" v-if="data.financial?.data?.length > 0">
+      <ElTable
+        :data="data.financial?.data || []"
+        stripe
+        size="small"
+        v-if="data.financial?.data?.length > 0"
+      >
         <ElTableColumn prop="report_date" label="报告日期" width="120" fixed />
         <ElTableColumn prop="roe" label="ROE(%)" width="100" align="right">
           <template #default="{ row }">
@@ -36,7 +41,9 @@ const formatValue = (value: any, suffix: string = '') => {
         </ElTableColumn>
         <ElTableColumn prop="debt_ratio" label="资产负债率(%)" width="120" align="right">
           <template #default="{ row }">
-            <span :class="row.debt_ratio > 70 ? 'text-down' : ''">{{ formatValue(row.debt_ratio) }}</span>
+            <span :class="row.debt_ratio > 70 ? 'text-down' : ''">{{
+              formatValue(row.debt_ratio)
+            }}</span>
           </template>
         </ElTableColumn>
         <ElTableColumn prop="current_ratio" label="流动比率" width="100" align="right">

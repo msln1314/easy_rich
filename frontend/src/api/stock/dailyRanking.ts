@@ -1,5 +1,4 @@
-import { defHttp } from '/@/utils/http/axios'
-import { ResultEnum } from '/@/enums/httpEnum'
+import request from '@/config/axios'
 
 enum Api {
   DAILY_RANKING = '/stock/daily-ranking',
@@ -87,7 +86,7 @@ export interface RankingSummary {
 }
 
 export function getDailyRanking(params: DailyRankingParams) {
-  return defHttp.get({
+  return request.get({
     url: Api.DAILY_RANKING,
     params
   })
@@ -99,7 +98,7 @@ export function getRealtimeRanking(params: {
   market?: string
   limit?: number
 }) {
-  return defHttp.get({
+  return request.get({
     url: Api.REALTIME_RANKING,
     params
   })
@@ -112,7 +111,7 @@ export function getHotRanking(params: {
   page?: number
   pageSize?: number
 }) {
-  return defHttp.get({
+  return request.get({
     url: Api.HOT_RANKING,
     params
   })
@@ -124,7 +123,7 @@ export function getRankingTrend(params: {
   startDate?: string
   endDate?: string
 }) {
-  return defHttp.get({
+  return request.get({
     url: Api.RANKING_TREND,
     params
   })
@@ -135,28 +134,28 @@ export function getRankingSummary(params: {
   dataDate?: string
   topN?: number
 }) {
-  return defHttp.get({
+  return request.get({
     url: Api.RANKING_SUMMARY,
     params
   })
 }
 
 export function syncDailyRanking(params: { rankingTypes?: string[]; dataDate?: string }) {
-  return defHttp.post({
+  return request.post({
     url: Api.SYNC_RANKING,
     params
   })
 }
 
 export function getIndustries(rankingType: string) {
-  return defHttp.get({
+  return request.get({
     url: Api.INDUSTRIES,
     params: { rankingType }
   })
 }
 
 export function getHotDetail(stockCode: string, days: number = 7) {
-  return defHttp.get({
+  return request.get({
     url: `${Api.HOT_DETAIL}/${stockCode}`,
     params: { days }
   })

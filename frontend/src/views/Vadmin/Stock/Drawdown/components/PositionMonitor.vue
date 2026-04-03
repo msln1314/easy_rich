@@ -1,7 +1,19 @@
 <!-- frontend/src/views/Vadmin/Stock/Drawdown/components/PositionMonitor.vue -->
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ElMessage, ElCard, ElForm, ElFormItem, ElInputNumber, ElDatePicker, ElButton, ElRow, ElCol, ElTag, ElAlert } from 'element-plus'
+import {
+  ElMessage,
+  ElCard,
+  ElForm,
+  ElFormItem,
+  ElInputNumber,
+  ElDatePicker,
+  ElButton,
+  ElRow,
+  ElCol,
+  ElTag,
+  ElAlert
+} from 'element-plus'
 import { monitorPosition, type PositionMonitor as PositionMonitorType } from '@/api/stock/drawdown'
 
 const props = defineProps<{

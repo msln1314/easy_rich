@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     SERVICE_PORT: int = 8009
     SERVICE_HOST: str = "0.0.0.0"
+    DEBUG: bool = False
 
     # CORS设置
     ORIGINS: list = ["*"]
@@ -20,6 +21,13 @@ class Settings(BaseSettings):
     QMT_ACCOUNT: str = ""      # QMT账号
     QMT_PASSWORD: str = ""     # QMT密码
     QMT_SESSION_ID: int = 123456  # 会话ID，任意整数
+
+    # MySQL数据库配置
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 3306
+    DB_USER: str = "root"
+    DB_PASSWORD: str = "1qaz2wsx"
+    DB_NAME: str = "qmt_factor"
 
     # Redis配置（共享stock-service）
     REDIS_ENABLED: bool = True

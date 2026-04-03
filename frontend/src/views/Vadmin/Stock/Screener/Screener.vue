@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import { ElMessage, ElCard, ElButton, ElTable, ElTableColumn, ElTag, ElPagination, ElDialog } from 'element-plus'
+import {
+  ElMessage,
+  ElCard,
+  ElButton,
+  ElTable,
+  ElTableColumn,
+  ElTag,
+  ElPagination,
+  ElDialog
+} from 'element-plus'
 import { Refresh, Download, Plus, Delete } from '@element-plus/icons-vue'
 import { ContentWrap } from '@/components/ContentWrap'
 import QuickScreen from './components/QuickScreen.vue'
@@ -228,7 +237,11 @@ const pagedResults = computed(() => {
           </ElTableColumn>
           <ElTableColumn prop="match_score" label="匹配得分" width="100" align="center">
             <template #default="{ row }">
-              <ElTag :type="row.match_score >= 80 ? 'success' : row.match_score >= 60 ? 'warning' : 'info'">
+              <ElTag
+                :type="
+                  row.match_score >= 80 ? 'success' : row.match_score >= 60 ? 'warning' : 'info'
+                "
+              >
                 {{ row.match_score.toFixed(0) }}
               </ElTag>
             </template>

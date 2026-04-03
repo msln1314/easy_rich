@@ -8,19 +8,29 @@ const props = defineProps<{
 }>()
 
 const patternInfo = computed(() => {
-  return patternTypeMap[props.pattern.pattern_type] || {
-    name: props.pattern.pattern_name,
-    signal: 'hold',
-    color: '#909399'
-  }
+  return (
+    patternTypeMap[props.pattern.pattern_type] || {
+      name: props.pattern.pattern_name,
+      signal: 'hold',
+      color: '#909399'
+    }
+  )
 })
 
 const signalType = computed(() => {
-  return props.pattern.signal === 'buy' ? 'success' : props.pattern.signal === 'sell' ? 'danger' : 'info'
+  return props.pattern.signal === 'buy'
+    ? 'success'
+    : props.pattern.signal === 'sell'
+    ? 'danger'
+    : 'info'
 })
 
 const signalText = computed(() => {
-  return props.pattern.signal === 'buy' ? '买入信号' : props.pattern.signal === 'sell' ? '卖出信号' : '观望'
+  return props.pattern.signal === 'buy'
+    ? '买入信号'
+    : props.pattern.signal === 'sell'
+    ? '卖出信号'
+    : '观望'
 })
 
 const formatValue = (value: number | null | undefined) => {

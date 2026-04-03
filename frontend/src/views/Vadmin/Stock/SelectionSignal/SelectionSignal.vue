@@ -207,7 +207,20 @@ const handleExport = () => {
     return
   }
 
-  const headers = ['排名', '代码', '名称', '价格', '涨跌幅', '评分', '推荐', '均线', 'MACD', 'KDJ', 'RSI', '行业']
+  const headers = [
+    '排名',
+    '代码',
+    '名称',
+    '价格',
+    '涨跌幅',
+    '评分',
+    '推荐',
+    '均线',
+    'MACD',
+    'KDJ',
+    'RSI',
+    '行业'
+  ]
   const rows = signals.value.map((item) => [
     item.score_rank,
     item.stock_code,
@@ -252,7 +265,9 @@ onMounted(() => {
         <template #header>
           <div class="card-header">
             <span class="title">信号统计</span>
-            <ElButton type="primary" :icon="Sync" :loading="syncing" @click="handleSync">同步信号</ElButton>
+            <ElButton type="primary" :icon="Sync" :loading="syncing" @click="handleSync"
+              >同步信号</ElButton
+            >
           </div>
         </template>
         <ElRow :gutter="20" v-if="statistics">
@@ -264,7 +279,9 @@ onMounted(() => {
           </ElCol>
           <ElCol :span="4">
             <div class="stat-item">
-              <div class="stat-value text-danger">{{ statistics.recommend_stats?.strong_buy || 0 }}</div>
+              <div class="stat-value text-danger">{{
+                statistics.recommend_stats?.strong_buy || 0
+              }}</div>
               <div class="stat-label">强买入</div>
             </div>
           </ElCol>
@@ -288,7 +305,9 @@ onMounted(() => {
           </ElCol>
           <ElCol :span="4">
             <div class="stat-item">
-              <div class="stat-value text-primary">{{ statistics.recommend_stats?.strong_sell || 0 }}</div>
+              <div class="stat-value text-primary">{{
+                statistics.recommend_stats?.strong_sell || 0
+              }}</div>
               <div class="stat-label">强卖出</div>
             </div>
           </ElCol>
@@ -318,7 +337,12 @@ onMounted(() => {
             />
           </ElCol>
           <ElCol :span="4">
-            <ElSelect v-model="filterForm.recommend" placeholder="推荐信号" clearable style="width: 100%">
+            <ElSelect
+              v-model="filterForm.recommend"
+              placeholder="推荐信号"
+              clearable
+              style="width: 100%"
+            >
               <ElOption
                 v-for="opt in recommendOptions"
                 :key="opt.value"
@@ -328,16 +352,33 @@ onMounted(() => {
             </ElSelect>
           </ElCol>
           <ElCol :span="4">
-            <ElSelect v-model="filterForm.industry" placeholder="行业筛选" clearable filterable style="width: 100%">
+            <ElSelect
+              v-model="filterForm.industry"
+              placeholder="行业筛选"
+              clearable
+              filterable
+              style="width: 100%"
+            >
               <ElOption v-for="ind in industries" :key="ind" :label="ind" :value="ind" />
             </ElSelect>
           </ElCol>
           <ElCol :span="8">
             <div class="checkbox-group">
-              <ElCheckbox v-model="filterForm.macd_signal" :true-label="1" :false-label="undefined">MACD金叉</ElCheckbox>
-              <ElCheckbox v-model="filterForm.kdj_signal" :true-label="1" :false-label="undefined">KDJ金叉</ElCheckbox>
-              <ElCheckbox v-model="filterForm.ma_signal" :true-label="1" :false-label="undefined">均线金叉</ElCheckbox>
-              <ElCheckbox v-model="filterForm.volume_signal" :true-label="1" :false-label="undefined">放量</ElCheckbox>
+              <ElCheckbox v-model="filterForm.macd_signal" :true-label="1" :false-label="undefined"
+                >MACD金叉</ElCheckbox
+              >
+              <ElCheckbox v-model="filterForm.kdj_signal" :true-label="1" :false-label="undefined"
+                >KDJ金叉</ElCheckbox
+              >
+              <ElCheckbox v-model="filterForm.ma_signal" :true-label="1" :false-label="undefined"
+                >均线金叉</ElCheckbox
+              >
+              <ElCheckbox
+                v-model="filterForm.volume_signal"
+                :true-label="1"
+                :false-label="undefined"
+                >放量</ElCheckbox
+              >
             </div>
           </ElCol>
         </ElRow>
@@ -352,7 +393,14 @@ onMounted(() => {
           </div>
         </template>
 
-        <ElTable :data="signals" stripe v-loading="loading" max-height="500" @row-click="handleViewDetail" highlight-current-row>
+        <ElTable
+          :data="signals"
+          stripe
+          v-loading="loading"
+          max-height="500"
+          @row-click="handleViewDetail"
+          highlight-current-row
+        >
           <ElTableColumn prop="score_rank" label="排名" width="70" align="center" fixed />
           <ElTableColumn prop="stock_code" label="代码" width="100" />
           <ElTableColumn prop="stock_name" label="名称" width="100" />
@@ -361,7 +409,11 @@ onMounted(() => {
           </ElTableColumn>
           <ElTableColumn prop="change_percent" label="涨跌幅" width="90" align="right">
             <template #default="{ row }">
-              <span :class="row.change_percent > 0 ? 'text-up' : row.change_percent < 0 ? 'text-down' : ''">
+              <span
+                :class="
+                  row.change_percent > 0 ? 'text-up' : row.change_percent < 0 ? 'text-down' : ''
+                "
+              >
                 {{ row.change_percent?.toFixed(2) || '-' }}%
               </span>
             </template>
@@ -372,14 +424,20 @@ onMounted(() => {
                 :percentage="row.total_score || 0"
                 :stroke-width="8"
                 :show-text="false"
-                :color="row.total_score >= 60 ? '#67C23A' : row.total_score >= 40 ? '#E6A23C' : '#909399'"
+                :color="
+                  row.total_score >= 60 ? '#67C23A' : row.total_score >= 40 ? '#E6A23C' : '#909399'
+                "
               />
               <span>{{ row.total_score?.toFixed(0) || '-' }}</span>
             </template>
           </ElTableColumn>
           <ElTableColumn prop="recommend" label="推荐" width="80" align="center">
             <template #default="{ row }">
-              <ElTag v-if="recommendMap[row.recommend]" :type="recommendMap[row.recommend].type" size="small">
+              <ElTag
+                v-if="recommendMap[row.recommend]"
+                :type="recommendMap[row.recommend].type"
+                size="small"
+              >
                 {{ recommendMap[row.recommend].label }}
               </ElTag>
               <span v-else>-</span>
@@ -387,22 +445,30 @@ onMounted(() => {
           </ElTableColumn>
           <ElTableColumn prop="ma_signal" label="均线" width="60" align="center">
             <template #default="{ row }">
-              <span :style="{ color: getSignalColor(row.ma_signal) }">{{ formatSignal(row.ma_signal) }}</span>
+              <span :style="{ color: getSignalColor(row.ma_signal) }">{{
+                formatSignal(row.ma_signal)
+              }}</span>
             </template>
           </ElTableColumn>
           <ElTableColumn prop="macd_signal" label="MACD" width="60" align="center">
             <template #default="{ row }">
-              <span :style="{ color: getSignalColor(row.macd_signal) }">{{ formatSignal(row.macd_signal) }}</span>
+              <span :style="{ color: getSignalColor(row.macd_signal) }">{{
+                formatSignal(row.macd_signal)
+              }}</span>
             </template>
           </ElTableColumn>
           <ElTableColumn prop="kdj_signal" label="KDJ" width="60" align="center">
             <template #default="{ row }">
-              <span :style="{ color: getSignalColor(row.kdj_signal) }">{{ formatSignal(row.kdj_signal) }}</span>
+              <span :style="{ color: getSignalColor(row.kdj_signal) }">{{
+                formatSignal(row.kdj_signal)
+              }}</span>
             </template>
           </ElTableColumn>
           <ElTableColumn prop="rsi_signal" label="RSI" width="60" align="center">
             <template #default="{ row }">
-              <span :style="{ color: getSignalColor(row.rsi_signal) }">{{ formatSignal(row.rsi_signal) }}</span>
+              <span :style="{ color: getSignalColor(row.rsi_signal) }">{{
+                formatSignal(row.rsi_signal)
+              }}</span>
             </template>
           </ElTableColumn>
           <ElTableColumn prop="industry" label="行业" width="100" />

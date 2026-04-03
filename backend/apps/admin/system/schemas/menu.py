@@ -57,7 +57,7 @@ class RouterOut(BaseModel):
     redirect: str | None = None
     meta: Meta | None = None
     order: int | None = None
-    children: list[dict] = []
+    children: list[dict] | None = None
 
 
 class MenuTreeListOut(MenuSimpleOut):

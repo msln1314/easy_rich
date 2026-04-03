@@ -10,6 +10,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional, AsyncGenerator, Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -398,3 +399,92 @@ def get_llm_adapter_with_config(config: LLMConfig) -> LLMToolAdapter:
         LLMToolAdapter: LLM适配器实例
     """
     return LLMToolAdapter(config)
+
+
+# 配置文件路径
+_CONFIG_FILE = Path("config") / "llm_models.json"
+
+
+def _load_config_from_file() -> Optional[Dict[str, Any]]:
+    """从配置文件加载默认模型配置
+
+    Returns:
+        Optional[Dict]: 默认模型配置，如果不存在则返回None
+    """
+    if not _CONFIG_FILE.exists():
+        return None
+    try:
+        with open(_CONFIG_FILE, "r", encoding="utf-8") as f:
+            configs = json.load(f)
+            # 查找默认且启用的配置
+            for config in configs:
+                if config.get("is_default") and config.get("is_enabled"):
+                    return config
+            # 如果没有默认配置，查找第一个启用的配置
+            for config in configs:
+                if config.get("is_enabled"):
+                    return config
+            return None
+    except Exception as e:
+        logger.warning(f"加载LLM配置文件失败: {e}")
+        return None
+
+
+def get_default_llm_adapter() -> LLMToolAdapter:
+    """获取默认LLM适配器
+
+    优先从配置文件中读取用户配置的默认模型，
+    如果没有配置则使用预设的gpt-4配置。
+
+    Returns:
+        LLMToolAdapter: LLM适配器实例
+    """
+    file_config = _load_config_from_file()
+    if file_config:
+        config = LLMConfig(
+            provider=file_config.get("provider", "openai"),
+            model=file_config.get("model_name", "gpt-4"),
+            api_key=file_config.get("api_key", ""),
+            api_base=file_config.get("api_base", "https://api.openai.com/v1"),
+            max_tokens=file_config.get("max_tokens", 4000),
+            temperature=file_config.get("temperature", 0.7),
+            timeout=file_config.get("timeout", 120),
+        )
+        logger.info(f"使用配置文件中的默认模型: {config.provider}/{config.model}")
+        return LLMToolAdapter(config)
+
+    # 使用预设配置
+    logger.info("使用预设的gpt-4配置")
+    return get_llm_adapter("gpt-4")
+
+
+def get_llm_adapter_from_config_id(config_id: int) -> Optional[LLMToolAdapter]:
+    """根据配置ID获取LLM适配器
+
+    Args:
+        config_id: 配置ID
+
+    Returns:
+        Optional[LLMToolAdapter]: LLM适配器实例，如果配置不存在则返回None
+    """
+    if not _CONFIG_FILE.exists():
+        return None
+    try:
+        with open(_CONFIG_FILE, "r", encoding="utf-8") as f:
+            configs = json.load(f)
+            for config in configs:
+                if config.get("id") == config_id and config.get("is_enabled"):
+                    llm_config = LLMConfig(
+                        provider=config.get("provider", "openai"),
+                        model=config.get("model_name", "gpt-4"),
+                        api_key=config.get("api_key", ""),
+                        api_base=config.get("api_base", "https://api.openai.com/v1"),
+                        max_tokens=config.get("max_tokens", 4000),
+                        temperature=config.get("temperature", 0.7),
+                        timeout=config.get("timeout", 120),
+                    )
+                    return LLMToolAdapter(llm_config)
+            return None
+    except Exception as e:
+        logger.warning(f"根据ID加载LLM配置失败: {e}")
+        return None

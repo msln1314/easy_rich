@@ -13,14 +13,8 @@ const modules = import.meta.glob('../views/**/*.{vue,tsx}')
 /* Layout */
 export const Layout = () => import('@/layout/Layout.vue')
 
-export const getParentLayout = () => {
-  return () =>
-    new Promise((resolve) => {
-      resolve({
-        name: 'ParentLayout'
-      })
-    })
-}
+/* ParentLayout - 用于多级路由的中间层 */
+export const getParentLayout = () => import('@/layout/components/ParentLayout.vue')
 
 export const getRawRoute = (route: RouteLocationNormalized): RouteLocationNormalized => {
   if (!route) return route
@@ -128,7 +122,7 @@ export const pathResolve = (parentPath: string, path: string) => {
   return `${parentPath}${childPath}`.replace(/\/\//g, '/').trim()
 }
 
-// 路由降级
+// 路由降级 - 支持三级菜单
 export const flatMultiLevelRoutes = (routes: AppRouteRecordRaw[]) => {
   const modules: AppRouteRecordRaw[] = cloneDeep(routes)
   for (let index = 0; index < modules.length; index++) {
@@ -136,7 +130,8 @@ export const flatMultiLevelRoutes = (routes: AppRouteRecordRaw[]) => {
     if (!isMultipleRoute(route)) {
       continue
     }
-    promoteRouteLevel(route)
+    // 不再降级三级菜单，保持原有结构
+    // promoteRouteLevel(route)
   }
   return modules
 }

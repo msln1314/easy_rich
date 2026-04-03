@@ -78,12 +78,12 @@ const formRules = {
 
 // 当前选择的提供商信息
 const currentProvider = computed(() => {
-  return providers.value.find(p => p.value === formData.provider)
+  return providers.value.find((p) => p.value === formData.provider)
 })
 
 // 提供商选项
 const providerOptions = computed(() => {
-  return providers.value.map(p => ({
+  return providers.value.map((p) => ({
     value: p.value,
     label: p.label
   }))
@@ -91,15 +91,17 @@ const providerOptions = computed(() => {
 
 // 模型选项
 const modelOptions = computed(() => {
-  return currentProvider.value?.models.map(m => ({
-    value: m,
-    label: m
-  })) || []
+  return (
+    currentProvider.value?.models.map((m) => ({
+      value: m,
+      label: m
+    })) || []
+  )
 })
 
 // 提供商改变时
 const handleProviderChange = (provider: string) => {
-  const info = providers.value.find(p => p.value === provider)
+  const info = providers.value.find((p) => p.value === provider)
   if (info) {
     formData.api_base = info.default_api_base
     if (info.models.length > 0) {
@@ -303,7 +305,7 @@ const getProviderTagType = (provider: string) => {
 
 // 获取提供商中文名
 const getProviderLabel = (provider: string) => {
-  const info = providers.value.find(p => p.value === provider)
+  const info = providers.value.find((p) => p.value === provider)
   return info?.label || provider
 }
 
@@ -378,12 +380,7 @@ onMounted(() => {
       width="600px"
       :close-on-click-modal="false"
     >
-      <ElForm
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        label-width="100px"
-      >
+      <ElForm ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <ElRow :gutter="20">
           <ElCol :span="12">
             <ElFormItem label="配置名称" prop="name">
@@ -447,17 +444,36 @@ onMounted(() => {
         <ElRow :gutter="20">
           <ElCol :span="8">
             <ElFormItem label="最大Token">
-              <ElInputNumber v-model="formData.max_tokens" :min="100" :max="32000" :step="100" style="width: 100%" />
+              <ElInputNumber
+                v-model="formData.max_tokens"
+                :min="100"
+                :max="32000"
+                :step="100"
+                style="width: 100%"
+              />
             </ElFormItem>
           </ElCol>
           <ElCol :span="8">
             <ElFormItem label="温度参数">
-              <ElInputNumber v-model="formData.temperature" :min="0" :max="2" :step="0.1" :precision="1" style="width: 100%" />
+              <ElInputNumber
+                v-model="formData.temperature"
+                :min="0"
+                :max="2"
+                :step="0.1"
+                :precision="1"
+                style="width: 100%"
+              />
             </ElFormItem>
           </ElCol>
           <ElCol :span="8">
             <ElFormItem label="超时时间">
-              <ElInputNumber v-model="formData.timeout" :min="10" :max="600" :step="10" style="width: 100%" />
+              <ElInputNumber
+                v-model="formData.timeout"
+                :min="10"
+                :max="600"
+                :step="10"
+                style="width: 100%"
+              />
             </ElFormItem>
           </ElCol>
         </ElRow>
@@ -493,5 +509,4 @@ onMounted(() => {
   </ContentWrap>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>

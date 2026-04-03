@@ -95,7 +95,9 @@ const getPatternColor = (type: string) => {
               clearable
               @keyup.enter="handleDetect"
             />
-            <ElButton type="primary" :icon="Search" :loading="loading" @click="handleDetect">检测形态</ElButton>
+            <ElButton type="primary" :icon="Search" :loading="loading" @click="handleDetect"
+              >检测形态</ElButton
+            >
             <ElButton :icon="Refresh" @click="handleReset">重置</ElButton>
           </div>
         </div>

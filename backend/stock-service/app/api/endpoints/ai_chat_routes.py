@@ -5,15 +5,40 @@
 """
 
 from datetime import datetime
+from typing import Optional
 from fastapi import APIRouter, HTTPException
 from sse_starlette.sse import EventSourceResponse
 import json
 import uuid
 
 from app.models.ai_models import ChatRequest, ChatResponse
-from app.services.ai.llm_adapter import get_llm_adapter
+from app.services.ai.llm_adapter import get_default_llm_adapter, get_llm_adapter, get_llm_adapter_from_config_id
 
 router = APIRouter()
+
+
+def _get_llm_for_request(model: Optional[str]) -> "LLMToolAdapter":
+    """根据请求参数获取LLM适配器
+
+    Args:
+        model: 模型参数，可以是配置ID(数字字符串)或模型名称
+
+    Returns:
+        LLMToolAdapter: LLM适配器实例
+    """
+    if model:
+        # 尝试解析为配置ID
+        try:
+            config_id = int(model)
+            llm = get_llm_adapter_from_config_id(config_id)
+            if llm:
+                return llm
+        except ValueError:
+            pass
+        # 作为模型名称使用
+        return get_llm_adapter(model)
+    # 使用默认配置
+    return get_default_llm_adapter()
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -29,7 +54,7 @@ async def chat(request: ChatRequest):
     Raises:
         HTTPException: 调用LLM服务失败时抛出500错误
     """
-    llm = get_llm_adapter(request.model or "gpt-4")
+    llm = _get_llm_for_request(request.model)
 
     messages = [
         {
@@ -48,7 +73,7 @@ async def chat(request: ChatRequest):
             conversation_id=request.conversation_id or str(uuid.uuid4()),
             message=response.get("content", ""),
             created_at=datetime.now(),
-            model=request.model or "gpt-4",
+            model=llm.config.model,
             tokens_used=response.get("usage", {}).get("total_tokens", 0),
         )
     except Exception as e:
@@ -70,7 +95,7 @@ async def chat_stream(request: ChatRequest):
 
     async def generate():
         """生成SSE事件流"""
-        llm = get_llm_adapter(request.model or "gpt-4")
+        llm = _get_llm_for_request(request.model)
 
         messages = [
             {

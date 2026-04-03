@@ -15,12 +15,29 @@ export const useRenderMenuItem = (menuMode) =>
   // allRouters: AppRouteRecordRaw[] = [],
   {
     const renderMenuItem = (routers: AppRouteRecordRaw[], parentPath = '/') => {
+      if (!routers || !routers.length) return null
+
       return routers
         .filter((v) => !v.meta?.hidden)
         .map((v) => {
           const meta = v.meta ?? {}
-          const { oneShowingChild, onlyOneChild } = hasOneShowingChild(v.children, v)
-          const fullPath = isUrl(v.path) ? v.path : pathResolve(parentPath, v.path) // getAllParentPath<AppRouteRecordRaw>(allRouters, v.path).join('/')
+          const children = v.children || []
+          const hasChildren = children && children.length > 0
+          const fullPath = isUrl(v.path) ? v.path : pathResolve(parentPath, v.path)
+
+          // 如果没有子菜单，直接渲染菜单项
+          if (!hasChildren) {
+            return (
+              <ElMenuItem index={fullPath}>
+                {{
+                  default: () => renderMenuTitle(meta)
+                }}
+              </ElMenuItem>
+            )
+          }
+
+          // 有子菜单，检查是否只显示一个
+          const { oneShowingChild, onlyOneChild } = hasOneShowingChild(children, v)
 
           if (
             oneShowingChild &&
@@ -45,7 +62,7 @@ export const useRenderMenuItem = (menuMode) =>
               >
                 {{
                   title: () => renderMenuTitle(meta),
-                  default: () => renderMenuItem(v.children!, fullPath)
+                  default: () => renderMenuItem(children, fullPath)
                 }}
               </ElSubMenu>
             )

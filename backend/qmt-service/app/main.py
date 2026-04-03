@@ -21,6 +21,13 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时
     logger.info(f"正在启动 {settings.PROJECT_NAME}...")
+
+    # 初始化因子库（仅内存缓存，不使用数据库）
+    from app.services.factor_service import factor_service
+    await factor_service.init_factors()
+    logger.info(f"因子库加载完成，共 {len(factor_service._factor_cache)} 个因子")
+
+    # 连接QMT
     connected = await QMTClientManager.initialize()
     if connected:
         logger.info("QMT客户端连接成功")

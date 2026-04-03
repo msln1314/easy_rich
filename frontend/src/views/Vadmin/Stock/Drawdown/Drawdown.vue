@@ -1,7 +1,16 @@
 <!-- frontend/src/views/Vadmin/Stock/Drawdown/Drawdown.vue -->
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ElMessage, ElCard, ElInput, ElButton, ElSelect, ElOption, ElRow, ElCol } from 'element-plus'
+import {
+  ElMessage,
+  ElCard,
+  ElInput,
+  ElButton,
+  ElSelect,
+  ElOption,
+  ElRow,
+  ElCol
+} from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { ContentWrap } from '@/components/ContentWrap'
 import { analyzeDrawdown } from '@/api/stock/drawdown'
@@ -100,9 +109,7 @@ const handleAnalyze = async () => {
       </template>
 
       <!-- 空状态 -->
-      <div v-else class="text-center text-gray-400 py-20">
-        请输入股票代码开始分析
-      </div>
+      <div v-else class="text-center text-gray-400 py-20"> 请输入股票代码开始分析 </div>
     </ElCard>
   </ContentWrap>
 </template>

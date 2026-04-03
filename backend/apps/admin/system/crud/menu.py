@@ -152,6 +152,9 @@ class MenuDal(DalBase):
             if root.menu_type == "0":
                 sons = filter(lambda i: i.parent_id == root.id, menus)
                 router.children = self.generate_router_tree(menus, sons, router.name)
+            else:
+                # 叶子菜单不设置 children，避免空数组导致前端渲染问题
+                router.children = None
             data.append(router.model_dump())
         return data
 

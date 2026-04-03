@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { ref, reactive, nextTick } from 'vue'
-import { ElMessage, ElRow, ElCol, ElCard, ElInput, ElButton, ElScrollbar, ElEmpty, ElTag } from 'element-plus'
+import {
+  ElMessage,
+  ElRow,
+  ElCol,
+  ElCard,
+  ElInput,
+  ElButton,
+  ElScrollbar,
+  ElEmpty,
+  ElTag
+} from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { aiChat, type ChatRequest } from '@/api/stock/ai'
 
@@ -102,11 +112,7 @@ const getSignalColor = (signal: string) => {
 
           <div class="mb-4">
             <label class="block text-sm text-gray-500 mb-2">股票代码</label>
-            <ElInput
-              v-model="stockCode"
-              placeholder="请输入股票代码，如 000001"
-              clearable
-            />
+            <ElInput v-model="stockCode" placeholder="请输入股票代码，如 000001" clearable />
           </div>
 
           <div class="mb-4">
@@ -124,9 +130,7 @@ const getSignalColor = (signal: string) => {
             </div>
           </div>
 
-          <ElButton type="danger" plain class="w-full" @click="clearChat">
-            清空对话
-          </ElButton>
+          <ElButton type="danger" plain class="w-full" @click="clearChat"> 清空对话 </ElButton>
         </ElCard>
       </ElCol>
 
@@ -175,9 +179,7 @@ const getSignalColor = (signal: string) => {
               :disabled="loading"
               @keydown.enter.ctrl="handleSend"
             />
-            <ElButton type="primary" :loading="loading" @click="handleSend">
-              发送
-            </ElButton>
+            <ElButton type="primary" :loading="loading" @click="handleSend"> 发送 </ElButton>
           </div>
         </ElCard>
       </ElCol>

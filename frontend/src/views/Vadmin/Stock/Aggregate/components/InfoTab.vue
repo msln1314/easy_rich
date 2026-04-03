@@ -20,7 +20,13 @@ const formatDate = (date: string) => {
           <template #header>
             <span class="card-title">公司公告</span>
           </template>
-          <ElTable :data="data.notices || []" stripe size="small" max-height="400" v-if="data.notices?.length > 0">
+          <ElTable
+            :data="data.notices || []"
+            stripe
+            size="small"
+            max-height="400"
+            v-if="data.notices?.length > 0"
+          >
             <ElTableColumn prop="date" label="日期" width="100">
               <template #default="{ row }">{{ formatDate(row.date) }}</template>
             </ElTableColumn>
@@ -45,14 +51,30 @@ const formatDate = (date: string) => {
           <template #header>
             <span class="card-title">研究报告</span>
           </template>
-          <ElTable :data="data.reports || []" stripe size="small" max-height="400" v-if="data.reports?.length > 0">
+          <ElTable
+            :data="data.reports || []"
+            stripe
+            size="small"
+            max-height="400"
+            v-if="data.reports?.length > 0"
+          >
             <ElTableColumn prop="date" label="日期" width="100">
               <template #default="{ row }">{{ formatDate(row.date) }}</template>
             </ElTableColumn>
             <ElTableColumn prop="org_name" label="机构" width="120" show-overflow-tooltip />
             <ElTableColumn prop="rating" label="评级" width="80">
               <template #default="{ row }">
-                <ElTag v-if="row.rating" :type="row.rating.includes('买入') ? 'success' : row.rating.includes('卖出') ? 'danger' : 'info'" size="small">
+                <ElTag
+                  v-if="row.rating"
+                  :type="
+                    row.rating.includes('买入')
+                      ? 'success'
+                      : row.rating.includes('卖出')
+                      ? 'danger'
+                      : 'info'
+                  "
+                  size="small"
+                >
                   {{ row.rating }}
                 </ElTag>
                 <span v-else>-</span>
@@ -70,20 +92,38 @@ const formatDate = (date: string) => {
       <template #header>
         <span class="card-title">机构评级</span>
       </template>
-      <ElTable :data="data.rating?.data || []" stripe size="small" v-if="data.rating?.data?.length > 0">
+      <ElTable
+        :data="data.rating?.data || []"
+        stripe
+        size="small"
+        v-if="data.rating?.data?.length > 0"
+      >
         <ElTableColumn prop="report_date" label="评级日期" width="120" />
         <ElTableColumn prop="org_name" label="机构名称" min-width="150" />
         <ElTableColumn prop="rating" label="评级" width="100">
           <template #default="{ row }">
-            <ElTag :type="row.rating?.includes('买入') ? 'success' : row.rating?.includes('卖出') ? 'danger' : 'warning'" size="small">
+            <ElTag
+              :type="
+                row.rating?.includes('买入')
+                  ? 'success'
+                  : row.rating?.includes('卖出')
+                  ? 'danger'
+                  : 'warning'
+              "
+              size="small"
+            >
               {{ row.rating || '-' }}
             </ElTag>
           </template>
         </ElTableColumn>
         <ElTableColumn prop="rating_change" label="评级变动" width="100">
           <template #default="{ row }">
-            <ElTag v-if="row.rating_change?.includes('上调')" type="success" size="small">{{ row.rating_change }}</ElTag>
-            <ElTag v-else-if="row.rating_change?.includes('下调')" type="danger" size="small">{{ row.rating_change }}</ElTag>
+            <ElTag v-if="row.rating_change?.includes('上调')" type="success" size="small">{{
+              row.rating_change
+            }}</ElTag>
+            <ElTag v-else-if="row.rating_change?.includes('下调')" type="danger" size="small">{{
+              row.rating_change
+            }}</ElTag>
             <span v-else>{{ row.rating_change || '-' }}</span>
           </template>
         </ElTableColumn>

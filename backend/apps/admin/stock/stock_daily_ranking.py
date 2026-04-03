@@ -6,12 +6,11 @@
 """
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, desc
+from sqlalchemy import select, func
 from typing import Optional
 from datetime import date, timedelta
 
 from apps.admin.auth.utils.current import OpenAuth, Auth
-from apps.admin.stock.models.stock_basic_info import StockBasicInfo
 from apps.admin.stock.params.stock_daily_ranking import (
     DailyRankingType,
     StockDailyRankingParams,
@@ -27,14 +26,14 @@ from apps.admin.stock.schemas.stock_daily_ranking import (
     StockRankingSummaryOut,
     HotRankingOut,
 )
-from apps.admin.stock import crud
+from apps.admin.stock import crud, models
 from apps.module_task.ranking_service import (
     collect_daily_ranking,
     sync_rankings_from_realtime,
 )
 from utils.response import SuccessResponse, ErrorResponse
 
-router = APIRouter(prefix="/stock/daily-ranking", tags=["每日排行"])
+router = APIRouter(prefix="/daily-ranking", tags=["每日排行"])
 
 
 @router.get("", summary="获取每日排行列表")
@@ -102,36 +101,36 @@ async def get_realtime_ranking(
     try:
         dal = crud.StockBaseInfoDal(auth.db)
 
-        # 构建查询
-        filters = [
-            StockBasicInfo.status == "L",
-            StockBasicInfo.trade_status == "交易中",
-        ]
-        if industry:
-            filters.append(StockBasicInfo.industry == industry)
-        if market:
-            filters.append(StockBasicInfo.market == market)
-
-        # 获取排序字段
-        field_map = {
-            DailyRankingType.VOLUME: StockBasicInfo.volume,
-            DailyRankingType.TURNOVER: StockBasicInfo.turnover_rate,
-            DailyRankingType.AMOUNT: StockBasicInfo.amount,
-            DailyRankingType.CHANGE_PERCENT: StockBasicInfo.change_percent,
+        # 获取排序字段名称
+        field_name_map = {
+            DailyRankingType.VOLUME: "volume",
+            DailyRankingType.TURNOVER: "turnover_rate",
+            DailyRankingType.AMOUNT: "amount",
+            DailyRankingType.CHANGE_PERCENT: "change_percent",
         }
 
-        sort_field = field_map.get(ranking_type)
-        if not sort_field:
+        order_field = field_name_map.get(ranking_type)
+        if not order_field:
             return ErrorResponse(f"不支持的排行类型: {ranking_type.value}")
 
-        # 查询并排序
-        query = (
-            select(StockBasicInfo)
-            .filter(*filters)
-            .order_by(desc(sort_field))
-            .limit(limit)
+        # 使用 kwargs 传递简单查询条件
+        query_params = {
+            "status": "L",
+            "trade_status": "交易中",
+        }
+        if industry:
+            query_params["industry"] = industry
+        if market:
+            query_params["market"] = market
+
+        # 使用 DalBase 的 get_datas 方法
+        stocks = await dal.get_datas(
+            limit=limit,
+            v_order="desc",
+            v_order_field=order_field,
+            v_return_objs=True,
+            **query_params,
         )
-        stocks = await dal.get_datas(query=query)
 
         items = []
         for idx, stock in enumerate(stocks):
@@ -322,19 +321,29 @@ async def sync_daily_ranking(
 
 @router.get("/industries", summary="获取行业列表")
 async def get_industries(
-    ranking_type: DailyRankingType = Query(..., title="排行类型"),
+    ranking_type: DailyRankingType = Query(DailyRankingType.TURNOVER, title="排行类型"),
     auth: Auth = Depends(OpenAuth()),
 ):
     """
-    获取指定排行类型关联的行业列表
+    获取指定排行类型关联的行业列表（从股票基本信息表获取）
     """
     try:
-        dal = crud.StockDailyRankingDal(auth.db)
+        dal = crud.StockBaseInfoDal(auth.db)
 
-        # 使用 CRUD 获取行业列表
-        industry_list = await dal.get_distinct_industries(ranking_type.value)
+        # 从 StockBasicInfo 表获取行业列表（distinct 查询）
+        query = (
+            select(models.StockBasicInfo.industry)
+            .where(
+                models.StockBasicInfo.status == "L",
+                models.StockBasicInfo.trade_status == "交易中",
+                models.StockBasicInfo.industry.isnot(None),
+            )
+            .distinct()
+        )
+        result = await dal.execute_query(query)
+        industries = sorted([ind for ind in result.scalars().all() if ind])
 
-        return SuccessResponse(industry_list)
+        return SuccessResponse(industries)
 
     except Exception as e:
         return ErrorResponse(f"获取行业列表失败: {str(e)}")

@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElRow, ElCol, ElCard, ElTag, ElProgress, ElDescriptions, ElDescriptionsItem } from 'element-plus'
-import { getStockSignalDetail, recommendMap, type SelectionSignalItem } from '@/api/stock/selectionSignal'
+import {
+  ElRow,
+  ElCol,
+  ElCard,
+  ElTag,
+  ElProgress,
+  ElDescriptions,
+  ElDescriptionsItem
+} from 'element-plus'
+import {
+  getStockSignalDetail,
+  recommendMap,
+  type SelectionSignalItem
+} from '@/api/stock/selectionSignal'
 
 const props = defineProps<{
   stock: SelectionSignalItem
@@ -58,7 +70,12 @@ onMounted(() => {
         <ElCol :span="6">
           <div class="info-item">
             <div class="label">涨跌幅</div>
-            <div class="value" :class="stock.change_percent > 0 ? 'text-up' : stock.change_percent < 0 ? 'text-down' : ''">
+            <div
+              class="value"
+              :class="
+                stock.change_percent > 0 ? 'text-up' : stock.change_percent < 0 ? 'text-down' : ''
+              "
+            >
               {{ stock.change_percent?.toFixed(2) || '-' }}%
             </div>
           </div>
@@ -80,7 +97,13 @@ onMounted(() => {
               :percentage="stock.total_score || 0"
               :stroke-width="10"
               :show-text="false"
-              :color="stock.total_score >= 60 ? '#67C23A' : stock.total_score >= 40 ? '#E6A23C' : '#F56C6C'"
+              :color="
+                stock.total_score >= 60
+                  ? '#67C23A'
+                  : stock.total_score >= 40
+                  ? '#E6A23C'
+                  : '#F56C6C'
+              "
             />
           </div>
         </ElCol>
@@ -88,7 +111,11 @@ onMounted(() => {
           <div class="score-item">
             <div class="score-label">推荐信号</div>
             <div class="score-value">
-              <ElTag v-if="recommendMap[stock.recommend]" :type="recommendMap[stock.recommend].type" size="large">
+              <ElTag
+                v-if="recommendMap[stock.recommend]"
+                :type="recommendMap[stock.recommend].type"
+                size="large"
+              >
                 {{ recommendMap[stock.recommend].label }}
               </ElTag>
             </div>
@@ -153,7 +180,9 @@ onMounted(() => {
           <ElTag v-else-if="detail.volume_signal === -1" type="warning" size="small">缩量</ElTag>
           <span v-else>-</span>
         </ElDescriptionsItem>
-        <ElDescriptionsItem label="波动率">{{ formatValue(detail.volatility, '%') }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="波动率">{{
+          formatValue(detail.volatility, '%')
+        }}</ElDescriptionsItem>
       </ElDescriptions>
     </ElCard>
 
@@ -163,19 +192,23 @@ onMounted(() => {
         <span class="card-title">分项评分</span>
       </template>
       <ElRow :gutter="16">
-        <ElCol :span="6" v-for="(score, key) in {
-          macd_score: 'MACD评分',
-          kdj_score: 'KDJ评分',
-          rsi_score: 'RSI评分',
-          ma_score: '均线评分',
-          volume_score: '成交量评分',
-          trend_score: '趋势评分',
-          potential_score: '潜力评分'
-        }" :key="key">
+        <ElCol
+          :span="6"
+          v-for="(score, key) in {
+            macd_score: 'MACD评分',
+            kdj_score: 'KDJ评分',
+            rsi_score: 'RSI评分',
+            ma_score: '均线评分',
+            volume_score: '成交量评分',
+            trend_score: '趋势评分',
+            potential_score: '潜力评分'
+          }"
+          :key="key"
+        >
           <div class="sub-score-item">
             <div class="sub-score-label">{{ score }}</div>
             <ElProgress
-              :percentage="(detail[key] || 0) / 25 * 100"
+              :percentage="((detail[key] || 0) / 25) * 100"
               :stroke-width="8"
               :show-text="true"
               :format="() => detail[key]?.toFixed(0) || '0'"

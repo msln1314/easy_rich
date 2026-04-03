@@ -141,7 +141,11 @@ onMounted(() => {
             <div class="stock-info">
               <h2 class="stock-name">
                 {{ aggregateData.basic_info?.name || '-' }}
-                <ElTag v-if="aggregateData.quote" :type="aggregateData.quote.change_percent > 0 ? 'danger' : 'success'" size="large">
+                <ElTag
+                  v-if="aggregateData.quote"
+                  :type="aggregateData.quote.change_percent > 0 ? 'danger' : 'success'"
+                  size="large"
+                >
                   {{ aggregateData.quote.change_percent > 0 ? '涨' : '跌' }}
                 </ElTag>
               </h2>
@@ -149,7 +153,10 @@ onMounted(() => {
             </div>
 
             <div class="price-info" v-if="aggregateData.quote">
-              <div class="current-price" :class="getChangeClass(aggregateData.quote.change_percent)">
+              <div
+                class="current-price"
+                :class="getChangeClass(aggregateData.quote.change_percent)"
+              >
                 {{ aggregateData.quote.price?.toFixed(2) || '-' }}
               </div>
               <div class="change-info">
@@ -157,7 +164,8 @@ onMounted(() => {
                   {{ formatChangePercent(aggregateData.quote.change_percent) }}
                 </span>
                 <span class="change-amount" :class="getChangeClass(aggregateData.quote.change)">
-                  {{ aggregateData.quote.change > 0 ? '+' : '' }}{{ aggregateData.quote.change?.toFixed(2) || '-' }}
+                  {{ aggregateData.quote.change > 0 ? '+' : ''
+                  }}{{ aggregateData.quote.change?.toFixed(2) || '-' }}
                 </span>
               </div>
             </div>
@@ -169,11 +177,15 @@ onMounted(() => {
               </div>
               <div class="info-item">
                 <span class="label">最高</span>
-                <span class="value text-up">{{ aggregateData.quote?.high?.toFixed(2) || '-' }}</span>
+                <span class="value text-up">{{
+                  aggregateData.quote?.high?.toFixed(2) || '-'
+                }}</span>
               </div>
               <div class="info-item">
                 <span class="label">最低</span>
-                <span class="value text-down">{{ aggregateData.quote?.low?.toFixed(2) || '-' }}</span>
+                <span class="value text-down">{{
+                  aggregateData.quote?.low?.toFixed(2) || '-'
+                }}</span>
               </div>
               <div class="info-item">
                 <span class="label">成交量</span>
@@ -185,7 +197,9 @@ onMounted(() => {
               </div>
               <div class="info-item">
                 <span class="label">换手率</span>
-                <span class="value">{{ aggregateData.quote?.turnover_rate?.toFixed(2) || '-' }}%</span>
+                <span class="value"
+                  >{{ aggregateData.quote?.turnover_rate?.toFixed(2) || '-' }}%</span
+                >
               </div>
             </div>
 
@@ -224,7 +238,9 @@ onMounted(() => {
               </ElCol>
               <ElCol :span="4">
                 <div class="summary-item">
-                  <span class="summary-value">{{ aggregateData.sectors?.sectors?.length || 0 }}</span>
+                  <span class="summary-value">{{
+                    aggregateData.sectors?.sectors?.length || 0
+                  }}</span>
                   <span class="summary-label">板块概念</span>
                 </div>
               </ElCol>

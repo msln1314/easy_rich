@@ -303,6 +303,15 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           title: '持仓管理',
           noCache: true
         }
+      },
+      {
+        path: 'factor',
+        component: () => import('@/views/Vadmin/Stock/Factor/index.vue'),
+        name: 'FactorLibrary',
+        meta: {
+          title: '因子库',
+          noCache: true
+        }
       }
     ]
   }

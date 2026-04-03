@@ -23,6 +23,7 @@ from apps.admin.stock import (
     stock_longhubang,
     stock_market_dashboard,
     stock_kline,
+    llm_config,
 )
 from apps.admin.stock_calendar import router as stock_calendar_router
 from apps.admin.portfolio import router as portfolio_router
@@ -73,6 +74,7 @@ router.include_router(
 router.include_router(portfolio_router, prefix="/portfolio", tags=["投资组合"])
 router.include_router(review_router, prefix="/review", tags=["复盘功能"])
 router.include_router(fund_router, prefix="/fund", tags=["基金分析"])
+router.include_router(llm_config.router, prefix="/llm-config", tags=["LLM配置"])
 
 # router.include_router(notice.router, prefix="/system/notice", tags=["system"])
 # router.include_router(alarm.router, prefix="/system/alarm", tags=["system"])

@@ -1,76 +1,76 @@
 <template>
   <div class="ranking-container">
     <!-- 筛选条件 -->
-    <el-card class="filter-card">
-      <el-form :model="filterForm" inline>
-        <el-form-item label="数据源">
-          <el-radio-group v-model="dataSource" @change="handleDataSourceChange">
-            <el-radio-button label="realtime">实时排行</el-radio-button>
-            <el-radio-button label="history">历史排行</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="排行类型">
-          <el-select v-model="filterForm.rankingType" @change="handleRankingTypeChange">
-            <el-option
+    <ElCard class="filter-card">
+      <ElForm :model="filterForm" inline>
+        <ElFormItem label="数据源">
+          <ElRadioGroup v-model="dataSource" @change="handleDataSourceChange">
+            <ElRadioButton label="realtime">实时排行</ElRadioButton>
+            <ElRadioButton label="history">历史排行</ElRadioButton>
+          </ElRadioGroup>
+        </ElFormItem>
+        <ElFormItem label="排行类型">
+          <ElSelect v-model="filterForm.rankingType" @change="handleRankingTypeChange">
+            <ElOption
               v-for="type in rankingTypeOptions"
               :key="type.value"
               :label="type.label"
               :value="type.value"
             />
-          </el-select>
-        </el-form-item>
-        <el-form-item v-if="filterForm.rankingType === 'change_percent'" label="排序">
-          <el-select v-model="filterForm.order" @change="handleSearch">
-            <el-option label="降序" value="desc" />
-            <el-option label="升序" value="asc" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="行业">
-          <el-select
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem v-if="filterForm.rankingType === 'change_percent'" label="排序">
+          <ElSelect v-model="filterForm.order" @change="handleSearch">
+            <ElOption label="降序" value="desc" />
+            <ElOption label="升序" value="asc" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="行业">
+          <ElSelect
             v-model="filterForm.industry"
             clearable
             placeholder="全部行业"
             @change="handleSearch"
           >
-            <el-option v-for="ind in industries" :key="ind" :label="ind" :value="ind" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="市场">
-          <el-select
+            <ElOption v-for="ind in industries" :key="ind" :label="ind" :value="ind" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="市场">
+          <ElSelect
             v-model="filterForm.market"
             clearable
             placeholder="全部市场"
             @change="handleSearch"
           >
-            <el-option label="上海" value="SH" />
-            <el-option label="深圳" value="SZ" />
-          </el-select>
-        </el-form-item>
-        <el-form-item v-if="dataSource === 'history'" label="日期">
-          <el-date-picker
+            <ElOption label="上海" value="SH" />
+            <ElOption label="深圳" value="SZ" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem v-if="dataSource === 'history'" label="日期">
+          <ElDatePicker
             v-model="filterForm.dataDate"
             type="date"
             placeholder="选择日期"
             value-format="YYYY-MM-DD"
             @change="handleSearch"
           />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleRefresh">
-            <el-icon><Refresh /></el-icon>
+        </ElFormItem>
+        <ElFormItem>
+          <ElButton type="primary" @click="handleSearch">查询</ElButton>
+          <ElButton @click="handleRefresh">
+            <ElIcon><Refresh /></ElIcon>
             刷新
-          </el-button>
-          <el-button v-if="dataSource === 'history'" type="success" @click="handleSync">
-            <el-icon><Upload /></el-icon>
+          </ElButton>
+          <ElButton v-if="dataSource === 'history'" type="success" @click="handleSync">
+            <ElIcon><Upload /></ElIcon>
             同步数据
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+          </ElButton>
+        </ElFormItem>
+      </ElForm>
+    </ElCard>
 
     <!-- 排行表格 -->
-    <el-card class="table-card">
+    <ElCard class="table-card">
       <template #header>
         <div class="card-header">
           <span>{{ pageTitle }}</span>
@@ -78,7 +78,7 @@
         </div>
       </template>
 
-      <el-table
+      <ElTable
         :data="tableData"
         stripe
         style="width: 100%"
@@ -87,79 +87,81 @@
         @row-click="handleRowClick"
         highlight-current-row
       >
-        <el-table-column prop="rank" label="排名" width="80" align="center" fixed>
-          <template #default="{ row }">
-            <el-tag :type="getRankTagType(row.rank)" size="small">
-              {{ row.rank }}
-            </el-tag>
+        <ElTableColumn prop="rank" label="排名" width="80" align="center" fixed>
+          <template #default="scope">
+            <ElTag :type="getRankTagType(scope.row.rank)" size="small">
+              {{ scope.row.rank }}
+            </ElTag>
           </template>
-        </el-table-column>
-        <el-table-column prop="stock_code" label="股票代码" width="110">
-          <template #default="{ row }">
-            <el-link type="primary" @click.stop="handleViewStock(row)">
-              {{ row.stock_code }}
-            </el-link>
+        </ElTableColumn>
+        <ElTableColumn prop="stock_code" label="股票代码" width="110">
+          <template #default="scope">
+            <ElLink type="primary" @click.stop="handleViewStock(scope.row)">
+              {{ scope.row.stock_code }}
+            </ElLink>
           </template>
-        </el-table-column>
-        <el-table-column prop="stock_name" label="股票名称" width="120" show-overflow-tooltip />
-        <el-table-column prop="industry" label="行业" width="100" show-overflow-tooltip />
-        <el-table-column prop="market" label="市场" width="70" align="center">
-          <template #default="{ row }">
-            <el-tag size="small" :type="row.market === 'SH' ? 'warning' : 'success'">
-              {{ row.market }}
-            </el-tag>
+        </ElTableColumn>
+        <ElTableColumn prop="stock_name" label="股票名称" width="120" show-overflow-tooltip />
+        <ElTableColumn prop="industry" label="行业" width="100" show-overflow-tooltip />
+        <ElTableColumn prop="market" label="市场" width="70" align="center">
+          <template #default="scope">
+            <ElTag size="small" :type="scope.row.market === 'SH' ? 'warning' : 'success'">
+              {{ scope.row.market }}
+            </ElTag>
           </template>
-        </el-table-column>
-        <el-table-column :label="rankingValueLabel" width="130" align="right">
-          <template #default="{ row }">
-            {{ formatRankingValue(row) }}
+        </ElTableColumn>
+        <ElTableColumn :label="rankingValueLabel" width="130" align="right">
+          <template #default="scope">
+            {{ formatRankingValue(scope.row) }}
           </template>
-        </el-table-column>
-        <el-table-column prop="current_price" label="最新价" width="100" align="right">
-          <template #default="{ row }">
-            {{ row.current_price?.toFixed(2) || '-' }}
+        </ElTableColumn>
+        <ElTableColumn prop="current_price" label="最新价" width="100" align="right">
+          <template #default="scope">
+            {{ formatPrice(scope.row.current_price) }}
           </template>
-        </el-table-column>
-        <el-table-column prop="change_percent" label="涨跌幅" width="100" align="right">
-          <template #default="{ row }">
-            <span :class="getChangeClass(row.change_percent)">
-              {{ formatChangePercent(row.change_percent) }}
+        </ElTableColumn>
+        <ElTableColumn prop="change_percent" label="涨跌幅" width="100" align="right">
+          <template #default="scope">
+            <span :class="getChangeClass(scope.row.change_percent)">
+              {{ formatChangePercent(scope.row.change_percent) }}
             </span>
           </template>
-        </el-table-column>
-        <el-table-column prop="volume" label="成交量" width="120" align="right">
-          <template #default="{ row }">
-            {{ formatNumber(row.volume) }}
+        </ElTableColumn>
+        <ElTableColumn prop="volume" label="成交量" width="120" align="right">
+          <template #default="scope">
+            {{ formatNumber(scope.row.volume) }}
           </template>
-        </el-table-column>
-        <el-table-column prop="amount" label="成交额" width="120" align="right">
-          <template #default="{ row }">
-            {{ formatAmount(row.amount) }}
+        </ElTableColumn>
+        <ElTableColumn prop="amount" label="成交额" width="120" align="right">
+          <template #default="scope">
+            {{ formatAmount(scope.row.amount) }}
           </template>
-        </el-table-column>
-        <el-table-column prop="turnover_rate" label="换手率" width="90" align="right">
-          <template #default="{ row }"> {{ row.turnover_rate?.toFixed(2) || '-' }}% </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click.stop="handleViewTrend(row)">
+        </ElTableColumn>
+        <ElTableColumn prop="turnover_rate" label="换手率" width="90" align="right">
+          <template #default="scope">
+            {{ formatTurnoverRate(scope.row.turnover_rate) }}
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="操作" width="120" align="center" fixed="right">
+          <template #default="scope">
+            <ElButton type="primary" link size="small" @click.stop="handleViewTrend(scope.row)">
               趋势
-            </el-button>
-            <el-button
+            </ElButton>
+            <ElButton
               v-if="filterForm.rankingType === 'hot'"
               type="info"
               link
               size="small"
-              @click.stop="handleViewHotDetail(row)"
+              @click.stop="handleViewHotDetail(scope.row)"
             >
               详情
-            </el-button>
+            </ElButton>
           </template>
-        </el-table-column>
-      </el-table>
+        </ElTableColumn>
+      </ElTable>
 
       <div class="pagination-container">
-        <el-pagination
+        <ElPagination
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.pageSize"
           :page-sizes="[20, 50, 100, 200]"
@@ -169,30 +171,30 @@
           @current-change="handleSearch"
         />
       </div>
-    </el-card>
+    </ElCard>
 
     <!-- 趋势弹窗 -->
-    <el-dialog
+    <ElDialog
       v-model="trendDialogVisible"
       :title="`${selectedStock?.stock_name} (${selectedStock?.stock_code}) 排行趋势`"
       width="900px"
     >
       <div class="trend-content">
-        <el-radio-group
+        <ElRadioGroup
           v-model="trendType"
           @change="handleTrendTypeChange"
           style="margin-bottom: 16px"
         >
-          <el-radio-button v-for="type in trendTypeOptions" :key="type.value" :label="type.value">
+          <ElRadioButton v-for="type in trendTypeOptions" :key="type.value" :label="type.value">
             {{ type.label }}
-          </el-radio-button>
-        </el-radio-group>
+          </ElRadioButton>
+        </ElRadioGroup>
         <v-chart class="trend-chart" :option="trendChartOption" autoresize />
       </div>
-    </el-dialog>
+    </ElDialog>
 
     <!-- 热度详情弹窗 -->
-    <el-dialog
+    <ElDialog
       v-model="hotDetailDialogVisible"
       :title="`${selectedStock?.stock_name} (${selectedStock?.stock_code}) 热度详情`"
       width="900px"
@@ -200,14 +202,33 @@
       <div class="hot-detail-content">
         <v-chart class="hot-chart" :option="hotChartOption" autoresize />
       </div>
-    </el-dialog>
+    </ElDialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  ElMessage,
+  ElMessageBox,
+  ElCard,
+  ElForm,
+  ElFormItem,
+  ElRadioGroup,
+  ElRadioButton,
+  ElSelect,
+  ElOption,
+  ElDatePicker,
+  ElButton,
+  ElIcon,
+  ElTable,
+  ElTableColumn,
+  ElTag,
+  ElLink,
+  ElPagination,
+  ElDialog
+} from 'element-plus'
 import { Refresh, Upload } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -227,7 +248,7 @@ import {
   syncDailyRanking,
   getIndustries,
   getHotDetail
-} from '/@/api/stock/dailyRanking'
+} from '@/api/stock/dailyRanking'
 
 use([
   CanvasRenderer,
@@ -311,7 +332,7 @@ const pageTitle = computed(() => {
     change_percent: '涨跌幅',
     hot: '热度'
   }
-  return `${map[filterForm.value.rankingType]}排行`
+  return `${map[filterForm.rankingType]}排行`
 })
 
 // 排行数值标签
@@ -323,7 +344,7 @@ const rankingValueLabel = computed(() => {
     change_percent: '涨跌幅(%)',
     hot: '热度值'
   }
-  return map[filterForm.value.rankingType] || '排行值'
+  return map[filterForm.rankingType] || '排行值'
 })
 
 // 图表配置
@@ -376,7 +397,7 @@ const trendChartOption = computed(() => ({
 // 热度详情图表配置
 const hotChartOption = computed(() => {
   if (!hotDetailData.value?.trend_data) return {}
-  const trendData = hotDetailData.value.trend_data
+  const data = hotDetailData.value.trend_data
   return {
     tooltip: {
       trigger: 'axis'
@@ -392,7 +413,7 @@ const hotChartOption = computed(() => {
     },
     xAxis: {
       type: 'category',
-      data: trendData.map((item: any) => item.data_date)
+      data: data.map((item: any) => item.data_date)
     },
     yAxis: [
       {
@@ -411,14 +432,14 @@ const hotChartOption = computed(() => {
       {
         name: '排名',
         type: 'line',
-        data: trendData.map((item: any) => item.rank),
+        data: data.map((item: any) => item.rank),
         yAxisIndex: 0,
         smooth: true
       },
       {
         name: '热度值',
         type: 'bar',
-        data: trendData.map((item: any) => item.hot_value || 0),
+        data: data.map((item: any) => item.hot_value || 0),
         yAxisIndex: 1
       }
     ]
@@ -448,7 +469,7 @@ function formatChangePercent(value: number): string {
 
 // 格式化排行数值
 function formatRankingValue(row: any): string {
-  const { rankingType } = filterForm.value
+  const { rankingType } = filterForm
   if (rankingType === 'turnover' || rankingType === 'change_percent') {
     return `${(row.turnover_rate || row.change_percent || 0).toFixed(2)}%`
   }
@@ -480,10 +501,22 @@ function formatAmount(amount: number): string {
   return amount.toFixed(2)
 }
 
+// 格式化价格
+function formatPrice(price: number): string {
+  if (!price && price !== 0) return '-'
+  return price.toFixed(2)
+}
+
+// 格式化换手率
+function formatTurnoverRate(rate: number): string {
+  if (!rate && rate !== 0) return '-'
+  return rate.toFixed(2) + '%'
+}
+
 // 获取行业列表
 async function fetchIndustries() {
   try {
-    const res = await getIndustries(filterForm.value.rankingType)
+    const res = await getIndustries(filterForm.rankingType)
     industries.value = res.data || []
   } catch (error) {
     console.error('获取行业列表失败:', error)
@@ -507,7 +540,7 @@ async function fetchData() {
     if (dataSource.value === 'realtime') {
       if (filterForm.rankingType === 'hot') {
         // 实时模式不支持热度排行
-        filterForm.value.rankingType = 'turnover'
+        filterForm.rankingType = 'turnover'
         params.rankingType = 'turnover'
       }
       res = await getRealtimeRanking({ ...params, limit: pagination.pageSize })
@@ -545,7 +578,7 @@ function handleSearch() {
 
 // 排行类型变化
 function handleRankingTypeChange() {
-  filterForm.value.industry = ''
+  filterForm.industry = ''
   fetchIndustries()
   handleSearch()
 }
@@ -554,7 +587,7 @@ function handleRankingTypeChange() {
 function handleDataSourceChange() {
   pagination.page = 1
   // 重置排行类型
-  filterForm.value.rankingType = 'turnover'
+  filterForm.rankingType = 'turnover'
   fetchIndustries()
   fetchData()
 }
@@ -574,7 +607,7 @@ async function handleSync() {
       type: 'warning'
     })
     const res = await syncDailyRanking({
-      dataDate: filterForm.value.dataDate || undefined
+      dataDate: filterForm.dataDate || undefined
     })
     if (res.code === 200) {
       ElMessage.success('同步成功')
@@ -582,7 +615,7 @@ async function handleSync() {
     } else {
       ElMessage.error(res.message || '同步失败')
     }
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('同步失败')
     }
@@ -605,7 +638,7 @@ function handleViewStock(row: any) {
 // 查看趋势
 async function handleViewTrend(row: any) {
   selectedStock.value = row
-  trendType.value = filterForm.value.rankingType
+  trendType.value = filterForm.rankingType
   trendDialogVisible.value = true
   await fetchTrendData(row.stock_code)
 }

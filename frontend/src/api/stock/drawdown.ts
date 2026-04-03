@@ -76,9 +76,7 @@ export const analyzeDrawdown = (data: {
 /**
  * 获取回调买点信号
  */
-export const getPullbackSignals = (
-  stockCode: string
-): Promise<IResponse<PullbackSignal[]>> => {
+export const getPullbackSignals = (stockCode: string): Promise<IResponse<PullbackSignal[]>> => {
   return request.get({ url: `/drawdown/signals/${stockCode}` })
 }
 

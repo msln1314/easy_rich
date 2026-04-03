@@ -96,7 +96,10 @@ export const createLLMConfig = (data: LLMModelConfigCreate): Promise<IResponse<L
 /**
  * 更新模型配置
  */
-export const updateLLMConfig = (id: number, data: LLMModelConfigUpdate): Promise<IResponse<LLMModelConfig>> => {
+export const updateLLMConfig = (
+  id: number,
+  data: LLMModelConfigUpdate
+): Promise<IResponse<LLMModelConfig>> => {
   return request.put({ url: `/llm-config/${id}`, data })
 }
 
@@ -124,6 +127,8 @@ export const toggleLLMConfig = (id: number): Promise<IResponse<{ is_enabled: boo
 /**
  * 测试模型配置
  */
-export const testLLMConfig = (id: number): Promise<IResponse<{ success: boolean; message: string }>> => {
+export const testLLMConfig = (
+  id: number
+): Promise<IResponse<{ success: boolean; message: string }>> => {
   return request.post({ url: `/llm-config/${id}/test` })
 }

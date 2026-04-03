@@ -1,6 +1,23 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import { ElMessage, ElRow, ElCol, ElCard, ElButton, ElSelect, ElOption, ElTag, ElProgress, ElScrollbar, ElEmpty, ElInput, ElRadioGroup, ElRadioButton, ElDescriptions, ElDescriptionsItem } from 'element-plus'
+import {
+  ElMessage,
+  ElRow,
+  ElCol,
+  ElCard,
+  ElButton,
+  ElSelect,
+  ElOption,
+  ElTag,
+  ElProgress,
+  ElScrollbar,
+  ElEmpty,
+  ElInput,
+  ElRadioGroup,
+  ElRadioButton,
+  ElDescriptions,
+  ElDescriptionsItem
+} from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { agentAnalyze, type AgentAnalyzeRequest, type AgentOpinion } from '@/api/stock/ai'
 
@@ -129,11 +146,7 @@ const resetAnalysis = () => {
 
           <div class="mb-4">
             <label class="block text-sm text-gray-500 mb-2">股票代码</label>
-            <ElInput
-              v-model="stockCode"
-              placeholder="请输入股票代码"
-              :disabled="loading"
-            />
+            <ElInput v-model="stockCode" placeholder="请输入股票代码" :disabled="loading" />
           </div>
 
           <div class="mb-4">
@@ -161,9 +174,7 @@ const resetAnalysis = () => {
             <ElButton type="primary" :loading="loading" @click="runAnalysis" class="flex-1">
               开始分析
             </ElButton>
-            <ElButton @click="resetAnalysis" :disabled="loading">
-              重置
-            </ElButton>
+            <ElButton @click="resetAnalysis" :disabled="loading"> 重置 </ElButton>
           </div>
 
           <!-- 进度条 -->
@@ -197,9 +208,15 @@ const resetAnalysis = () => {
             </template>
 
             <ElDescriptions :column="3" border>
-              <ElDescriptionsItem label="股票代码">{{ analysisResult.stock_code }}</ElDescriptionsItem>
-              <ElDescriptionsItem label="股票名称">{{ analysisResult.stock_name }}</ElDescriptionsItem>
-              <ElDescriptionsItem label="分析时间">{{ analysisResult.analysis_time }}</ElDescriptionsItem>
+              <ElDescriptionsItem label="股票代码">{{
+                analysisResult.stock_code
+              }}</ElDescriptionsItem>
+              <ElDescriptionsItem label="股票名称">{{
+                analysisResult.stock_name
+              }}</ElDescriptionsItem>
+              <ElDescriptionsItem label="分析时间">{{
+                analysisResult.analysis_time
+              }}</ElDescriptionsItem>
               <ElDescriptionsItem label="置信度">
                 <ElProgress :percentage="analysisResult.confidence * 100" :stroke-width="15" />
               </ElDescriptionsItem>
@@ -225,7 +242,12 @@ const resetAnalysis = () => {
             </template>
 
             <ElRow :gutter="16">
-              <ElCol v-for="opinion in agentOpinions" :key="opinion.agent_name" :span="12" class="mb-4">
+              <ElCol
+                v-for="opinion in agentOpinions"
+                :key="opinion.agent_name"
+                :span="12"
+                class="mb-4"
+              >
                 <ElCard shadow="hover">
                   <template #header>
                     <div class="flex items-center justify-between">
@@ -238,7 +260,11 @@ const resetAnalysis = () => {
 
                   <div class="mb-2">
                     <span class="text-sm text-gray-500">置信度：</span>
-                    <ElProgress :percentage="opinion.confidence * 100" :stroke-width="8" class="inline-block w-32" />
+                    <ElProgress
+                      :percentage="opinion.confidence * 100"
+                      :stroke-width="8"
+                      class="inline-block w-32"
+                    />
                   </div>
 
                   <ElScrollbar height="150px">

@@ -10,6 +10,7 @@ import json
 
 from app.models.ai_models import AgentAnalyzeRequest, AgentAnalyzeResponse
 from app.services.ai.agent_orchestrator import AgentOrchestrator
+from app.services.ai.llm_adapter import get_default_llm_adapter
 
 router = APIRouter()
 
@@ -27,9 +28,13 @@ async def analyze(request: AgentAnalyzeRequest):
     Raises:
         HTTPException: 分析过程失败时抛出500错误
     """
+    # 获取默认LLM配置
+    default_llm = get_default_llm_adapter()
+    model_name = default_llm.config.model
+
     orchestrator = AgentOrchestrator(
         mode=request.mode,
-        model="gpt-4",
+        model=model_name,
     )
 
     try:
@@ -57,7 +62,11 @@ async def analyze_stream(request: AgentAnalyzeRequest):
 
     async def generate():
         """生成SSE事件流"""
-        orchestrator = AgentOrchestrator(mode=request.mode)
+        # 获取默认LLM配置
+        default_llm = get_default_llm_adapter()
+        model_name = default_llm.config.model
+
+        orchestrator = AgentOrchestrator(mode=request.mode, model=model_name)
         progress_messages = []
 
         def progress_callback(msg: str):

@@ -44,7 +44,13 @@ const getStrengthType = (strength: number) => {
         <div class="flex items-center justify-between mb-2">
           <span>信号强度</span>
           <ElTag :type="getStrengthType(signal.signal_strength)">
-            {{ signal.signal_strength >= 70 ? '强买点' : signal.signal_strength >= 50 ? '中等买点' : '观望' }}
+            {{
+              signal.signal_strength >= 70
+                ? '强买点'
+                : signal.signal_strength >= 50
+                ? '中等买点'
+                : '观望'
+            }}
           </ElTag>
         </div>
         <ElProgress

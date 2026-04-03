@@ -85,7 +85,9 @@ export interface AgentAnalyzeResponse {
 /**
  * 执行多Agent分析
  */
-export const agentAnalyze = (data: AgentAnalyzeRequest): Promise<IResponse<AgentAnalyzeResponse>> => {
+export const agentAnalyze = (
+  data: AgentAnalyzeRequest
+): Promise<IResponse<AgentAnalyzeResponse>> => {
   return request.post({ url: '/ai/agents/analyze', data })
 }
 
@@ -203,7 +205,9 @@ export interface DailyReviewResponse {
 /**
  * 获取每日复盘
  */
-export const getDailyReview = (params: { date?: string }): Promise<IResponse<DailyReviewResponse>> => {
+export const getDailyReview = (params: {
+  date?: string
+}): Promise<IResponse<DailyReviewResponse>> => {
   return request.get({ url: '/ai/review/daily', params })
 }
 

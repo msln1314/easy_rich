@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { ElRow, ElCol, ElCard, ElDescriptions, ElDescriptionsItem, ElTag, ElTable, ElTableColumn } from 'element-plus'
+import {
+  ElRow,
+  ElCol,
+  ElCard,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElTag,
+  ElTable,
+  ElTableColumn
+} from 'element-plus'
 
 defineProps<{
   data: any
@@ -31,12 +40,24 @@ const formatAmount = (value: number | null | undefined) => {
           <ElDescriptions :column="2" border size="small" v-if="data.basic_info">
             <ElDescriptionsItem label="股票代码">{{ data.basic_info.code }}</ElDescriptionsItem>
             <ElDescriptionsItem label="股票名称">{{ data.basic_info.name }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="所属行业">{{ data.basic_info.industry || '-' }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="上市日期">{{ data.basic_info.listing_date || '-' }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="总市值">{{ formatAmount(data.basic_info.total_market_value) }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="流通市值">{{ formatAmount(data.basic_info.circulating_market_value) }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="总股本">{{ formatAmount(data.basic_info.total_share) }}股</ElDescriptionsItem>
-            <ElDescriptionsItem label="流通股">{{ formatAmount(data.basic_info.circulating_share) }}股</ElDescriptionsItem>
+            <ElDescriptionsItem label="所属行业">{{
+              data.basic_info.industry || '-'
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="上市日期">{{
+              data.basic_info.listing_date || '-'
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="总市值">{{
+              formatAmount(data.basic_info.total_market_value)
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="流通市值">{{
+              formatAmount(data.basic_info.circulating_market_value)
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="总股本"
+              >{{ formatAmount(data.basic_info.total_share) }}股</ElDescriptionsItem
+            >
+            <ElDescriptionsItem label="流通股"
+              >{{ formatAmount(data.basic_info.circulating_share) }}股</ElDescriptionsItem
+            >
           </ElDescriptions>
           <div v-else class="no-data">暂无基本信息</div>
         </ElCard>
@@ -50,29 +71,59 @@ const formatAmount = (value: number | null | undefined) => {
           </template>
           <ElDescriptions :column="2" border size="small" v-if="data.quote">
             <ElDescriptionsItem label="最新价">
-              <span :class="data.quote.change_percent > 0 ? 'text-up' : data.quote.change_percent < 0 ? 'text-down' : ''">
+              <span
+                :class="
+                  data.quote.change_percent > 0
+                    ? 'text-up'
+                    : data.quote.change_percent < 0
+                    ? 'text-down'
+                    : ''
+                "
+              >
                 {{ formatValue(data.quote.price) }}
               </span>
             </ElDescriptionsItem>
             <ElDescriptionsItem label="涨跌幅">
-              <span :class="data.quote.change_percent > 0 ? 'text-up' : data.quote.change_percent < 0 ? 'text-down' : ''">
+              <span
+                :class="
+                  data.quote.change_percent > 0
+                    ? 'text-up'
+                    : data.quote.change_percent < 0
+                    ? 'text-down'
+                    : ''
+                "
+              >
                 {{ formatValue(data.quote.change_percent, '%') }}
               </span>
             </ElDescriptionsItem>
             <ElDescriptionsItem label="今开">{{ formatValue(data.quote.open) }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="昨收">{{ formatValue(data.quote.pre_close || data.quote.previous_close) }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="昨收">{{
+              formatValue(data.quote.pre_close || data.quote.previous_close)
+            }}</ElDescriptionsItem>
             <ElDescriptionsItem label="最高">
               <span class="text-up">{{ formatValue(data.quote.high) }}</span>
             </ElDescriptionsItem>
             <ElDescriptionsItem label="最低">
               <span class="text-down">{{ formatValue(data.quote.low) }}</span>
             </ElDescriptionsItem>
-            <ElDescriptionsItem label="成交量">{{ formatAmount(data.quote.volume) }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="成交额">{{ formatAmount(data.quote.amount) }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="换手率">{{ formatValue(data.quote.turnover_rate, '%') }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="市盈率">{{ formatValue(data.quote.pe_ratio) }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="市净率">{{ formatValue(data.quote.pb_ratio) }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="总市值">{{ formatAmount(data.quote.market_cap) }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="成交量">{{
+              formatAmount(data.quote.volume)
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="成交额">{{
+              formatAmount(data.quote.amount)
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="换手率">{{
+              formatValue(data.quote.turnover_rate, '%')
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="市盈率">{{
+              formatValue(data.quote.pe_ratio)
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="市净率">{{
+              formatValue(data.quote.pb_ratio)
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="总市值">{{
+              formatAmount(data.quote.market_cap)
+            }}</ElDescriptionsItem>
           </ElDescriptions>
           <div v-else class="no-data">暂无行情数据</div>
         </ElCard>
@@ -102,13 +153,20 @@ const formatAmount = (value: number | null | undefined) => {
       <template #header>
         <span class="card-title">资金流向</span>
       </template>
-      <ElDescriptions :column="4" border size="small" v-if="data.fund_flow?.main_net_inflow !== undefined">
+      <ElDescriptions
+        :column="4"
+        border
+        size="small"
+        v-if="data.fund_flow?.main_net_inflow !== undefined"
+      >
         <ElDescriptionsItem label="主力净流入">
           <span :class="data.fund_flow.main_net_inflow > 0 ? 'text-up' : 'text-down'">
             {{ formatAmount(data.fund_flow.main_net_inflow) }}
           </span>
         </ElDescriptionsItem>
-        <ElDescriptionsItem label="主力净占比">{{ formatValue(data.fund_flow.main_net_inflow_ratio, '%') }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="主力净占比">{{
+          formatValue(data.fund_flow.main_net_inflow_ratio, '%')
+        }}</ElDescriptionsItem>
         <ElDescriptionsItem label="超大单净流入">
           <span :class="data.fund_flow.super_net_inflow > 0 ? 'text-up' : 'text-down'">
             {{ formatAmount(data.fund_flow.super_net_inflow) }}
@@ -119,8 +177,12 @@ const formatAmount = (value: number | null | undefined) => {
             {{ formatAmount(data.fund_flow.big_net_inflow) }}
           </span>
         </ElDescriptionsItem>
-        <ElDescriptionsItem label="中单净流入">{{ formatAmount(data.fund_flow.medium_net_inflow) }}</ElDescriptionsItem>
-        <ElDescriptionsItem label="小单净流入">{{ formatAmount(data.fund_flow.small_net_inflow) }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="中单净流入">{{
+          formatAmount(data.fund_flow.medium_net_inflow)
+        }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="小单净流入">{{
+          formatAmount(data.fund_flow.small_net_inflow)
+        }}</ElDescriptionsItem>
       </ElDescriptions>
       <div v-else class="no-data">暂无资金流向数据</div>
     </ElCard>

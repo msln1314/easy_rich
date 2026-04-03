@@ -1,5 +1,15 @@
 <script setup lang="ts">
-import { ElRow, ElCol, ElCard, ElDescriptions, ElDescriptionsItem, ElTag, ElTable, ElTableColumn, ElEmpty } from 'element-plus'
+import {
+  ElRow,
+  ElCol,
+  ElCard,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElTag,
+  ElTable,
+  ElTableColumn,
+  ElEmpty
+} from 'element-plus'
 
 defineProps<{
   data: any
@@ -28,7 +38,12 @@ const formatAmount = (value: number | null | undefined) => {
           <template #header>
             <span class="card-title">主力资金流向</span>
           </template>
-          <ElDescriptions :column="2" border size="small" v-if="data.fund_flow?.main_net_inflow !== undefined">
+          <ElDescriptions
+            :column="2"
+            border
+            size="small"
+            v-if="data.fund_flow?.main_net_inflow !== undefined"
+          >
             <ElDescriptionsItem label="主力净流入">
               <span :class="data.fund_flow.main_net_inflow > 0 ? 'text-up' : 'text-down'">
                 {{ formatAmount(data.fund_flow.main_net_inflow) }}
@@ -49,8 +64,12 @@ const formatAmount = (value: number | null | undefined) => {
                 {{ formatAmount(data.fund_flow.big_net_inflow) }}
               </span>
             </ElDescriptionsItem>
-            <ElDescriptionsItem label="中单净流入">{{ formatAmount(data.fund_flow.medium_net_inflow) }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="小单净流入">{{ formatAmount(data.fund_flow.small_net_inflow) }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="中单净流入">{{
+              formatAmount(data.fund_flow.medium_net_inflow)
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="小单净流入">{{
+              formatAmount(data.fund_flow.small_net_inflow)
+            }}</ElDescriptionsItem>
           </ElDescriptions>
           <ElEmpty v-else description="暂无资金流向数据" :image-size="60" />
         </ElCard>
@@ -62,7 +81,12 @@ const formatAmount = (value: number | null | undefined) => {
           <template #header>
             <span class="card-title">融资融券</span>
           </template>
-          <ElTable :data="data.margin?.data?.slice(0, 5) || []" stripe size="small" v-if="data.margin?.data?.length > 0">
+          <ElTable
+            :data="data.margin?.data?.slice(0, 5) || []"
+            stripe
+            size="small"
+            v-if="data.margin?.data?.length > 0"
+          >
             <ElTableColumn prop="trade_date" label="日期" width="120" />
             <ElTableColumn prop="financing_balance" label="融资余额" align="right">
               <template #default="{ row }">{{ formatAmount(row.financing_balance) }}</template>
@@ -84,7 +108,12 @@ const formatAmount = (value: number | null | undefined) => {
       <template #header>
         <span class="card-title">股权质押</span>
       </template>
-      <ElTable :data="data.pledge?.data || []" stripe size="small" v-if="data.pledge?.data?.length > 0">
+      <ElTable
+        :data="data.pledge?.data || []"
+        stripe
+        size="small"
+        v-if="data.pledge?.data?.length > 0"
+      >
         <ElTableColumn prop="shareholder" label="股东名称" min-width="150" />
         <ElTableColumn prop="pledged_shares" label="质押股数" width="120" align="right">
           <template #default="{ row }">{{ formatAmount(row.pledged_shares) }}</template>

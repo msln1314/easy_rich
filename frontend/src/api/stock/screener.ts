@@ -1,4 +1,4 @@
-import { defHttp } from '/@/utils/http/axios'
+import request from '@/config/axios'
 
 enum Api {
   SCREEN_STOCKS = '/screener/stocks',
@@ -30,7 +30,7 @@ export interface ScreenerResult {
 
 // 条件选股
 export function screenByCondition(conditions: Condition[], limit: number = 50) {
-  return defHttp.post({
+  return request.post({
     url: Api.SCREEN_STOCKS,
     data: { conditions, limit }
   })
@@ -38,7 +38,7 @@ export function screenByCondition(conditions: Condition[], limit: number = 50) {
 
 // 涨停股筛选
 export function screenLimitUp(limit: number = 50) {
-  return defHttp.get({
+  return request.get({
     url: Api.LIMIT_UP,
     params: { limit }
   })
@@ -46,7 +46,7 @@ export function screenLimitUp(limit: number = 50) {
 
 // 跌停股筛选
 export function screenLimitDown(limit: number = 50) {
-  return defHttp.get({
+  return request.get({
     url: Api.LIMIT_DOWN,
     params: { limit }
   })
@@ -54,7 +54,7 @@ export function screenLimitDown(limit: number = 50) {
 
 // 高换手率筛选
 export function screenHighTurnover(limit: number = 50) {
-  return defHttp.get({
+  return request.get({
     url: Api.HIGH_TURNOVER,
     params: { limit }
   })
@@ -62,7 +62,7 @@ export function screenHighTurnover(limit: number = 50) {
 
 // 低估值筛选
 export function screenLowPE(limit: number = 50) {
-  return defHttp.get({
+  return request.get({
     url: Api.LOW_PE,
     params: { limit }
   })
@@ -70,7 +70,7 @@ export function screenLowPE(limit: number = 50) {
 
 // 放量股票筛选
 export function screenVolumeSurge(limit: number = 50) {
-  return defHttp.get({
+  return request.get({
     url: Api.VOLUME_SURGE,
     params: { limit }
   })
@@ -78,7 +78,7 @@ export function screenVolumeSurge(limit: number = 50) {
 
 // 小市值筛选
 export function screenSmallCap(limit: number = 50) {
-  return defHttp.get({
+  return request.get({
     url: Api.SMALL_CAP,
     params: { limit }
   })
