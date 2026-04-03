@@ -1,0 +1,24 @@
+[project]
+name = "qmt-service"
+version = "1.0.0"
+description = "QMT量化交易服务"
+requires-python = ">=3.10"
+
+dependencies = [
+    "fastapi>=0.101.0",
+    "uvicorn>=0.23.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "redis>=4.5.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "httpx>=0.24.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
