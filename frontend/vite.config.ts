@@ -129,6 +129,12 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, '/api')
         },
+        // QMT服务代理
+        '/qmt': {
+          target: 'http://127.0.0.1:8009',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/qmt/, '/api/v1')
+        },
         // 选项写法
         '/media': {
           target: 'http://127.0.0.1:9000',
